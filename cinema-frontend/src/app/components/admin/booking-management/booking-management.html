@@ -1,0 +1,376 @@
+<div class="booking-management-container">
+  <!-- Header -->
+  <header class="management-header">
+    <div class="header-content">
+      <div class="header-left">
+        <h1>Quản lý đặt vé</h1>
+        <p>Quản lý và theo dõi tất cả đặt vé trong hệ thống</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-secondary" (click)="refreshData()" [disabled]="loading">
+          <i class="fas fa-sync-alt"></i>
+          Làm mới
+        </button>
+        <button class="btn-primary" (click)="showExportModal = true">
+          <i class="fas fa-download"></i>
+          Xuất báo cáo
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Cards -->
+  <section class="stats-section" *ngIf="!statsLoading">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-ticket-alt"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ bookingStats.totalBookings }}</h3>
+          <p>Tổng đặt vé</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ formatCurrency(bookingStats.totalRevenue) }}</h3>
+          <p>Tổng doanh thu</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-calendar-day"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ bookingStats.todayBookings }}</h3>
+          <p>Đặt vé hôm nay</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ formatCurrency(bookingStats.todayRevenue) }}</h3>
+          <p>Doanh thu hôm nay</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filters and Search -->
+  <section class="filters-section">
+    <div class="filters-container">
+      <form [formGroup]="filterForm" class="filter-form">
+        <div class="filter-group">
+          <label>Trạng thái</label>
+          <select formControlName="status" class="filter-select">
+            <option value="">Tất cả trạng thái</option>
+            <option value="PENDING">Chờ xác nhận</option>
+            <option value="CONFIRMED">Đã xác nhận</option>
+            <option value="CANCELLED">Đã hủy</option>
+            <option value="COMPLETED">Hoàn thành</option>
+            <option value="EXPIRED">Hết hạn</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Tên phim</label>
+          <input type="text" formControlName="movieTitle" placeholder="Nhập tên phim..." class="filter-input">
+        </div>
+        <div class="filter-group">
+          <label>Người dùng</label>
+          <input type="text" formControlName="username" placeholder="Nhập tên người dùng..." class="filter-input">
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn-secondary" (click)="clearFilters()">
+            <i class="fas fa-times"></i>
+            Xóa bộ lọc
+          </button>
+        </div>
+      </form>
+      
+      <div class="search-container">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery" 
+            placeholder="Tìm kiếm đặt vé..."
+            (keyup.enter)="searchBookings()"
+            class="search-input">
+          <button class="search-btn" (click)="searchBookings()">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bookings Table -->
+  <section class="bookings-section">
+    <div class="table-container">
+      <div class="table-header">
+        <h2>Danh sách đặt vé</h2>
+        <div class="table-info">
+          <span>Hiển thị {{ currentPage * pageSize + 1 }} đến {{ Math.min((currentPage + 1) * pageSize, totalItems) }} trong tổng số {{ totalItems }} đặt vé</span>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="bookings-table" *ngIf="!loading && filteredBookings.length > 0">
+          <thead>
+            <tr>
+              <th>Mã đặt vé</th>
+              <th>Người dùng</th>
+              <th>Phim</th>
+              <th>Suất chiếu</th>
+              <th>Ghế</th>
+              <th>Giá vé</th>
+              <th>Trạng thái</th>
+              <th>Ngày đặt</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let booking of filteredBookings">
+              <td class="booking-id">#{{ booking.id }}</td>
+              <td class="user-info">
+                <div class="user-details">
+                  <span class="username">{{ booking.user.username }}</span>
+                  <span class="email">{{ booking.user.email }}</span>
+                </div>
+              </td>
+              <td class="movie-info">
+                <div class="movie-details">
+                  <img [src]="booking.showtime.movie.posterUrl || 'assets/default-poster.jpg'" [alt]="booking.showtime.movie.title" class="movie-poster">
+                  <div class="movie-text">
+                    <span class="movie-title">{{ booking.showtime.movie.title }}</span>
+                    <span class="room-name">{{ booking.showtime.room.name }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="showtime-info">
+                <span class="showtime-time">{{ formatDateTime(booking.showtime.startTime) }}</span>
+              </td>
+              <td class="seats-info">
+                <div class="seats-list">
+                  <span class="seat-badge" *ngFor="let seat of booking.seatNumbers">{{ seat }}</span>
+                </div>
+              </td>
+              <td class="price-info">
+                <span class="price">{{ formatCurrency(booking.totalPrice) }}</span>
+              </td>
+              <td class="status-info">
+                <span class="status-badge" [ngClass]="getStatusBadgeClass(booking.status)">
+                  {{ getStatusText(booking.status) }}
+                </span>
+              </td>
+              <td class="date-info">
+                <span class="date">{{ formatDate(booking.createdAt) }}</span>
+                <span class="time">{{ formatDateTime(booking.createdAt) }}</span>
+              </td>
+              <td class="actions">
+                <div class="action-buttons">
+                  <button class="action-btn view" (click)="viewBookingDetails(booking)" title="Xem chi tiết">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button class="action-btn edit" (click)="updateBookingStatus(booking.id, 'CONFIRMED')" 
+                          *ngIf="booking.status === 'PENDING'" title="Xác nhận">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  <button class="action-btn cancel" (click)="cancelBooking(booking.id)" 
+                          *ngIf="booking.status !== 'CANCELLED'" title="Hủy đặt vé">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Loading State -->
+        <div class="loading-state" *ngIf="loading">
+          <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+          </div>
+          <p>Đang tải dữ liệu...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" *ngIf="!loading && filteredBookings.length === 0">
+          <div class="empty-icon">
+            <i class="fas fa-ticket-alt"></i>
+          </div>
+          <h3>Không có đặt vé nào</h3>
+          <p>Chưa có đặt vé nào trong hệ thống hoặc không tìm thấy kết quả phù hợp</p>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-wrapper" *ngIf="totalPages > 1">
+        <div class="pagination-info">
+          <span>Trang {{ currentPage + 1 }} của {{ totalPages }}</span>
+        </div>
+        <div class="pagination-controls">
+          <button class="pagination-btn" (click)="prevPage()" [disabled]="currentPage === 0">
+            <i class="fas fa-chevron-left"></i>
+            Trước
+          </button>
+          
+          <div class="page-numbers">
+            <button 
+              *ngFor="let page of [].constructor(totalPages); let i = index" 
+              class="page-btn" 
+              [class.active]="currentPage === i"
+              (click)="goToPage(i)">
+              {{ i + 1 }}
+            </button>
+          </div>
+          
+          <button class="pagination-btn" (click)="nextPage()" [disabled]="currentPage === totalPages - 1">
+            Sau
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Booking Details Modal -->
+<div class="modal-overlay" *ngIf="showBookingDetails" (click)="closeModal()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Chi tiết đặt vé #{{ selectedBooking?.id }}</h2>
+      <button class="modal-close" (click)="closeModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="modal-content" *ngIf="selectedBooking">
+      <div class="booking-details">
+        <div class="detail-section">
+          <h3>Thông tin người dùng</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Tên người dùng:</label>
+              <span>{{ selectedBooking.user.username }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Email:</label>
+              <span>{{ selectedBooking.user.email }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Thông tin phim</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Tên phim:</label>
+              <span>{{ selectedBooking.showtime.movie.title }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Phòng chiếu:</label>
+              <span>{{ selectedBooking.showtime.room.name }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Thời gian chiếu:</label>
+              <span>{{ formatDateTime(selectedBooking.showtime.startTime) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Thông tin đặt vé</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Ghế đã đặt:</label>
+              <div class="seats-display">
+                <span class="seat-badge" *ngFor="let seat of selectedBooking.seatNumbers">{{ seat }}</span>
+              </div>
+            </div>
+            <div class="detail-item">
+              <label>Giá vé:</label>
+              <span class="price">{{ formatCurrency(selectedBooking.totalPrice) }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Trạng thái:</label>
+              <span class="status-badge" [ngClass]="getStatusBadgeClass(selectedBooking.status)">
+                {{ getStatusText(selectedBooking.status) }}
+              </span>
+            </div>
+            <div class="detail-item">
+              <label>Ngày đặt:</label>
+              <span>{{ formatDateTime(selectedBooking.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="closeModal()">
+          <i class="fas fa-times"></i>
+          Đóng
+        </button>
+        <button class="btn-warning" (click)="updateBookingStatus(selectedBooking.id, 'CANCELLED')" 
+                *ngIf="selectedBooking.status !== 'CANCELLED'">
+          <i class="fas fa-ban"></i>
+          Hủy đặt vé
+        </button>
+        <button class="btn-success" (click)="updateBookingStatus(selectedBooking.id, 'CONFIRMED')" 
+                *ngIf="selectedBooking.status === 'PENDING'">
+          <i class="fas fa-check"></i>
+          Xác nhận
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" *ngIf="showExportModal" (click)="closeModal()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Xuất báo cáo đặt vé</h2>
+      <button class="modal-close" (click)="closeModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <form [formGroup]="exportForm" (ngSubmit)="exportBookings()" class="modal-content">
+      <div class="export-options">
+        <div class="form-group">
+          <label>Từ ngày:</label>
+          <input type="date" formControlName="startDate" class="form-input">
+        </div>
+        <div class="form-group">
+          <label>Đến ngày:</label>
+          <input type="date" formControlName="endDate" class="form-input">
+        </div>
+        <div class="form-group">
+          <label>Định dạng:</label>
+          <select formControlName="format" class="form-select">
+            <option value="excel">Excel (.xlsx)</option>
+            <option value="csv">CSV (.csv)</option>
+            <option value="pdf">PDF (.pdf)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeModal()">
+          <i class="fas fa-times"></i>
+          Hủy
+        </button>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-download"></i>
+          Xuất báo cáo
+        </button>
+      </div>
+    </form>
+  </div>
+</div> 

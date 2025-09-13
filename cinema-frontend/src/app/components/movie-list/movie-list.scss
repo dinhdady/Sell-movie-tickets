@@ -1,0 +1,274 @@
+.movie-list {
+  padding: 60px 0;
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 40px;
+  
+  h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #1e3c72;
+    margin-bottom: 10px;
+  }
+  
+  p {
+    font-size: 1.1rem;
+    color: #666;
+  }
+}
+
+.filter-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 40px;
+  
+  button {
+    padding: 12px 24px;
+    border: 2px solid #1e3c72;
+    background: white;
+    color: #1e3c72;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background: rgba(30, 60, 114, 0.1);
+    }
+    
+    &.active {
+      background: #1e3c72;
+      color: white;
+      box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3);
+    }
+  }
+}
+
+.loading-container {
+  text-align: center;
+  padding: 60px 0;
+  
+  .loading-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(30, 60, 114, 0.1);
+    border-radius: 50%;
+    border-top-color: #1e3c72;
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 20px;
+  }
+  
+  p {
+    color: #666;
+    font-size: 1.1rem;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.movies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.movie-card {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  }
+  
+  .movie-poster {
+    position: relative;
+    overflow: hidden;
+    
+    img {
+      width: 100%;
+      height: 375px;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    
+    .movie-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(30, 60, 114, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .movie-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      
+      .btn-detail, .btn-book {
+        padding: 12px 25px;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: 600;
+        text-align: center;
+        transition: all 0.3s ease;
+      }
+      
+      .btn-detail {
+        background: transparent;
+        color: white;
+        border: 2px solid white;
+        
+        &:hover {
+          background: white;
+          color: #1e3c72;
+        }
+      }
+      
+      .btn-book {
+        background: linear-gradient(45deg, #ff6b6b, #feca57);
+        color: white;
+        border: none;
+        
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+    }
+    
+    .movie-rating {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 5px 10px;
+      border-radius: 15px;
+      
+      .rating {
+        font-weight: bold;
+        color: #1e3c72;
+      }
+    }
+    
+    .coming-soon-badge {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: linear-gradient(45deg, #ff6b6b, #feca57);
+      color: white;
+      padding: 5px 15px;
+      border-radius: 15px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+  }
+  
+  &:hover .movie-overlay {
+    opacity: 1;
+  }
+  
+  &:hover img {
+    transform: scale(1.1);
+  }
+}
+
+.movie-info {
+  padding: 20px;
+  
+  h3 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #1e3c72;
+  }
+  
+  .movie-genre {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+  }
+  
+  .movie-duration {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
+  
+  .movie-price {
+    .price {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #ff6b6b;
+    }
+  }
+  
+  .release-date {
+    color: #666;
+    font-size: 0.9rem;
+    font-style: italic;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 0;
+  
+  i {
+    font-size: 4rem;
+    color: #ccc;
+    margin-bottom: 20px;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+    color: #666;
+    margin-bottom: 10px;
+  }
+  
+  p {
+    color: #999;
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .movie-list {
+    padding: 40px 0;
+  }
+  
+  .page-header h1 {
+    font-size: 2rem;
+  }
+  
+  .filter-tabs {
+    flex-direction: column;
+    gap: 10px;
+    
+    button {
+      width: 100%;
+    }
+  }
+  
+  .movies-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+  }
+}

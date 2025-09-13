@@ -1,0 +1,155 @@
+<div class="movie-detail" style="background-color: #1a1a1a; color: #ffffff;">
+  <div class="notifications-container">
+    <app-notification 
+      *ngFor="let notification of notifications; let i = index"
+      [notification]="notification"
+      (closeNotification)="closeNotification(i)">
+    </app-notification>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="error-state">
+    <i class="fas fa-exclamation-triangle"></i>
+    <h3>Đã xảy ra lỗi</h3>
+    <p>{{ error }}</p>
+    <button (click)="loadMovieDetail(movie?.id || 0)" class="btn-retry">Thử lại</button>
+  </div>
+
+  <!-- Movie Content -->
+  <div *ngIf="!error && movie" class="movie-content">
+    <!-- Back Button -->
+    <button class="back-btn" (click)="goBack()">
+      <i class="fas fa-arrow-left"></i>
+      Quay lại
+    </button>
+
+    <!-- Movie Header -->
+    <div class="movie-header">
+      <div class="movie-poster">
+        <img [src]="movie.posterUrl || 'https://placehold.co/300x450?text=Movie+Poster'" [alt]="movie.title">
+        <div class="movie-rating" *ngIf="movie.rating > 0">
+          <span class="rating">{{ movie.rating }}/10</span>
+        </div>
+        <div class="movie-status" *ngIf="movie.status">
+          <span class="status-badge" [class]="movie.status.toLowerCase()">
+            {{ movie.status === 'NOW_SHOWING' ? 'Đang chiếu' : 'Sắp chiếu' }}
+          </span>
+        </div>
+      </div>
+      
+      <div class="movie-info">
+        <h1>{{ movie.title }}</h1>
+        <div class="movie-meta">
+          <span class="genre">{{ movie.genre }}</span>
+          <span class="duration">{{ movie.duration }} phút</span>
+          <span class="release-date">Khởi chiếu: {{ movie.releaseDate | date:'dd/MM/yyyy' }}</span>
+        </div>
+        
+        <div class="movie-details">
+          <div class="detail-item">
+            <strong>Đạo diễn:</strong> {{ movie.director }}
+          </div>
+          <div class="detail-item">
+            <strong>Diễn viên:</strong> {{ movie.cast }}
+          </div>
+          <div class="detail-item" *ngIf="movie.filmRating">
+            <strong>Độ tuổi:</strong> {{ movie.filmRating }}
+          </div>
+        </div>
+        
+        <div class="movie-description">
+          <h3>Tóm tắt</h3>
+          <p>{{ movie.description }}</p>
+        </div>
+        
+        <div class="movie-price" *ngIf="movie.status === 'NOW_SHOWING'">
+          <span class="price">{{ movie.price | currency:'VND' }}</span>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="movie-actions">
+          <button 
+            *ngIf="movie.status === 'NOW_SHOWING'" 
+            class="btn-book-now"
+            (click)="bookNow()">
+            <i class="fas fa-ticket-alt"></i>
+            Mua vé ngay
+          </button>
+          <button 
+            *ngIf="movie.status === 'COMING_SOON'" 
+            class="btn-reminder"
+            (click)="setReminder()">
+            <i class="fas fa-bell"></i>
+            Đặt nhắc nhở
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Showtimes Section -->
+    <div class="showtimes-section" *ngIf="movie.status === 'NOW_SHOWING'">
+      <h2>Lịch chiếu</h2>
+      
+      <!-- Cinema Selection -->
+      <div class="cinema-selection" *ngIf="cinemas.length > 0">
+        <h3>Chọn rạp chiếu</h3>
+        <div class="cinema-buttons">
+          <button 
+            *ngFor="let cinema of cinemas" 
+            [class.active]="selectedCinema?.id === cinema.id"
+            (click)="selectCinema(cinema)"
+            class="cinema-btn">
+            <i class="fas fa-building"></i>
+            {{ cinema.name }}
+          </button>
+        </div>
+      </div>
+      
+      <!-- Date Selection -->
+      <div class="date-selection">
+        <h3>Chọn ngày</h3>
+        <div class="date-buttons">
+          <button 
+            *ngFor="let date of dates" 
+            [class.active]="selectedDate === date"
+            (click)="selectDate(date)"
+            class="date-btn">
+            {{ date | date:'dd/MM' }}
+          </button>
+        </div>
+      </div>
+      
+      <!-- Showtimes Grid -->
+      <div class="showtimes-grid" *ngIf="showtimes.length > 0">
+        <div 
+          *ngFor="let showtime of showtimes" 
+          class="showtime-card"
+          [class.disabled]="!showtime.available"
+          (click)="bookTicket(showtime)">
+          <div class="showtime-time">{{ showtime.startTime | date:'HH:mm' }}</div>
+          <div class="showtime-room">{{ showtime.room?.name || 'Phòng chiếu' }}</div>
+          <div class="showtime-price">{{ movie.price | currency:'VND' }}</div>
+          <div class="showtime-status">
+            <span *ngIf="showtime.available" class="available">Còn chỗ</span>
+            <span *ngIf="!showtime.available" class="sold-out">Hết chỗ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- No Showtimes Message -->
+      <div *ngIf="showtimes.length === 0 && selectedCinema" class="no-showtimes">
+        <i class="fas fa-calendar-times"></i>
+        <h3>Chưa có lịch chiếu</h3>
+        <p>Hiện tại chưa có lịch chiếu cho phim này tại rạp đã chọn.</p>
+      </div>
+    </div>
+
+    <!-- Coming Soon Message -->
+    <div *ngIf="movie.status === 'COMING_SOON'" class="coming-soon-message">
+      <i class="fas fa-clock"></i>
+      <h3>Phim sắp ra mắt</h3>
+      <p>Phim sẽ được chiếu từ ngày {{ movie.releaseDate | date:'dd/MM/yyyy' }}</p>
+      <a [routerLink]="['/movies']" class="btn-primary">Xem phim khác</a>
+    </div>
+  </div>
+</div>

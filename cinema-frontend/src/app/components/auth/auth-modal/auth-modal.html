@@ -1,0 +1,104 @@
+<div class="auth-modal-backdrop" (click)="onClose()"></div>
+<div class="auth-modal" (click)="$event.stopPropagation()">
+  <button class="close-btn" (click)="onClose()"><i class="fas fa-times"></i></button>
+  <!-- Hidden debug for troubleshooting -->
+  <div style="display:none;">DEBUG: message="{{ message }}", type="{{ messageType }}"</div>
+  <!-- Message Display -->
+  <div *ngIf="(message && message.length > 0) || forceRender > 0" class="message" [ngClass]="messageType">
+    <ng-container [ngSwitch]="messageType">
+      <span *ngSwitchCase="'success'" class="icon-success">✔️</span>
+      <span *ngSwitchCase="'error'" class="icon-error">❌</span>
+    </ng-container>
+    {{ message }}
+  </div>
+  
+  <div class="auth-tabs">
+    <button [class.active]="tab === 'login'" (click)="switchTab('login')">Đăng nhập</button>
+    <button [class.active]="tab === 'register'" (click)="switchTab('register')">Đăng ký</button>
+    <button [class.active]="tab === 'forgot'" (click)="switchTab('forgot')">Quên mật khẩu</button>
+  </div>
+
+  <div class="auth-content">
+    <form *ngIf="tab === 'login'" (ngSubmit)="onLogin()">
+      <!-- Message Display (only for login, always at top) -->
+      <app-message-box [message]="message" [type]="messageType"></app-message-box>
+      <div style="display:none;">DEBUG: message="{{ message }}", type="{{ messageType }}"</div>
+      <h2>Đăng nhập</h2>
+      <div class="form-group">
+        <label for="login-username">Tên đăng nhập</label>
+        <input id="login-username" type="text" class="form-input" 
+               [(ngModel)]="loginData.username" name="username"
+               placeholder="Tên đăng nhập" required>
+      </div>
+      <div class="form-group">
+        <label for="login-password">Mật khẩu</label>
+        <input id="login-password" type="password" class="form-input" 
+               [(ngModel)]="loginData.password" name="password"
+               placeholder="Mật khẩu" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-100" [disabled]="loading">
+        <span *ngIf="loading" class="loading-spinner"></span>
+        {{ loading ? 'Đang xử lý...' : 'Đăng nhập' }}
+      </button>
+    </form>
+
+    <form *ngIf="tab === 'register'" (ngSubmit)="onRegister()">
+      <h2>Đăng ký</h2>
+      <div class="form-group">
+        <label for="register-username">Tên đăng nhập</label>
+        <input id="register-username" type="text" class="form-input" 
+               [(ngModel)]="registerData.usernameR" name="usernameR"
+               placeholder="Tên đăng nhập" required>
+      </div>
+      <div class="form-group">
+        <label for="register-email">Email</label>
+        <input id="register-email" type="email" class="form-input" 
+               [(ngModel)]="registerData.emailR" name="emailR"
+               placeholder="Email" required>
+      </div>
+      <div class="form-group">
+        <label for="register-password">Mật khẩu</label>
+        <input id="register-password" type="password" class="form-input" 
+               [(ngModel)]="registerData.passwordR" name="passwordR"
+               (input)="checkPasswordStrength()"
+               placeholder="Mật khẩu (ít nhất 6 ký tự)" required>
+        <div *ngIf="registerData.passwordR" class="password-strength">
+          <div class="strength-bar">
+            <div class="strength-fill" [class]="passwordStrength.level"></div>
+          </div>
+          <span class="strength-text" [class]="passwordStrength.level">
+            {{ passwordStrength.text }}
+          </span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="register-confirm-password">Xác nhận mật khẩu</label>
+        <input id="register-confirm-password" type="password" class="form-input" 
+               [(ngModel)]="registerData.confirmPasswordR" name="confirmPasswordR"
+               (input)="checkPasswordsMatch()"
+               placeholder="Nhập lại mật khẩu" required>
+        <div *ngIf="registerData.confirmPasswordR && !passwordsMatch" class="error-text">
+          Mật khẩu không khớp
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100" [disabled]="loading">
+        <span *ngIf="loading" class="loading-spinner"></span>
+        {{ loading ? 'Đăng ký' : 'Đăng ký' }}
+      </button>
+    </form>
+
+    <form *ngIf="tab === 'forgot'" (ngSubmit)="onForgotPassword()">
+      <h2>Quên mật khẩu</h2>
+      <div class="form-group">
+        <label for="forgot-email">Email</label>
+        <input id="forgot-email" type="email" class="form-input" 
+               [(ngModel)]="forgotData.email" name="email"
+               placeholder="Nhập email để lấy lại mật khẩu" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-100" [disabled]="loading">
+        <span *ngIf="loading" class="loading-spinner"></span>
+        {{ loading ? 'Đang xử lý...' : 'Gửi yêu cầu' }}
+      </button>
+    </form>
+  </div>
+</div> 

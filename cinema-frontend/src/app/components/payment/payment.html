@@ -1,0 +1,112 @@
+<div class="payment">
+  <div class="container">
+    <!-- Notifications -->
+    <div class="notifications-container">
+      <app-notification 
+        *ngFor="let notification of notifications; let i = index"
+        [notification]="notification"
+        (closeNotification)="closeNotification(i)">
+      </app-notification>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>Đang tải thông tin thanh toán...</p>
+    </div>
+
+    <!-- Payment Content -->
+    <div *ngIf="!loading" class="payment-content">
+      <!-- Header -->
+      <div class="payment-header">
+        <button class="back-btn" (click)="goBack()">
+          <i class="fas fa-arrow-left"></i>
+          Quay lại
+        </button>
+        <h1>Thanh toán</h1>
+      </div>
+
+      <!-- Payment Summary -->
+      <div class="payment-summary">
+        <h2>Thông tin thanh toán</h2>
+        <div class="summary-card">
+          <div class="summary-item">
+            <span>Mã đơn hàng:</span>
+            <span>{{ paymentData.orderId }}</span>
+          </div>
+          <div class="summary-item">
+            <span>Khách hàng:</span>
+            <span>{{ paymentData.customerName }}</span>
+          </div>
+          <div class="summary-item">
+            <span>Email:</span>
+            <span>{{ paymentData.customerEmail }}</span>
+          </div>
+          <div class="summary-item">
+            <span>Số điện thoại:</span>
+            <span>{{ paymentData.customerPhone }}</span>
+          </div>
+          <div class="summary-item total">
+            <span>Tổng tiền:</span>
+            <span>{{ paymentData.amount | currency:'VND' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Methods (chỉ còn VNPay) -->
+      <div class="payment-methods">
+        <h2>Chọn phương thức thanh toán</h2>
+        <div class="payment-options">
+          <div class="payment-option">
+            <input type="radio" id="vnpay" name="payment" checked>
+            <label for="vnpay">
+              <div class="payment-icon">
+                <i class="fas fa-credit-card"></i>
+              </div>
+              <div class="payment-info">
+                <h3>VNPay</h3>
+                <p>Thanh toán qua thẻ ATM, thẻ quốc tế</p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Security -->
+      <div class="payment-security">
+        <div class="security-info">
+          <i class="fas fa-shield-alt"></i>
+          <div>
+            <h3>Thanh toán an toàn</h3>
+            <p>Thông tin của bạn được mã hóa và bảo mật theo tiêu chuẩn quốc tế</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Actions -->
+      <div class="payment-actions">
+        <button class="btn-cancel" (click)="goBack()">
+          <i class="fas fa-times"></i>
+          Hủy
+        </button>
+        <button 
+          class="btn-pay" 
+          [disabled]="processing"
+          (click)="processPayment()">
+          <i class="fas fa-credit-card" *ngIf="!processing"></i>
+          <i class="fas fa-spinner fa-spin" *ngIf="processing"></i>
+          {{ processing ? 'Đang xử lý...' : 'Thanh toán ' + (paymentData.amount | currency:'VND') }}
+        </button>
+      </div>
+
+      <!-- Payment Processing -->
+      <div *ngIf="processing" class="payment-processing">
+        <div class="processing-content">
+          <div class="processing-spinner"></div>
+          <h3>Đang xử lý thanh toán</h3>
+          <p>Vui lòng không đóng trình duyệt trong quá trình thanh toán</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

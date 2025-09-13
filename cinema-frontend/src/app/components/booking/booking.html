@@ -1,0 +1,337 @@
+<div class="booking">
+  <div class="container">
+    <!-- Notifications -->
+
+    <!-- Booking Content -->
+    <ng-container *ngIf="movie$ | async as movie">
+      <div class="booking-content">
+        <!-- Header -->
+        <div class="booking-header">
+          <button class="back-btn" (click)="goBack()">
+            <i class="fas fa-arrow-left"></i>
+            Quay lại
+          </button>
+          <h1>Đặt vé xem phim</h1>
+        </div>
+
+        <!-- Progress Steps -->
+        <ng-container *ngIf="step$ | async as step">
+          <div class="progress-steps">
+            <div class="step" [class.active]="step >= 1" [class.completed]="step > 1">
+              <div class="step-number">1</div>
+              <span>Chọn ghế</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" [class.active]="step >= 2" [class.completed]="step > 2">
+              <div class="step-number">2</div>
+              <span>Thông tin</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" [class.active]="step >= 3">
+              <div class="step-number">3</div>
+              <span>Thanh toán</span>
+            </div>
+          </div>
+
+          <!-- Movie Info -->
+          <div class="movie-info-card">
+            <img [src]="movie.posterUrl || 'https://placehold.co/200x300?text=Movie+Poster'" [alt]="movie.title">
+            <div class="movie-details">
+              <h3>{{ movie.title }}</h3>
+              <p class="showtime-info">
+                <i class="fas fa-calendar"></i>
+                <ng-container *ngIf="selectedDate$ | async as selectedDate">{{ selectedDate | date:'dd/MM/yyyy' }}</ng-container>
+              </p>
+              <p class="movie-genre">
+                <i class="fas fa-film"></i>
+                {{ movie.genre }}
+              </p>
+              <p class="movie-duration">
+                <i class="fas fa-clock"></i>
+                {{ movie.duration }} phút
+              </p>
+            </div>
+          </div>
+
+          <ng-container [ngSwitch]="step">
+            <ng-container *ngSwitchCase="1">
+              <h2>Chọn rạp và ghế ngồi</h2>
+              <div class="cinema-selection" *ngIf="cinemas$ | async as cinemas">
+                <h3>Chọn rạp chiếu</h3>
+                <div class="cinema-grid">
+                  <div *ngFor="let cinema of cinemas" class="cinema-card"
+                    [class.active]="(selectedCinema$ | async)?.id === cinema.id"
+                    (click)="selectCinema(cinema)">
+                    <div class="cinema-icon">
+                      <i class="fas fa-building"></i>
+                    </div>
+                    <div class="cinema-info">
+                      <h4>{{ cinema.name }}</h4>
+                      <p>{{ cinema.address }}</p>
+                      <p class="cinema-phone">{{ cinema.phone }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="date-selection" *ngIf="selectedCinema$ | async as selectedCinema">
+                <h3>Chọn ngày chiếu</h3>
+                <div class="date-grid" *ngIf="dates$ | async as dates">
+<button *ngFor="let date of dates" class="date-btn"
+  [class.active]="isSameDate(selectedDate$ | async, date)"
+  (click)="selectDate(date)">
+  <div class="date-day">{{ date | date:'dd' }}</div>
+  <div class="date-month">{{ date | date:'MM' }}</div>
+</button>
+                </div>
+              </div>
+              <div class="showtime-selection" *ngIf="(selectedCinema$ | async) && (selectedDate$ | async)">
+                <h3>Chọn suất chiếu</h3>
+                <div class="showtime-grid" *ngIf="filteredShowtimes$ | async as filteredShowtimes">
+                  <div *ngFor="let showtime of filteredShowtimes" class="showtime-card"
+                    [class.active]="(selectedShowtime$ | async)?.id === showtime.id"
+                    (click)="selectShowtime(showtime)">
+                    <div class="showtime-time">
+                      {{ showtime.startTime | date:'HH:mm' }} - {{ showtime.endTime | date:'HH:mm' }}
+                    </div>
+                    <div class="showtime-room">{{ showtime.room?.name || 'Phòng chiếu' }}</div>
+                    <div class="showtime-price">{{ movie.price | currency:'VND' }}</div>
+                  </div>
+                </div>
+                <div *ngIf="(filteredShowtimes$ | async)?.length === 0" class="no-showtimes">
+                  <i class="fas fa-calendar-times"></i>
+                  <p>Không có suất chiếu nào cho ngày đã chọn</p>
+                </div>
+              </div>
+              <div class="seat-selection">
+                <div class="screen">
+                  <span>MÀN HÌNH</span>
+                </div>
+                <div class="seats-container" *ngIf="seats$ | async as seats">
+                  <div class="seat-row" *ngFor="let row of seats; let i = index">
+                    <div class="row-label">{{ getRowLabel(i) }}</div>
+                    <div class="seats">
+                      <button *ngFor="let seat of row"
+                        class="seat"
+                        [class.available]="seat.status === 'AVAILABLE'"
+                        [class.selected]="isSeatSelected(seat)"
+                        [class.unavailable]="seat.status !== 'AVAILABLE'"
+                        (click)="toggleSeat(seat)"
+                        [disabled]="seat.status !== 'AVAILABLE'">
+                        {{ seat.seatNumber }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="seat-legend">
+                  <div class="legend-item">
+                    <div class="seat-sample available"></div>
+                    <span>Còn trống</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="seat-sample selected"></div>
+                    <span>Đã chọn</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="seat-sample unavailable"></div>
+                    <span>Đã đặt</span>
+                  </div>
+                </div>
+              </div>
+              <div class="selected-seats-info">
+                <h3>Ghế đã chọn: {{ ((selectedSeatNames$ | async) ?? []).length ? (selectedSeatNames$ | async)!.join(', ') : 'Chưa chọn ghế nào' }}</h3>
+                <p class="total-price">Tổng tiền: {{ (totalPrice$ | async) | currency:'VND' }}</p>
+              </div>
+              <div class="step-actions">
+                <button class="btn-next" [disabled]="!(canProceed$ | async)" (click)="nextStep()">
+                  Tiếp tục
+                  <i class="fas fa-arrow-right"></i>
+                </button>
+              </div>
+            </ng-container>
+            <ng-container *ngSwitchCase="2">
+              <div class="step-content">
+                <h2>Thông tin khách hàng</h2>
+                <div class="customer-form">
+                  <div class="form-group">
+                    <label for="customerName">Họ và tên *</label>
+                    <input 
+                      id="customerName"
+                      type="text"
+                      [ngModel]="(bookingInfo$ | async)?.customerName"
+                      (ngModelChange)="updateBookingInfo('customerName', $event)"
+                      placeholder="Nhập họ và tên"
+                      required>
+                  </div>
+                  <div class="form-group">
+                    <label for="customerEmail">Email *</label>
+                    <input 
+                      id="customerEmail"
+                      type="email"
+                      [ngModel]="(bookingInfo$ | async)?.customerEmail"
+                      (ngModelChange)="updateBookingInfo('customerEmail', $event)"
+                      placeholder="Nhập email"
+                      required>
+                  </div>
+                  <div class="form-group">
+                    <label for="customerPhone">Số điện thoại *</label>
+                    <input 
+                      id="customerPhone"
+                      type="tel"
+                      [ngModel]="(bookingInfo$ | async)?.customerPhone"
+                      (ngModelChange)="updateBookingInfo('customerPhone', $event)"
+                      placeholder="Nhập số điện thoại"
+                      required>
+                  </div>
+                  <div class="form-group">
+                    <label for="customerAddress">Địa chỉ</label>
+                    <textarea 
+                      id="customerAddress"
+                      [ngModel]="(bookingInfo$ | async)?.customerAddress"
+                      (ngModelChange)="updateBookingInfo('customerAddress', $event)"
+                      placeholder="Nhập địa chỉ (không bắt buộc)"
+                      rows="3"></textarea>
+                  </div>
+                </div>
+                <div class="booking-summary">
+                  <h3>Tóm tắt đặt vé</h3>
+                  <div class="summary-card">
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-film"></i> Phim:</span>
+                      <span class="summary-item-value">{{ movie.title }}</span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-building"></i> Rạp:</span>
+                      <span class="summary-item-value">
+                        <ng-container *ngIf="selectedCinemaInfo$ | async as cinema; else noCinema">{{ cinema.name }}</ng-container>
+                        <ng-template #noCinema>Chưa chọn rạp</ng-template>
+                      </span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-door-open"></i> Phòng:</span>
+                      <span class="summary-item-value">
+                        <ng-container *ngIf="selectedRoom$ | async as room; else noRoom">{{ room.name }}</ng-container>
+                        <ng-template #noRoom>Chưa chọn phòng</ng-template>
+                      </span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-clock"></i> Suất chiếu:</span>
+                      <span class="summary-item-value">
+                        <ng-container *ngIf="selectedShowtime$ | async as showtime; else noShowtime">
+                          {{ showtime.startTime | date:'dd/MM/yyyy HH:mm' }} - {{ showtime.endTime | date:'HH:mm' }}
+                        </ng-container>
+                        <ng-template #noShowtime>Chưa chọn suất chiếu</ng-template>
+                      </span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-chair"></i> Ghế:</span>
+                      <span class="summary-item-value seats-list">
+                        {{ ((selectedSeatNames$ | async) ?? []).length ? (selectedSeatNames$ | async)!.join(', ') : 'Chưa chọn ghế nào' }}
+                      </span>
+                    </div>
+                  <div class="summary-total">
+                    <span class="summary-total-label"><i class="fas fa-money-bill-wave"></i> Tổng tiền:</span>
+                    <span class="summary-total-value">{{ (totalPrice$ | async) | currency:'VND' }}</span>
+                  </div>
+                  </div>
+                </div>
+                <div class="step-actions">
+                  <button class="btn-prev" (click)="prevStep()">
+                    <i class="fas fa-arrow-left"></i>
+                    Quay lại
+                  </button>
+                  <button class="btn-next" [disabled]="!(isBookingInfoValid$ | async)" (click)="nextStep()">
+                    Tiếp tục
+                    <i class="fas fa-arrow-right"></i>
+                  </button>
+                </div>
+              </div>
+            </ng-container>
+            <ng-container *ngSwitchCase="3">
+              <div class="step-content">
+                <h2>Thanh toán</h2>
+                <div class="payment-summary">
+                  <h3>Thông tin đặt vé</h3>
+                  <div class="summary-card">
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-film"></i> Phim:</span>
+                      <span class="summary-item-value">{{ movie.title }}</span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-building"></i> Rạp:</span>
+                      <span class="summary-item-value">
+                        <ng-container *ngIf="selectedCinemaInfo$ | async as cinema; else noCinema2">{{ cinema.name }}</ng-container>
+                        <ng-template #noCinema2>Chưa chọn rạp</ng-template>
+                      </span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-door-open"></i> Phòng:</span>
+                      <span class="summary-item-value">
+                        <ng-container *ngIf="selectedRoom$ | async as room; else noRoom2">{{ room.name }}</ng-container>
+                        <ng-template #noRoom2>Chưa chọn phòng</ng-template>
+                      </span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-clock"></i> Suất chiếu:</span>
+                      <span class="summary-item-value">
+                        <ng-container *ngIf="selectedShowtime$ | async as showtime; else noShowtime2">
+                          {{ showtime.startTime | date:'dd/MM/yyyy HH:mm' }} - {{ showtime.endTime | date:'HH:mm' }}
+                        </ng-container>
+                        <ng-template #noShowtime2>Chưa chọn suất chiếu</ng-template>
+                      </span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="summary-item-label"><i class="fas fa-chair"></i> Ghế:</span>
+                      <span class="summary-item-value seats-list">
+                        {{ ((selectedSeatNames$ | async) ?? []).length ? (selectedSeatNames$ | async)!.join(', ') : 'Chưa chọn ghế nào' }}
+                      </span>
+                    </div>
+                  <div class="summary-item">
+                    <span class="summary-item-label"><i class="fas fa-user"></i> Khách hàng:</span>
+                    <span class="summary-item-value">{{ (bookingInfo$ | async)?.customerName }}</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-item-label"><i class="fas fa-envelope"></i> Email:</span>
+                    <span class="summary-item-value">{{ (bookingInfo$ | async)?.customerEmail }}</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-item-label"><i class="fas fa-phone"></i> Số điện thoại:</span>
+                    <span class="summary-item-value">{{ (bookingInfo$ | async)?.customerPhone }}</span>
+                  </div>
+                  <div class="summary-total">
+                    <span class="summary-total-label"><i class="fas fa-money-bill-wave"></i> Tổng tiền:</span>
+                    <span class="summary-total-value">{{ (totalPrice$ | async) | currency:'VND' }}</span>
+                  </div>
+                  </div>
+                </div>
+                <div class="payment-methods">
+                  <h3>Chọn phương thức thanh toán</h3>
+                  <div class="payment-options">
+                    <div class="payment-option" *ngFor="let method of ['vnpay', 'momo', 'cash']">
+                      <input type="radio" [id]="method" name="payment" [value]="method" 
+                            [checked]="(selectedPaymentMethod$ | async) === method"
+                            (change)="selectPaymentMethod(method)">
+                      <label [for]="method">
+                        <i [class]="getPaymentIcon(method)"></i>
+                        {{ getPaymentLabel(method) }}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="step-actions">
+                  <button class="btn-prev" (click)="prevStep()">
+                    <i class="fas fa-arrow-left"></i>
+                    Quay lại
+                  </button>
+                  <button class="btn-pay" (click)="proceedToPayment()">
+                    <i class="fas fa-credit-card"></i>
+                    Thanh toán {{ (totalPrice$ | async) | currency:'VND' }}
+                  </button>
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+        </ng-container>
+      </div>
+    </ng-container>
+  </div>
+</div>

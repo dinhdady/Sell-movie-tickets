@@ -1,0 +1,131 @@
+package com.project.cinema.movie.Filter;
+
+import com.project.cinema.movie.Services.JwtService;
+import com.project.cinema.movie.Services.UserDetailsServiceImp;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.lang.NonNull;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+    private final UserDetailsServiceImp userDetailsService;
+    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsServiceImp userDetailsService) {
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // Loại trừ tất cả các endpoint authentication và refresh token
+        boolean shouldNotFilter = path.startsWith("/api/auth/") || 
+               path.matches("^/(login|register|auth/refresh)$") ||
+               path.equals("/api/home") ||
+               path.equals("/") ||
+               path.contains("/refresh-token") ||
+               path.equals("/api/vnpayment/return") ||
+               path.equals("/api/vnpay/return"); // <-- Bổ sung loại trừ cho /api/vnpay/return
+        
+        System.out.println("[JWT Filter] Request path: " + path + ", shouldNotFilter: " + shouldNotFilter);
+        return shouldNotFilter;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
+
+        System.out.println("[JWT Filter] Processing request: " + request.getRequestURI());
+        
+        String token = getJwtFromRequest(request); // ✅ Dùng hàm đã hỗ trợ header + cookie
+
+        if (token == null) {
+            System.out.println("[JWT Filter] No token found, continuing filter chain");
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        System.out.println("[JWT Filter] Token found, processing authentication");
+
+        String username = jwtService.extractUsername(token);
+
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            if (!jwtService.isAccessToken(token)) {
+                System.out.println("[JWT Filter] Token is not access token, returning 403");
+                response.setStatus(HttpStatus.FORBIDDEN.value());
+                response.getWriter().write("Refresh token cannot be used for this action.");
+                return;
+            }
+
+            if (jwtService.verifyToken(token)) {
+                setAuthentication(request, userDetails); // ✅ Gán quyền
+            } else {
+                // Token hết hạn hoặc không hợp lệ, nhưng không trả về lỗi ngay lập tức
+                System.out.println("[JWT Filter] Token expired or invalid, not setting authentication. Token: " + token);
+                // Không set authentication, nhưng cũng không trả về lỗi
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private void setAuthentication(HttpServletRequest request, UserDetails userDetails) {
+        UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+    }
+
+    private String getAccessTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7); // Bỏ "Bearer "
+        }
+        return null;
+    }
+
+    private String getRefreshTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("RefreshToken ")) { // Giả sử refresh token được truyền với tiền tố "RefreshToken "
+            return authHeader.substring(12); // Bỏ "RefreshToken "
+        }
+        return null;
+    }
+    private String getJwtFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+
+        // Nếu bạn dùng cookie
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("accessToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        return null;
+    }
+
+}

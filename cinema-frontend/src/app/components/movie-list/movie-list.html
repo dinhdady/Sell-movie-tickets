@@ -1,0 +1,69 @@
+<div class="movie-list">
+  <div class="container">
+    <div class="page-header">
+      <h1>Danh sách phim</h1>
+      <p>Khám phá những bộ phim mới nhất và sắp ra mắt</p>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+      <button [class.active]="currentFilter === 'all'" (click)="setFilter('all')">
+        Tất cả phim
+      </button>
+      <button [class.active]="currentFilter === 'now-showing'" (click)="setFilter('now-showing')">
+        Đang chiếu
+      </button>
+      <button [class.active]="currentFilter === 'coming-soon'" (click)="setFilter('coming-soon')">
+        Sắp chiếu
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>Đang tải danh sách phim...</p>
+    </div>
+
+    <!-- Movies Grid -->
+    <div *ngIf="!loading" class="movies-grid">
+      <div class="movie-card" *ngFor="let movie of filteredMovies">
+        <div class="movie-poster">
+          <img [src]="movie.posterUrl" [alt]="movie.title">
+          <div class="movie-overlay">
+            <div class="movie-actions">
+              <a [routerLink]="['/movies', movie.id]" class="btn-detail">Chi tiết</a>
+              <a *ngIf="movie.status === 'NOW_SHOWING'" 
+                 [routerLink]="['/booking']" 
+                 [queryParams]="{movieId: movie.id}" 
+                 class="btn-book">Đặt vé</a>
+            </div>
+          </div>
+          <div class="movie-rating" *ngIf="movie.rating > 0">
+            <span class="rating">{{ movie.rating }}/10</span>
+          </div>
+          <div class="coming-soon-badge" *ngIf="movie.status === 'COMING_SOON'">
+            <span>Sắp chiếu</span>
+          </div>
+        </div>
+        <div class="movie-info">
+          <h3>{{ movie.title }}</h3>
+          <p class="movie-genre">{{ movie.genre }}</p>
+          <p class="movie-duration">{{ movie.duration }} phút</p>
+          <div class="movie-price" *ngIf="movie.status === 'NOW_SHOWING'">
+            <span class="price">{{ movie.price | currency:'VND' }}</span>
+          </div>
+          <p class="release-date" *ngIf="movie.status === 'COMING_SOON'">
+            Khởi chiếu: {{ movie.releaseDate | date:'dd/MM/yyyy' }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && filteredMovies.length === 0" class="empty-state">
+      <i class="fas fa-film"></i>
+      <h3>Không có phim nào</h3>
+      <p>Hiện tại không có phim nào trong danh mục này.</p>
+    </div>
+  </div>
+</div>

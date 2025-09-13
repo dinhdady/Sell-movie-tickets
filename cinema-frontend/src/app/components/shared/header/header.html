@@ -1,0 +1,123 @@
+<header class="header">
+  <div class="header-container">
+    <!-- Logo Section -->
+    <div class="logo-section">
+      <div class="logo">
+        <a routerLink="/">
+          <h1>🎬 MOTCHILL PHIM ONLINE</h1>
+        </a>
+      </div>
+    </div>
+
+    <!-- Search Bar Section -->
+    <div class="search-section">
+      <div class="search-container">
+        <input 
+          type="text" 
+          placeholder="Nhập tên phim bạn muốn tìm kiếm..." 
+          class="search-input"
+          [(ngModel)]="searchQuery"
+          (keyup.enter)="onSearch()">
+        <button class="search-button" (click)="onSearch()">
+          <i class="fas fa-search"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- User Actions Section -->
+    <div class="user-actions">
+      <!-- Show auth modal button when not logged in -->
+      <div *ngIf="!isLoggedIn" class="auth-buttons">
+        <button class="btn-login" (click)="openAuthModal()">
+          <i class="fas fa-sign-in-alt"></i>
+          <span>Đăng nhập</span>
+        </button>
+        <button class="btn-register" (click)="openAuthModal('register')">
+          <i class="fas fa-user-plus"></i>
+          <span>Đăng ký</span>
+        </button>
+        <button class="btn-bookmark">
+          <i class="fas fa-bookmark"></i>
+        </button>
+      </div>
+
+      <!-- Show user dropdown when logged in -->
+      <div *ngIf="isLoggedIn" class="user-dropdown-container">
+        <button class="btn-account logged-in" (click)="toggleUserDropdown()">
+          <i class="fas fa-user-circle"></i> 
+          <span>{{ userInfo?.username || 'Tài khoản' }}</span>
+          <i class="fas fa-chevron-down dropdown-arrow" [class.rotated]="showUserDropdown"></i>
+        </button>
+        
+        <div class="user-dropdown" [class.show]="showUserDropdown" (click)="$event.stopPropagation()">
+          <div class="dropdown-header">
+            <i class="fas fa-user-circle"></i>
+            <span>{{ userInfo?.username || 'Người dùng' }}</span>
+          </div>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" (click)="onAccountInfo(); closeUserDropdown()">
+            <i class="fas fa-user"></i>
+            <span>Thông tin tài khoản</span>
+          </a>
+          <a class="dropdown-item" (click)="onMyTickets(); closeUserDropdown()">
+            <i class="fas fa-ticket-alt"></i>
+            <span>Vé của tôi</span>
+          </a>
+          <a class="dropdown-item" (click)="onHelp(); closeUserDropdown()">
+            <i class="fas fa-question-circle"></i>
+            <span>Liên hệ giúp đỡ</span>
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item logout" (click)="onLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Đăng xuất</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Navigation Bar -->
+  <nav class="main-navigation">
+    <div class="nav-container">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
+        <span>TRANG CHỦ</span>
+      </a>
+      <div class="nav-item dropdown">
+        <span>THỂ LOẠI <i class="fas fa-chevron-down"></i></span>
+        <div class="dropdown-menu">
+          <a routerLink="/movies" [queryParams]="{genre: 'Action'}">Hành động</a>
+          <a routerLink="/movies" [queryParams]="{genre: 'Comedy'}">Hài hước</a>
+          <a routerLink="/movies" [queryParams]="{genre: 'Drama'}">Tâm lý</a>
+          <a routerLink="/movies" [queryParams]="{genre: 'Horror'}">Kinh dị</a>
+          <a routerLink="/movies" [queryParams]="{genre: 'Romance'}">Tình cảm</a>
+        </div>
+      </div>
+      <div class="nav-item dropdown">
+        <span>QUỐC GIA <i class="fas fa-chevron-down"></i></span>
+        <div class="dropdown-menu">
+          <a routerLink="/movies" [queryParams]="{country: 'Vietnam'}">Việt Nam</a>
+          <a routerLink="/movies" [queryParams]="{country: 'USA'}">Mỹ</a>
+          <a routerLink="/movies" [queryParams]="{country: 'Korea'}">Hàn Quốc</a>
+          <a routerLink="/movies" [queryParams]="{country: 'China'}">Trung Quốc</a>
+          <a routerLink="/movies" [queryParams]="{country: 'Japan'}">Nhật Bản</a>
+        </div>
+      </div>
+      <a routerLink="/movies" [queryParams]="{status: 'now-showing'}" routerLinkActive="active" class="nav-item">
+        <span>PHIM CHIẾU RẠP</span>
+      </a>
+      <a routerLink="/movies" [queryParams]="{status: 'series'}" routerLinkActive="active" class="nav-item">
+        <span>PHIM BỘ</span>
+      </a>
+      <a routerLink="/movies" [queryParams]="{status: 'single'}" routerLinkActive="active" class="nav-item">
+        <span>PHIM LẺ</span>
+      </a>
+      <a routerLink="/booking" routerLinkActive="active" class="nav-item">
+        <span>ĐẶT VÉ</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Auth Modal -->
+  <app-auth-modal *ngIf="showAuthModal" (close)="closeAuthModal()" (loginSuccess)="refreshAuthStatus()" [initialMode]="authMode"></app-auth-modal>
+</header>
