@@ -78,7 +78,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT b FROM Booking b WHERE " +
            "b.user.username LIKE %:query% OR " +
            "b.showtime.movie.title LIKE %:query% OR " +
-           "b.status LIKE %:query%")
+           "CAST(b.status AS string) LIKE %:query%")
     Page<Booking> searchBookings(@Param("query") String query, Pageable pageable);
     
 }

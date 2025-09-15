@@ -24,8 +24,8 @@ public class MovieService {
     private MovieRepository movieRepository;
     @Autowired
     private ShowtimeRepository showtimeRepository;
-    @Autowired
-    private CloudinaryService cloudinaryService;
+    // @Autowired
+    // private CloudinaryService cloudinaryService;
 
     public Movie getMovieById(Long id) {
         return movieRepository.findById(id).orElse(null);
@@ -50,7 +50,8 @@ public class MovieService {
         movie.setRating(movieDto.getRating());
         movie.setStatus(movieDto.getStatus());
         movie.setPrice(movieDto.getPrice());
-        movie.setPosterUrl(cloudinaryService.storedFile(posterImg));
+        // movie.setPosterUrl(cloudinaryService.storedFile(posterImg));
+        movie.setPosterUrl("default-poster.jpg"); // Temporary default poster
         return movieRepository.save(movie);
     }
 
@@ -67,7 +68,8 @@ public class MovieService {
             movie.setStatus(movieDto.getStatus());
             movie.setCast(movieDto.getCast());
             if (posterImg!=null) {
-                movie.setPosterUrl(cloudinaryService.storedFile(posterImg));
+                // movie.setPosterUrl(cloudinaryService.storedFile(posterImg));
+        movie.setPosterUrl("default-poster.jpg"); // Temporary default poster
             }
             else{
                 movie.setPosterUrl(movie.getPosterUrl());

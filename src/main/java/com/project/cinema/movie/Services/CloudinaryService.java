@@ -14,7 +14,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Service
+// @Service
 public class CloudinaryService {
     @Autowired
     private Cloudinary cloudinary;
