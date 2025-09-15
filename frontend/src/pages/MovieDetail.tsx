@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { movieAPI } from '../services/api';
 import type { Movie, Showtime } from '../types/movie';
+import BookingSidebar from '../components/BookingSidebar';
 import { 
   ClockIcon, 
   CalendarIcon, 
@@ -14,10 +15,12 @@ import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
 const MovieDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   useEffect(() => {
     const fetchMovieDetails = async () => {
@@ -30,14 +33,14 @@ const MovieDetail: React.FC = () => {
           movieAPI.getShowtimes(parseInt(id))
         ]);
 
-        if (movieResponse.status === '200') {
-          setMovie(movieResponse.data);
+        if (movieResponse.state === '200') {
+          setMovie(movieResponse.object);
         } else {
           setError('Không tìm thấy phim');
         }
 
-        if (showtimesResponse.status === '200') {
-          setShowtimes(showtimesResponse.data);
+        if (showtimesResponse.state === '200') {
+          setShowtimes(showtimesResponse.object);
         }
       } catch (err) {
         console.error('Error fetching movie details:', err);
@@ -95,6 +98,19 @@ const MovieDetail: React.FC = () => {
       default:
         return status;
     }
+  };
+
+  const handleBookTicket = (movieId: number, showtimeId?: number) => {
+    if (showtimeId) {
+      navigate(`/booking/${movieId}?showtime=${showtimeId}`);
+    } else {
+      setIsBookingOpen(true);
+    }
+  };
+
+  const handleBookingSuccess = (bookingId: number) => {
+    setIsBookingOpen(false);
+    navigate(`/booking-success/${bookingId}`);
   };
 
   if (loading) {
@@ -217,24 +233,24 @@ const MovieDetail: React.FC = () => {
               {/* Cast */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Diễn viên</h3>
-                <p className="text-gray-600">{movie.cast}</p>
+                <p className="text-gray-600 text-wrap break-words">{movie.cast}</p>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 {movie.trailerUrl && (
-                  <button className="flex items-center justify-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-                    <PlayIcon className="h-5 w-5 mr-2" />
-                    Xem trailer
+                  <button className="flex items-center justify-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors form-element">
+                    <PlayIcon className="h-5 w-5 mr-2 flex-shrink-0" />
+                    <span className="text-ellipsis">Xem trailer</span>
                   </button>
                 )}
                 {movie.status === 'NOW_SHOWING' && (
-                  <Link
-                    to={`/booking/${movie.id}`}
-                    className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  <button
+                    onClick={() => handleBookTicket(movie.id)}
+                    className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold form-element"
                   >
-                    Đặt vé ngay
-                  </Link>
+                    <span className="text-ellipsis">Đặt vé ngay</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -248,37 +264,37 @@ const MovieDetail: React.FC = () => {
             <div className="space-y-4">
               {showtimes.map((showtime) => (
                 <div key={showtime.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center text-gray-600">
+                  <div className="flex items-center justify-between min-w-0">
+                    <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
+                      <div className="flex items-center text-gray-600 flex-shrink-0">
                         <MapPinIcon className="h-5 w-5 mr-2" />
-                        <span>{showtime.room?.name || 'Phòng chiếu'}</span>
+                        <span className="text-ellipsis">{showtime.room?.name || 'Phòng chiếu'}</span>
                       </div>
-                      <div className="flex items-center text-gray-600">
+                      <div className="flex items-center text-gray-600 flex-shrink-0">
                         <UserGroupIcon className="h-5 w-5 mr-2" />
-                        <span>{showtime.room?.capacity || 0} ghế</span>
+                        <span className="text-ellipsis">{showtime.room?.capacity || 0} ghế</span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-4 flex-shrink-0">
                       <div className="text-center">
                         <div className="text-sm text-gray-500">Bắt đầu</div>
-                        <div className="font-semibold text-lg">
+                        <div className="font-semibold text-lg text-ellipsis">
                           {formatTime(showtime.startTime)}
                         </div>
                       </div>
                       <div className="text-center">
                         <div className="text-sm text-gray-500">Kết thúc</div>
-                        <div className="font-semibold text-lg">
+                        <div className="font-semibold text-lg text-ellipsis">
                           {formatTime(showtime.endTime)}
                         </div>
                       </div>
                       {movie.status === 'NOW_SHOWING' && (
-                        <Link
-                          to={`/booking/${movie.id}?showtime=${showtime.id}`}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        <button
+                          onClick={() => handleBookTicket(movie.id, showtime.id)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors form-element"
                         >
-                          Chọn ghế
-                        </Link>
+                          <span className="text-ellipsis">Chọn ghế</span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -287,6 +303,14 @@ const MovieDetail: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Booking Sidebar */}
+        <BookingSidebar
+          movieId={movie?.id || null}
+          isOpen={isBookingOpen}
+          onClose={() => setIsBookingOpen(false)}
+          onBookingSuccess={handleBookingSuccess}
+        />
       </div>
     </div>
   );

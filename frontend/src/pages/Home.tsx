@@ -23,86 +23,35 @@ const Home: React.FC = () => {
       try {
         setLoading(true);
         
-        // Try to fetch from API first
-        try {
-          const [nowShowingResponse, comingSoonResponse] = await Promise.all([
-            movieAPI.getNowShowing(),
-            movieAPI.getComingSoon()
-          ]);
+        // Fetch from API
+        const [nowShowingResponse, comingSoonResponse] = await Promise.all([
+          movieAPI.getNowShowing(),
+          movieAPI.getComingSoon()
+        ]);
 
-          if (nowShowingResponse.status === '200' && nowShowingResponse.data) {
-            setNowShowingMovies(nowShowingResponse.data);
-            // Set first movie as featured
-            if (nowShowingResponse.data.length > 0) {
-              setFeaturedMovie(nowShowingResponse.data[0]);
-            }
+        if (nowShowingResponse.status === '200' && nowShowingResponse.data) {
+          setNowShowingMovies(nowShowingResponse.data);
+          // Set first movie as featured
+          if (nowShowingResponse.data.length > 0) {
+            setFeaturedMovie(nowShowingResponse.data[0]);
           }
+        } else {
+          console.warn('Now showing movies response:', nowShowingResponse);
+          setNowShowingMovies([]);
+        }
 
-          if (comingSoonResponse.status === '200' && comingSoonResponse.data) {
-            setComingSoonMovies(comingSoonResponse.data);
-          }
-        } catch (apiError) {
-          console.warn('API not available, using mock data:', apiError);
-          
-          // Fallback to mock data if API is not available
-          const mockNowShowing = [
-            {
-              id: 1,
-              title: "Avengers: Endgame",
-              description: "Sau sự kiện tàn phá của Avengers: Infinity War, vũ trụ đang trong tình trạng đổ nát. Với sự giúp đỡ của các đồng minh còn lại, Avengers tập hợp lại một lần nữa để đảo ngược hành động của Thanos và khôi phục lại trật tự cho vũ trụ.",
-              duration: 181,
-              releaseDate: "2024-01-15",
-              genre: "Hành động, Phiêu lưu",
-              director: "Anthony Russo, Joe Russo",
-              cast: "Robert Downey Jr., Chris Evans, Mark Ruffalo",
-              rating: 8.4,
-              status: "NOW_SHOWING" as const,
-              filmRating: "PG13" as const,
-              price: 120000,
-              posterUrl: "https://images.unsplash.com/photo-1531259683007-016a9b628cde?w=300&h=450&fit=crop",
-              trailerUrl: "https://www.youtube.com/watch?v=TcMBFSGVi1c"
-            },
-            {
-              id: 2,
-              title: "Spider-Man: No Way Home",
-              description: "Với danh tính của Spider-Man đã bị lộ ra, Peter Parker yêu cầu Doctor Strange giúp đỡ. Khi một phép thuật đi sai, những kẻ thù nguy hiểm từ các thế giới khác bắt đầu xuất hiện, buộc Peter phải khám phá ý nghĩa thực sự của việc trở thành Spider-Man.",
-              duration: 148,
-              releaseDate: "2024-01-20",
-              genre: "Hành động, Siêu anh hùng",
-              director: "Jon Watts",
-              cast: "Tom Holland, Zendaya, Benedict Cumberbatch",
-              rating: 8.2,
-              status: "NOW_SHOWING" as const,
-              filmRating: "PG13" as const,
-              price: 110000,
-              posterUrl: "https://images.unsplash.com/photo-1635805737707-575885ab0820?w=300&h=450&fit=crop"
-            }
-          ];
-
-          const mockComingSoon = [
-            {
-              id: 3,
-              title: "Black Widow",
-              description: "Natasha Romanoff phải đối mặt với quá khứ đen tối của mình khi một âm mưu nguy hiểm liên quan đến cô ấy xuất hiện. Được đào tạo tại Red Room từ nhỏ, cô ấy trở thành một điệp viên và cuối cùng trở thành Avenger.",
-              duration: 134,
-              releaseDate: "2024-02-15",
-              genre: "Hành động, Gián điệp",
-              director: "Cate Shortland",
-              cast: "Scarlett Johansson, Florence Pugh, David Harbour",
-              rating: 7.8,
-              status: "COMING_SOON" as const,
-              filmRating: "PG13" as const,
-              price: 100000,
-              posterUrl: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=450&fit=crop"
-            }
-          ];
-
-          setNowShowingMovies(mockNowShowing);
-          setComingSoonMovies(mockComingSoon);
-          setFeaturedMovie(mockNowShowing[0]);
+        if (comingSoonResponse.status === '200' && comingSoonResponse.data) {
+          setComingSoonMovies(comingSoonResponse.data);
+        } else {
+          console.warn('Coming soon movies response:', comingSoonResponse);
+          setComingSoonMovies([]);
         }
       } catch (error) {
         console.error('Error fetching movies:', error);
+        // Set empty arrays on error to show proper empty states
+        setNowShowingMovies([]);
+        setComingSoonMovies([]);
+        setFeaturedMovie(null);
       } finally {
         setLoading(false);
       }

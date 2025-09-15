@@ -34,8 +34,8 @@ const Booking: React.FC = () => {
         setLoading(true);
         const movieResponse = await movieAPI.getById(parseInt(id));
         
-        if (movieResponse.status === '200') {
-          setMovie(movieResponse.data);
+        if (movieResponse.state === '200') {
+          setMovie(movieResponse.object);
         } else {
           setError('Không tìm thấy phim');
         }
@@ -96,8 +96,8 @@ const Booking: React.FC = () => {
       };
 
       const response = await bookingAPI.create(bookingData);
-      if (response.status === '200') {
-        navigate(`/booking-success/${response.data.id}`);
+      if (response.state === '200') {
+        navigate(`/booking-success/${response.object.id}`);
       }
     } catch (err) {
       console.error('Booking error:', err);

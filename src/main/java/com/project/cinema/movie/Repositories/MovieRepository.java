@@ -14,6 +14,10 @@ import java.util.Map;
 public interface MovieRepository extends JpaRepository<Movie, Long> {
     List<Movie> findByReleaseDateBefore(Date currentDate);
     List<Movie> findByReleaseDateAfter(Date currentDate);
+    List<Movie> findByReleaseDateBeforeAndStatus(Date currentDate, String status);
+    List<Movie> findByReleaseDateAfterAndStatus(Date currentDate, String status);
+    @Query("SELECT m FROM Movie m WHERE m.releaseDate <= :currentDate AND m.status = :status")
+    List<Movie> findByReleaseDateBeforeOrEqualAndStatus(@Param("currentDate") Date currentDate, @Param("status") String status);
     boolean existsByTitle(String title);
     // Thống kê doanh thu tổng
     @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b WHERE b.order.status = 'CONFIRMED'")

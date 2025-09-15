@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { movieAPI } from '../services/api';
 import type { Movie } from '../types/movie';
 import MovieCard from '../components/MovieCard';
@@ -11,18 +11,21 @@ import {
 
 const Movies: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [category, setCategory] = useState(searchParams.get('category') || 'all');
   const [genres, setGenres] = useState<string[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState(searchParams.get('genre') || '');
   const [showFilters, setShowFilters] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMovies = async () => {
       try {
         setLoading(true);
+        setError(null);
         let response;
 
         if (searchQuery) {
@@ -37,11 +40,29 @@ const Movies: React.FC = () => {
           response = await movieAPI.getAll(0, 20);
         }
 
-        if (response.status === '200') {
-          setMovies(Array.isArray(response.data) ? response.data : response.data.content || []);
+        // Handle different response formats
+        if ('state' in response && response.state === '200' && response.object) {
+          // ResponseObject format
+          if (Array.isArray(response.object)) {
+            setMovies(response.object);
+          } else {
+            setMovies([]);
+          }
+        } else if ('movies' in response && Array.isArray(response.movies)) {
+          // PaginatedResponse format
+          setMovies(response.movies);
+        } else if ('content' in response && Array.isArray(response.content)) {
+          // Alternative paginated response format
+          setMovies(response.content);
+        } else {
+          console.warn('Movies response:', response);
+          setMovies([]);
+          setError('Không thể tải danh sách phim');
         }
       } catch (error) {
         console.error('Error fetching movies:', error);
+        setMovies([]);
+        setError('Có lỗi xảy ra khi tải danh sách phim');
       } finally {
         setLoading(false);
       }
@@ -54,11 +75,15 @@ const Movies: React.FC = () => {
     const fetchGenres = async () => {
       try {
         const response = await movieAPI.getGenres();
-        if (response.status === '200') {
-          setGenres(response.data);
+        if (response.state === '200' && response.object) {
+          setGenres(response.object);
+        } else {
+          console.warn('Genres response:', response);
+          setGenres([]);
         }
       } catch (error) {
         console.error('Error fetching genres:', error);
+        setGenres([]);
       }
     };
 
@@ -96,7 +121,12 @@ const Movies: React.FC = () => {
     setSearchQuery('');
     setCategory('all');
     setSelectedGenre('');
+    setError(null);
     setSearchParams({});
+  };
+
+  const handleMovieClick = (movieId: number) => {
+    navigate(`/movies/${movieId}`);
   };
 
   const getCategoryTitle = () => {
@@ -202,10 +232,26 @@ const Movies: React.FC = () => {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="text-red-400 mb-4">
+              <svg className="h-16 w-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {error}
+            </h3>
+            <p className="text-gray-500">
+              Vui lòng thử lại sau
+            </p>
+          </div>
         ) : movies.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {movies.map((movie) => (
-              <MovieCard key={movie.id} movie={movie} />
+              <div key={movie.id} onClick={() => handleMovieClick(movie.id)} className="cursor-pointer min-w-0">
+                <MovieCard movie={movie} showActions={true} />
+              </div>
             ))}
           </div>
         ) : (

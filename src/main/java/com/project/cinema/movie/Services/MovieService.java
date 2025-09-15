@@ -87,16 +87,21 @@ public class MovieService {
     }
     public java.util.List<Movie> getMoviesReleasedAfterCurrentDate() {
         java.util.Date now = new java.util.Date();
-        return movieRepository.findByReleaseDateAfter(now);
+        return movieRepository.findByReleaseDateAfterAndStatus(now, "COMING_SOON");
     }
     public java.util.List<Movie> getMoviesReleasedBeforeCurrentDate() {
         java.util.Date now = new java.util.Date();
-        return movieRepository.findByReleaseDateBefore(now);
+        // Phim đang chiếu: ngày phát hành <= ngày hiện tại VÀ status = NOW_SHOWING
+        return movieRepository.findByReleaseDateBeforeOrEqualAndStatus(now, "NOW_SHOWING");
     }
     public java.util.Map<String, Object> getTotalRevenueStats() { return new java.util.HashMap<>(); }
     public java.util.Map<String, Object> getMovieRevenueStats(Long movieId) { return new java.util.HashMap<>(); }
-    public java.util.List<Movie> searchMovies(String query) { return java.util.Collections.emptyList(); }
-    public java.util.List<Movie> advancedSearch(String title, String genre, String status, Double minRating, Double maxRating, Double minPrice, Double maxPrice) { return java.util.Collections.emptyList(); }
+    public java.util.List<Movie> searchMovies(String query) { 
+        return movieRepository.searchMovies(query);
+    }
+    public java.util.List<Movie> advancedSearch(String title, String genre, String status, Double minRating, Double maxRating, Double minPrice, Double maxPrice) { 
+        return movieRepository.advancedSearch(title, genre, status, minRating, maxRating, minPrice, maxPrice);
+    }
     public java.util.List<Movie> getMoviesByGenre(String genre) {
         return movieRepository.findByGenreContainingIgnoreCase(genre);
     }

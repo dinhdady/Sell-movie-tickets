@@ -65,7 +65,7 @@ export const authAPI = {
 
 // Movie API
 export const movieAPI = {
-  getAll: async (page = 0, size = 10): Promise<PaginatedResponse<Movie>> => {
+  getAll: async (page = 0, size = 10): Promise<{ movies: Movie[]; currentPage: number; totalItems: number; totalPages: number }> => {
     const response = await api.get(`/movie?page=${page}&size=${size}`);
     return response.data;
   },

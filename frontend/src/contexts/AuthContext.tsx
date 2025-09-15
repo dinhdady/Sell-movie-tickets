@@ -48,8 +48,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const response = await authAPI.login(credentials);
       
-      if (response.status === '200') {
-        const { token: newToken, user: newUser } = response.data;
+      if (response.state === '200') {
+        const { token: newToken, user: newUser } = response.object;
         setToken(newToken);
         setUser(newUser);
         localStorage.setItem('token', newToken);
@@ -70,8 +70,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const response = await authAPI.register(userData);
       
-      if (response.status === '200') {
-        const { token: newToken, user: newUser } = response.data;
+      if (response.state === '200') {
+        const { token: newToken, user: newUser } = response.object;
         setToken(newToken);
         setUser(newUser);
         localStorage.setItem('token', newToken);

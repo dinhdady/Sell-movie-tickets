@@ -1,8 +1,8 @@
 // API Response types
 export interface ResponseObject<T = any> {
-  status: string;
+  state: string;
   message: string;
-  data: T;
+  object: T;
 }
 
 // Pagination types

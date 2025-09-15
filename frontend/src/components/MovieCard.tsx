@@ -69,7 +69,7 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
   };
 
   return (
-    <div className="movie-card card-hover group">
+    <div className="movie-card card-hover group min-w-0">
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] overflow-hidden">
         {movie.posterUrl ? (
@@ -109,61 +109,63 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
       </div>
 
       {/* Movie Info */}
-      <div className="p-4">
-        <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-2">
+      <div className="p-4 min-w-0">
+        <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-2 break-words">
           {movie.title}
         </h3>
         
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+        <p className="text-gray-600 text-sm mb-3 line-clamp-2 break-words">
           {movie.description}
         </p>
 
         {/* Movie Details */}
         <div className="space-y-2 mb-4">
-          <div className="flex items-center text-sm text-gray-500">
-            <ClockIcon className="h-4 w-4 mr-2" />
-            <span>{formatDuration(movie.duration)}</span>
+          <div className="flex items-center text-sm text-gray-500 min-w-0">
+            <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="text-ellipsis">{formatDuration(movie.duration)}</span>
           </div>
           
-          <div className="flex items-center text-sm text-gray-500">
-            <CalendarIcon className="h-4 w-4 mr-2" />
-            <span>{formatDate(movie.releaseDate)}</span>
+          <div className="flex items-center text-sm text-gray-500 min-w-0">
+            <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="text-ellipsis">{formatDate(movie.releaseDate)}</span>
           </div>
           
-          <div className="flex items-center text-sm text-gray-500">
-            <span className="mr-2">Thể loại:</span>
-            <span className="font-medium">{movie.genre}</span>
+          <div className="flex items-center text-sm text-gray-500 min-w-0">
+            <span className="mr-2 flex-shrink-0">Thể loại:</span>
+            <span className="font-medium text-ellipsis">{movie.genre}</span>
           </div>
         </div>
 
         {/* Rating */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <StarSolidIcon className="h-4 w-4 text-yellow-400 mr-1" />
-            <span className="text-sm font-medium text-gray-700">
+        <div className="flex items-center justify-between mb-4 min-w-0">
+          <div className="flex items-center flex-1 min-w-0">
+            <StarSolidIcon className="h-4 w-4 text-yellow-400 mr-1 flex-shrink-0" />
+            <span className="text-sm font-medium text-gray-700 text-ellipsis">
               {movie.rating.toFixed(1)}
             </span>
           </div>
-          <div className="text-lg font-bold text-blue-600">
-            {movie.price.toLocaleString('vi-VN')}đ
+          <div className="text-lg font-bold text-blue-600 flex-shrink-0 ml-2">
+            <span className="text-ellipsis">{movie.price.toLocaleString('vi-VN')}đ</span>
           </div>
         </div>
 
         {/* Actions */}
         {showActions && (
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 min-w-0">
             <Link
               to={`/movies/${movie.id}`}
-              className="btn-primary flex-1 text-center"
+              className="btn-primary flex-1 text-center form-element"
+              onClick={(e) => e.stopPropagation()}
             >
-              Chi tiết
+              <span className="text-ellipsis">Chi tiết</span>
             </Link>
             {movie.status === 'NOW_SHOWING' && (
               <Link
                 to={`/booking/${movie.id}`}
-                className="flex-1 bg-green-600 text-white text-center py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                className="flex-1 bg-green-600 text-white text-center py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium form-element"
+                onClick={(e) => e.stopPropagation()}
               >
-                Đặt vé
+                <span className="text-ellipsis">Đặt vé</span>
               </Link>
             )}
           </div>
