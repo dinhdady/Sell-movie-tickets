@@ -22,7 +22,7 @@ import java.util.Map;
 
 @Controller
 @RequestMapping("api/movie")
-//@CrossOrigin(origins = {"http://localhost:4200", "http://127.0.0.1:4200"}, allowCredentials = "true")
+//@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"}, allowCredentials = "true")
 public class MovieController {
     // @Autowired
     // private CloudinaryService cloudinaryService;

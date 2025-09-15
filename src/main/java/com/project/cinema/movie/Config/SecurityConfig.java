@@ -116,7 +116,7 @@ public class SecurityConfig {
             configuration.setAllowedOriginPatterns(java.util.Arrays.asList(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
-                "http://localhost:4200"
+                "http://localhost:5173"
             ));
             configuration.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
             configuration.setAllowedHeaders(java.util.Arrays.asList("*"));

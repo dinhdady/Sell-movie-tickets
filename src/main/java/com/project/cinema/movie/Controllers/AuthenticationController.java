@@ -190,7 +190,7 @@ public class AuthenticationController {
             passwordResetTokenRepository.save(passwordResetToken);
 
             // Gửi email chứa link đặt lại mật khẩu
-            String resetLink = "http://localhost:4200/reset-password?token=" + token;
+            String resetLink = "http://localhost:5173/reset-password?token=" + token;
             String emailBody = "Để đặt lại mật khẩu, vui lòng nhấp vào link sau: " + resetLink;
 
             SimpleMailMessage message = new SimpleMailMessage();
