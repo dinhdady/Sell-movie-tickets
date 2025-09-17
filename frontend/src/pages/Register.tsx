@@ -62,9 +62,11 @@ const Register: React.FC = () => {
 
     try {
       const { confirmPassword, ...registerData } = formData;
+      console.log('Register form submitting with data:', registerData);
       await register(registerData);
       navigate('/');
     } catch (err: any) {
+      console.error('Register form error:', err);
       setError(err.message || 'Đăng ký thất bại');
     }
   };

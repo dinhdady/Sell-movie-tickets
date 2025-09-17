@@ -51,111 +51,6 @@ public class VNPayService {
     private BookingService bookingService;
     @Autowired
     private ShowtimeSeatBookingRepository showtimeSeatBookingRepository;
-    @Value("${spring.mail.username}")
-    private String fromEmail;
-
-    private void sendTicketEmail(String to, Order order, List<Ticket> tickets, List<String> qrCodes) {
-    try {
-        MimeMessage mimeMessage = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-
-        helper.setTo(to);
-        helper.setSubject("Xác nhận đặt vé #" + order.getId());
-
-        // Xây dựng HTML (sử dụng cid thay vì base64)
-        StringBuilder sb = new StringBuilder();
-        sb.append("<!DOCTYPE html>");
-        sb.append("<html lang='vi'><head><meta charset='UTF-8'>");
-        sb.append("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
-        sb.append("<title>Thanh toán thành công</title></head>");
-        sb.append("<body style='font-family: Arial, sans-serif; background:#f4f4f4; padding:20px;'>");
-        sb.append("<div style='max-width:600px; margin:0 auto; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.1);'>");
-
-        // Header
-        sb.append("<div style='background:#4CAF50; color:white; text-align:center; padding:20px;'>");
-        sb.append("<h2 style='margin:0;'>Thanh toán thành công!</h2>");
-        sb.append("</div>");
-
-        // Body
-        sb.append("<div style='padding:20px;'>");
-        sb.append("<p><b>Mã đơn hàng:</b> ").append(order.getId()).append("</p>");
-        sb.append("<p><b>Email:</b> ").append(order.getCustomerEmail()).append("</p>");
-        sb.append("<p><b>Số lượng vé:</b> ").append(tickets.size()).append(" vé</p>");
-
-        // Get showtime and room information from the first ticket
-        if (!tickets.isEmpty()) {
-            Ticket firstTicket = tickets.get(0);
-            Order ticketOrder = firstTicket.getOrder();
-            if (ticketOrder != null && !ticketOrder.getBookings().isEmpty()) {
-                Booking booking = ticketOrder.getBookings().get(0);
-                Showtime showtime = booking.getShowtime();
-                if (showtime != null) {
-                    Movie movie = showtime.getMovie();
-                    Room room = showtime.getRoom();
-                    Cinema cinema = room != null ? room.getCinema() : null;
-                    
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm dd/MM/yyyy");
-                    String formattedShowtime = dateFormat.format(showtime.getStartTime());
-                    
-                    if (movie != null) {
-                        sb.append("<p><b>Phim:</b> ").append(movie.getTitle()).append("</p>");
-                    }
-                    if (cinema != null) {
-                        sb.append("<p><b>Rạp:</b> ").append(cinema.getName()).append("</p>");
-                    }
-                    if (room != null) {
-                        sb.append("<p><b>Phòng:</b> ").append(room.getName()).append("</p>");
-                    }
-                    sb.append("<p><b>Suất chiếu:</b> ").append(formattedShowtime).append("</p>");
-                }
-            }
-        }
-
-        // Ghế
-        sb.append("<p><b>Ghế:</b> ");
-        for (Ticket t : tickets) {
-            sb.append("<span style='display:inline-block; background:#eee; padding:5px 10px; margin:3px; border-radius:4px;'>")
-              .append(t.getSeat().getSeatNumber())
-              .append("</span>");
-        }
-        sb.append("</p>");
-
-        // QR Codes
-        if (!qrCodes.isEmpty()) {
-            sb.append("<div style='margin-top:15px;'><b>Mã QR:</b><br/>");
-            for (int i = 0; i < qrCodes.size(); i++) {
-                String cid = "qrCode" + i;
-                sb.append("<img src='cid:").append(cid)
-                  .append("' alt='QR Code Vé ").append(i+1)
-                  .append("' style='width:120px;height:120px;margin:5px;border:1px solid #ddd;'/>");
-            }
-            sb.append("</div>");
-        }
-
-        sb.append("<p style='margin-top:20px;'>Vui lòng đưa mã QR này cho nhân viên tại quầy vé.</p>");
-        sb.append("</div>"); // End body
-
-        // Footer
-        sb.append("<div style='background:#f9f9f9; text-align:center; padding:15px; font-size:13px; color:#777;'>");
-        sb.append("<p>Cảm ơn bạn đã sử dụng dịch vụ đặt vé của chúng tôi!</p>");
-        sb.append("</div></div></body></html>");
-
-        // Gắn nội dung HTML
-        helper.setText(sb.toString(), true);
-
-        // Thêm QR code inline
-        for (int i = 0; i < qrCodes.size(); i++) {
-            byte[] qrBytes = Base64.getDecoder().decode(qrCodes.get(i));
-            helper.addInline("qrCode" + i, new org.springframework.core.io.ByteArrayResource(qrBytes), "image/png");
-        }
-
-        mailSender.send(mimeMessage);
-        logger.info("[EMAIL] Đã gửi mail HTML có QR code tới {}", to);
-
-    } catch (Exception e) {
-        logger.error("[EMAIL] Lỗi gửi mail: {}", e.getMessage(), e);
-    }
-}
 
     @Transactional
     public String createPayment(VnpayRequest paymentRequest) throws UnsupportedEncodingException {
@@ -163,21 +58,19 @@ public class VNPayService {
         Booking booking = bookingRepository.findById(paymentRequest.getBookingId())
             .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + paymentRequest.getBookingId()));
 
-        // Tạo một Order mới
-        Order order = new Order();
-        order.setUser(booking.getUser());
-        order.setBookings(Collections.singletonList(booking));
-        order.setTotalPrice(booking.getTotalPrice());
-        order.setStatus("PENDING_PAYMENT");
-        order.setCustomerEmail(booking.getCustomerEmail()); // Set the customer email from booking form
+        // Sử dụng Order đã tồn tại từ booking
+        Order order = booking.getOrder();
+        if (order == null) {
+            throw new ResourceNotFoundException("Order not found for booking id: " + paymentRequest.getBookingId());
+        }
         
-        // Lưu order để có ID và txnRef
-        Order savedOrder = orderRepository.save(order);
-        String txnRef = savedOrder.getTxnRef();
-
-        // Gắn order vào booking
-        booking.setOrder(savedOrder);
-        bookingRepository.save(booking);
+        // Cập nhật trạng thái order thành PENDING_PAYMENT nếu chưa có
+        if (!"PENDING_PAYMENT".equals(order.getStatus())) {
+            order.setStatus("PENDING_PAYMENT");
+            orderRepository.save(order);
+        }
+        
+        String txnRef = order.getTxnRef();
 
         String vnp_Version = "2.1.0";
         String vnp_Command = "pay";
@@ -246,7 +139,8 @@ public class VNPayService {
         logger.info("[VNPAY] Callback với params: {}", allParams);
         String responseCode = allParams.get("vnp_ResponseCode");
         String vnp_TxnRef = allParams.get("vnp_TxnRef");
-        logger.info("[VNPAY] responseCode: {}, txnRef: {}", responseCode, vnp_TxnRef);
+        String vnp_TransactionNo = allParams.get("vnp_TransactionNo");
+        logger.info("[VNPAY] responseCode: {}, txnRef: {}, transactionNo: {}", responseCode, vnp_TxnRef, vnp_TransactionNo);
 
         if (!"00".equals(responseCode)) {
             logger.warn("[VNPAY] Thanh toán thất bại với mã lỗi: {}", responseCode);
@@ -263,120 +157,48 @@ public class VNPayService {
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã: " + vnp_TxnRef));
             logger.info("[VNPAY] Đã tìm thấy order: {}", order.getId());
 
+            // Lưu transaction_id
+            if (vnp_TransactionNo != null && !vnp_TransactionNo.isEmpty()) {
+                order.setTransactionId(vnp_TransactionNo);
+                order.setStatus("PAID");
+                orderRepository.save(order);
+                logger.info("[VNPAY] Đã cập nhật transactionId: {} và status: PAID cho order: {}", vnp_TransactionNo, order.getId());
+            }
+
             // Kiểm tra xem đơn hàng đã được xử lý chưa
             if ("PAID".equals(order.getStatus())) {
                 logger.warn("[VNPAY] Đơn hàng {} đã được xử lý trước đó.", order.getId());
-                return new VNPayResponseDTO("success", "Thanh toán thành công (đã xử lý)", order.getId().toString(), order.getTickets(), null);
+                
+                // Lấy tickets đã được tạo
+                List<Ticket> tickets = ticketRepository.findByOrderId(order.getId());
+                
+                if (tickets != null && !tickets.isEmpty()) {
+                    logger.info("[VNPAY] Đã tìm thấy {} vé cho order {}", tickets.size(), order.getId());
+                    return new VNPayResponseDTO("success", "Thanh toán thành công (đã xử lý)", order.getId().toString(), tickets, null);
+                }
             }
 
-            order.setStatus("PAID");
-            orderRepository.save(order);
-
-            List<Ticket> tickets = new ArrayList<>(); // List to store tickets
-            List<String> qrCodes = new ArrayList<>(); // List to store QR codes
-            
-            for (Booking booking : order.getBookings()) {
-                logger.info("[VNPAY] Processing booking ID: {}", booking.getId());
-                booking.setStatus(BookingStatus.CONFIRMED);
-                bookingRepository.save(booking);
-
-                // Assign seats to booking only after payment confirmation
-                List<Long> seatIds = booking.getSeatIds(); // Assuming seatIds field added to Booking model
-                if (seatIds != null && !seatIds.isEmpty()) {
-                    bookingService.assignSeatsToBooking(booking, seatIds);
-                    logger.info("[VNPAY] Assigned seats to booking ID: {}", booking.getId());
-                } else {
-                    logger.warn("[VNPAY] No seat IDs found for booking ID: {}", booking.getId());
-                }
-
-                // Get seats from showtime seat bookings instead of direct seat-booking relationship
-                List<ShowtimeSeatBooking> seatBookings = showtimeSeatBookingRepository.findByBookingId(booking.getId());
-                if (seatBookings.isEmpty()) {
-                    logger.warn("[VNPAY] Booking {} không có ghế nào!", booking.getId());
-                    continue;
+            // Sử dụng BookingService để xử lý payment confirmation
+            try {
+                Booking updatedBooking = bookingService.confirmPaymentAndGenerateTickets(vnp_TxnRef);
+                logger.info("[VNPAY] Successfully confirmed payment and generated tickets for txnRef: {}", vnp_TxnRef);
+                
+                // Cập nhật lại order status nếu chưa được cập nhật
+                if (!"PAID".equals(order.getStatus())) {
+                    order.setStatus("PAID");
+                    orderRepository.save(order);
+                    logger.info("[VNPAY] Đã cập nhật status: PAID cho order: {}", order.getId());
                 }
                 
-                List<Seat> seats = seatBookings.stream()
-                    .map(ShowtimeSeatBooking::getSeat)
-                    .toList();
-                double pricePerTicket = booking.getTotalPrice() / seats.size();
-
-                for (Seat seat : seats) {
-                    Ticket ticket = new Ticket();
-                    ticket.setOrder(order);
-                    ticket.setSeat(seat);
-                    ticket.setPrice(pricePerTicket);
-                    ticket.setStatus(TicketStatus.PAID);
-                    ticket.setUsed(false);
-                    
-                    // QR code token will be automatically generated by the @PrePersist method
-                    ticket = ticketRepository.save(ticket);
-                    tickets.add(ticket);
-                    
-                    // Generate QR code with detailed ticket information
-                    String qrText = generateQRCodeText(ticket);
-                    String qrCode = qrCodeService.generateQRCodeImage(qrText, 300, 300);
-                    qrCode = qrCode.replaceAll("\\s+", ""); // Remove whitespace and line breaks
-                    order.setTickets(tickets);
-                    orderRepository.save(order);
-                    logger.info(order.getCustomerEmail());
-                    // Gửi email HTML
-                    qrCodes.add(qrCode);
-                    
-                    logger.info("[VNPAY] Đã tạo ticket {} cho seat {} với mã token: {}", ticket.getId(), seat.getSeatNumber(), ticket.getToken());
-                }
+                // Lấy tickets đã được tạo
+                List<Ticket> tickets = ticketRepository.findByOrderId(order.getId());
+                logger.info("[VNPAY] Đã tạo tổng cộng {} vé cho order {}", tickets.size(), order.getId());
+                
+                return new VNPayResponseDTO("success", "Thanh toán thành công", order.getId().toString(), tickets, null);
+            } catch (Exception e) {
+                logger.error("[VNPAY] Error confirming payment: {}", e.getMessage(), e);
+                throw new RuntimeException("Failed to confirm payment: " + e.getMessage());
             }
-
-            order.setTickets(tickets);
-            orderRepository.save(order);
-            logger.info("[VNPAY] Đã tạo tổng cộng {} vé cho order {}", tickets.size(), order.getId());
-
-            // Gửi email HTML sau khi tất cả vé và mã QR đã được tạo
-            if (order.getCustomerEmail() != null && !qrCodes.isEmpty()) {
-                logger.info("[VNPAY] Sending email to: {}", order.getCustomerEmail());
-                sendTicketEmail(order.getCustomerEmail(), order, tickets, qrCodes);
-            } else {
-                logger.warn("[VNPAY] Cannot send email - customerEmail: {}, qrCodes empty: {}", 
-                           order.getCustomerEmail(), qrCodes.isEmpty());
-            }
-
-            // Extract movie, cinema, room, and showtime information
-            String movieTitle = null;
-            String cinemaName = null;
-            String roomName = null;
-            String formattedShowtime = null;
-            
-            if (!tickets.isEmpty()) {
-                Ticket firstTicket = tickets.get(0);
-                Order ticketOrder = firstTicket.getOrder();
-                if (ticketOrder != null && !ticketOrder.getBookings().isEmpty()) {
-                    Booking booking = ticketOrder.getBookings().get(0);
-                    Showtime showtime = booking.getShowtime();
-                    if (showtime != null) {
-                        Movie movie = showtime.getMovie();
-                        Room room = showtime.getRoom();
-                        Cinema cinema = room != null ? room.getCinema() : null;
-                        
-                        SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm dd/MM/yyyy");
-                        formattedShowtime = dateFormat.format(showtime.getStartTime());
-                        
-                        if (movie != null) {
-                            movieTitle = movie.getTitle();
-                        }
-                        if (cinema != null) {
-                            cinemaName = cinema.getName();
-                        }
-                        if (room != null) {
-                            roomName = room.getName();
-                        }
-                    }
-                }
-            }
-
-            VNPayResponseDTO response = new VNPayResponseDTO("success", "Thanh toán thành công", order.getId().toString(), tickets, qrCodes, order.getCustomerEmail(), tickets.size(), movieTitle, cinemaName, roomName, formattedShowtime);
-            logger.info("[VNPAY] Response DTO: {}", response);
-
-            return response;
 
         } catch (Exception e) {
             logger.error("[VNPAY] Lỗi xử lý đơn hàng: {}", e.getMessage(), e);
@@ -424,18 +246,42 @@ public class VNPayService {
                         
                         if (movie != null) {
                             movieTitle = movie.getTitle();
+                            logger.info("[VNPAY] Tìm thấy thông tin phim: {}", movieTitle);
+                        } else {
+                            logger.warn("[VNPAY] Không tìm thấy thông tin phim cho vé");
+                            // Tìm thông tin phim từ showtime
+                            if (showtime.getMovie() != null) {
+                                movieTitle = showtime.getMovie().getTitle();
+                                logger.info("[VNPAY] Tìm thấy thông tin phim từ showtime: {}", movieTitle);
+                            }
                         }
+                        
                         if (cinema != null) {
                             cinemaName = cinema.getName();
+                            logger.info("[VNPAY] Tìm thấy thông tin rạp: {}", cinemaName);
+                        } else {
+                            logger.warn("[VNPAY] Không tìm thấy thông tin rạp cho vé");
                         }
+                        
                         if (room != null) {
                             roomName = room.getName();
+                            logger.info("[VNPAY] Tìm thấy thông tin phòng: {}", roomName);
+                        } else {
+                            logger.warn("[VNPAY] Không tìm thấy thông tin phòng cho vé");
                         }
+                    } else {
+                        logger.warn("[VNPAY] Không tìm thấy thông tin suất chiếu cho vé");
                     }
+                } else {
+                    logger.warn("[VNPAY] Không tìm thấy thông tin đặt vé cho order");
                 }
+            } else {
+                logger.warn("[VNPAY] Không tìm thấy vé nào cho order");
             }
 
-            return new VNPayResponseDTO("success", "Lấy thông tin vé thành công", orderId, tickets, qrCodes, order.getCustomerEmail(), tickets.size(), movieTitle, cinemaName, roomName, formattedShowtime);
+            VNPayResponseDTO response = new VNPayResponseDTO("success", "Lấy thông tin vé thành công", orderId, tickets, qrCodes, order.getCustomerEmail(), tickets.size(), movieTitle, cinemaName, roomName, formattedShowtime);
+            logger.info("[VNPAY] Thông tin phim trong response: {}", response.getMovieTitle());
+            return response;
         } catch (NumberFormatException e) {
             logger.error("[VNPAY] ID đơn hàng không hợp lệ: {}", orderId);
             throw new RuntimeException("ID đơn hàng không hợp lệ: " + orderId);

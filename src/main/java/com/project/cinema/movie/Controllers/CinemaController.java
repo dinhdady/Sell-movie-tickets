@@ -19,8 +19,9 @@ public class CinemaController {
     private CinemaService cinemaService;
 
     @GetMapping
-    public List<Cinema> getAllCinemas(){
-        return cinemaService.getAllCinemas();
+    public ResponseEntity<ResponseObject> getAllCinemas(){
+        List<Cinema> cinemas = cinemaService.getAllCinemas();
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Cinemas retrieved successfully!", cinemas));
     }
     @GetMapping("/{id}")
     public Cinema getCinemaById(@PathVariable Long id){

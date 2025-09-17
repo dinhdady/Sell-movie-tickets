@@ -22,8 +22,15 @@ public class RoomController {
     @Autowired
     private CinemaService cinemaService;
     @GetMapping
-    public List<Room> getAllRooms(){
-        return roomService.getAllRooms();
+    public ResponseEntity<ResponseObject> getAllRooms(){
+        List<Room> rooms = roomService.getAllRooms();
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Rooms retrieved successfully!", rooms));
+    }
+
+    @GetMapping("/cinema/{cinemaId}")
+    public ResponseEntity<ResponseObject> getRoomsByCinema(@PathVariable Long cinemaId){
+        List<Room> rooms = roomService.getRoomsByCinemaId(cinemaId);
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Rooms for cinema retrieved successfully!", rooms));
     }
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/{id}")

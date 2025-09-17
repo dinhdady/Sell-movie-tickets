@@ -1,6 +1,6 @@
 package com.project.cinema.movie.Services;
 
-import com.project.cinema.movie.DTO.BookingDTO;
+import com.project.cinema.movie.DTO.*;
 import com.project.cinema.movie.Exception.ResourceNotFoundException;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.*;
@@ -27,6 +27,15 @@ public class BookingService {
     
     @Autowired
     private ShowtimeSeatBookingRepository showtimeSeatBookingRepository;
+    
+    @Autowired
+    private OrderRepository orderRepository;
+    
+    @Autowired
+    private TicketRepository ticketRepository;
+    
+    @Autowired
+    private EmailService emailService;
 
     public List<Booking> getAllBookings() {
         return bookingRepository.findAll();
@@ -353,4 +362,214 @@ public class BookingService {
         
         return result;
     }
+
+    // Check seat availability for showtime
+    public boolean checkSeatAvailability(Long showtimeId, List<Long> seatIds) {
+        for (Long seatId : seatIds) {
+            ShowtimeSeatBooking existingBooking = showtimeSeatBookingRepository
+                .findByShowtimeIdAndSeatId(showtimeId, seatId);
+            if (existingBooking != null && existingBooking.getStatus() == SeatStatus.BOOKED) {
+                return false; // Seat is already booked
+            }
+        }
+        return true; // All seats are available
+    }
+
+    // Get booking by transaction reference
+    public Booking getBookingByTxnRef(String txnRef) {
+        // Find order by txnRef first
+        Optional<Order> order = orderRepository.findByTxnRef(txnRef);
+        if (order == null) {
+            throw new RuntimeException("Order not found with txnRef: " + txnRef);
+        }
+        
+        // Find booking by orderId
+        Booking booking = bookingRepository.findByOrderId(order.get().getId());
+        if (booking == null) {
+            throw new RuntimeException("Booking not found for order: " + order.get().getId());
+        }
+        
+        return booking;
+    }
+
+    // Reserve seats for a booking and showtime
+    @Transactional
+    public void reserveSeats(Long bookingId, Long showtimeId, List<Long> seatIds) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new RuntimeException("Booking not found"));
+        Showtime showtime = showtimeRepository.findById(showtimeId)
+            .orElseThrow(() -> new RuntimeException("Showtime not found"));
+
+        for (Long seatId : seatIds) {
+            Seat seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found"));
+
+            // Check if seat is already booked for this showtime
+            ShowtimeSeatBooking existingBooking = showtimeSeatBookingRepository
+                .findByShowtimeIdAndSeatId(showtimeId, seatId);
+            
+            if (existingBooking != null && existingBooking.getStatus() == SeatStatus.BOOKED) {
+                throw new RuntimeException("Seat " + seat.getSeatNumber() + " is already booked for this showtime");
+            }
+
+            // Create new seat reservation
+            ShowtimeSeatBooking seatBooking = new ShowtimeSeatBooking();
+            seatBooking.setShowtime(showtime);
+            seatBooking.setSeat(seat);
+            seatBooking.setBooking(booking);
+            seatBooking.setStatus(SeatStatus.BOOKED);
+            
+            showtimeSeatBookingRepository.save(seatBooking);
+        }
+    }
+
+    // Generate tickets for booking
+    @Transactional
+    public void generateTicketsForBooking(Booking booking, List<Long> seatIds) {
+        Order order = booking.getOrder();
+        
+        for (Long seatId : seatIds) {
+            Seat seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found"));
+            
+            Ticket ticket = new Ticket();
+            ticket.setOrder(order);
+            ticket.setSeat(seat);
+            ticket.setPrice(calculateSeatPrice(seat));
+            ticket.setStatus(TicketStatus.PENDING);
+            
+            ticketRepository.save(ticket);
+        }
+    }
+
+    // Calculate seat price based on seat type
+    private double calculateSeatPrice(Seat seat) {
+        switch (seat.getSeatType()) {
+            case VIP:
+                return 150000.0; // 150,000 VND for VIP seats
+            case COUPLE:
+                return 200000.0; // 200,000 VND for couple seats
+            case REGULAR:
+            default:
+                return 100000.0; // 100,000 VND for regular seats
+        }
+    }
+
+    // Update booking status and generate tickets after payment
+    @Transactional
+    public Booking confirmPaymentAndGenerateTickets(String txnRef) {
+        Booking booking = getBookingByTxnRef(txnRef);
+        
+        // Update booking status to CONFIRMED
+        booking.setStatus(BookingStatus.valueOf("CONFIRMED"));
+        booking = bookingRepository.save(booking);
+        
+        // Get seat IDs from ShowtimeSeatBooking
+        List<ShowtimeSeatBooking> seatBookings = showtimeSeatBookingRepository
+            .findByBookingId(booking.getId());
+        
+        List<Long> seatIds = seatBookings.stream()
+            .map(sb -> sb.getSeat().getId())
+            .toList();
+        
+        // Generate tickets
+        generateTicketsForBooking(booking, seatIds);
+        
+        // Update ticket status to PAID
+        List<Ticket> tickets = ticketRepository.findByOrderId(booking.getOrder().getId());
+        for (Ticket ticket : tickets) {
+            ticket.setStatus(TicketStatus.PAID);
+            ticketRepository.save(ticket);
+        }
+        
+        // Send booking confirmation email
+        try {
+            emailService.sendBookingConfirmation(booking, tickets);
+        } catch (Exception e) {
+            System.err.println("Failed to send booking confirmation email: " + e.getMessage());
+        }
+        
+        return booking;
+    }
+
+    // Get booking with full details including tickets
+    public BookingDetailsResponse getBookingWithDetails(String txnRef) {
+        Booking booking = getBookingByTxnRef(txnRef);
+
+        BookingDetailsResponse response = new BookingDetailsResponse();
+        response.setId(booking.getId());
+
+        // Map MovieDTO
+        Movie movie = booking.getShowtime().getMovie();
+        MovieDTO movieDTO = new MovieDTO();
+        movieDTO.setTitle(movie.getTitle());
+        movieDTO.setDescription(movie.getDescription());
+        movieDTO.setDuration(movie.getDuration());
+        movieDTO.setReleaseDate(movie.getReleaseDate());
+        movieDTO.setGenre(movie.getGenre());
+        movieDTO.setDirector(movie.getDirector());
+        movieDTO.setTrailerUrl(movie.getTrailerUrl());
+        movieDTO.setLanguage(movie.getLanguage());
+        movieDTO.setCast(movie.getCast());
+        movieDTO.setRating(movie.getRating());
+        movieDTO.setStatus(movie.getStatus());
+        movieDTO.setPrice(movie.getPrice());
+        movieDTO.setFilmRating(movie.getFilmRating());
+        response.setMovie(movieDTO);
+
+        // Map ShowtimeDTO
+        Showtime showtime = booking.getShowtime();
+        ShowtimeDTO showtimeDTO = new ShowtimeDTO();
+        showtimeDTO.setStartTime(showtime.getStartTime());
+        showtimeDTO.setEndTime(showtime.getEndTime());
+        showtimeDTO.setRoomId(showtime.getRoom().getId());
+        showtimeDTO.setMovieId(showtime.getMovie().getId());
+        response.setShowtime(showtimeDTO);
+
+        // Map OrderDTO
+        Order order = booking.getOrder();
+        if (order != null) {
+            OrderDTO orderDTO = new OrderDTO();
+            orderDTO.setUserId(order.getUser() != null ? order.getUser().getId().toString() : null);
+            orderDTO.setShowtimeId(showtime.getId());
+            orderDTO.setTotalPrice(order.getTotalPrice());
+            orderDTO.setCustomerEmail(order.getCustomerEmail());
+            orderDTO.setCustomerName(booking.getCustomerName());
+            orderDTO.setCustomerPhone(booking.getCustomerPhone());
+            orderDTO.setCustomerAddress(booking.getCustomerAddress());
+
+            // Map tickets
+            List<Ticket> tickets = ticketRepository.findByOrderId(order.getId());
+            List<TicketDTO> ticketDTOs = new ArrayList<>();
+            for (Ticket ticket : tickets) {
+                TicketDTO ticketDTO = new TicketDTO();
+                ticketDTO.setId(ticket.getId());
+                ticketDTO.setOrderId(ticket.getOrder().getId());
+                ticketDTO.setSeatId(ticket.getSeat().getId());
+                ticketDTO.setPrice(ticket.getPrice());
+                ticketDTO.setToken(ticket.getToken());
+                ticketDTO.setStatus(ticket.getStatus().toString());
+                ticketDTOs.add(ticketDTO);
+            }
+            orderDTO.setTickets(ticketDTOs);
+
+            response.setOrder(orderDTO);
+        }
+
+        response.setCustomerName(booking.getCustomerName());
+        response.setCustomerEmail(booking.getCustomerEmail());
+
+        // Set payment status and method from order status if available
+        if (order != null) {
+            response.setPaymentStatus(order.getStatus());
+            // Assuming payment method is stored somewhere, else set null or default
+            response.setPaymentMethod(null);
+        } else {
+            response.setPaymentStatus(null);
+            response.setPaymentMethod(null);
+        }
+
+        return response;
+    }
+
 }

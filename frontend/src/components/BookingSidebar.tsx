@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { movieAPI, showtimeAPI, bookingAPI } from '../services/api';
+import { movieAPI, bookingAPI } from '../services/api';
 import type { Movie, Showtime } from '../types/movie';
 import type { Seat } from '../types/booking';
 import { 
   ClockIcon, 
   MapPinIcon,
-  UserGroupIcon,
-  CheckIcon,
   XMarkIcon,
   StarIcon as StarSolidIcon
 } from '@heroicons/react/24/outline';
@@ -29,7 +27,7 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
   const [movie, setMovie] = useState<Movie | null>(null);
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [selectedShowtime, setSelectedShowtime] = useState<Showtime | null>(null);
-  const [seats, setSeats] = useState<Seat[]>([]);
+  const [seats] = useState<Seat[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -305,7 +303,7 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
                             disabled={seat.status === 'OCCUPIED'}
                             className={`w-6 h-6 rounded text-xs font-medium transition-colors ${getSeatColor(seat)}`}
                           >
-                            {seat.number}
+                            {seat.seatNumber}
                           </button>
                         ))}
                       </div>
@@ -327,7 +325,7 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
                   <div className="space-y-2">
                     {selectedSeats.map((seat) => (
                       <div key={seat.id} className="flex justify-between text-sm min-w-0">
-                        <span className="text-ellipsis flex-1 min-w-0">Ghế {seat.row}{seat.number}</span>
+                        <span className="text-ellipsis flex-1 min-w-0">Ghế {seat.seatNumber}</span>
                         <span className="text-ellipsis flex-shrink-0 ml-2">{seat.price.toLocaleString('vi-VN')}đ</span>
                       </div>
                     ))}

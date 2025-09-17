@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đặt vé</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9fafb;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .ticket-info {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #3b82f6;
+        }
+        .movie-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #6b7280;
+        }
+        .info-value {
+            color: #1f2937;
+        }
+        .seats {
+            background-color: #dbeafe;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .total-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #059669;
+            text-align: center;
+            padding: 15px;
+            background-color: #ecfdf5;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #6b7280;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .qr-note {
+            background-color: #fef3c7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎬 Xác nhận đặt vé thành công!</h1>
+    </div>
+    
+    <div class="content">
+        <p>Xin chào <strong th:text="${booking.customerName}">Khách hàng</strong>,</p>
+        
+        <p>Cảm ơn bạn đã đặt vé tại rạp chiếu phim của chúng tôi! Dưới đây là thông tin chi tiết về vé đã đặt:</p>
+        
+        <div class="ticket-info">
+            <div class="movie-title" th:text="${movie.title}">Tên phim</div>
+            
+            <div class="info-row">
+                <span class="info-label">🏢 Rạp chiếu:</span>
+                <span class="info-value" th:text="${cinema.name}">Tên rạp</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">📍 Địa chỉ:</span>
+                <span class="info-value" th:text="${cinema.address}">Địa chỉ rạp</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">🚪 Phòng chiếu:</span>
+                <span class="info-value" th:text="${room.name}">Phòng</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">📅 Ngày chiếu:</span>
+                <span class="info-value" th:text="${showDate}">Ngày</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">⏰ Giờ chiếu:</span>
+                <span class="info-value">
+                    <span th:text="${showStartTime}">Giờ bắt đầu</span> - <span th:text="${showEndTime}">Giờ kết thúc</span>
+                </span>
+            </div>
+        </div>
+        
+        <div class="seats">
+            <h3>🪑 Ghế đã đặt:</h3>
+            <div th:each="ticket : ${tickets}">
+                <strong>Ghế <span th:text="${ticket.seat.seatNumber}">A1</span></strong> 
+                (<span th:text="${ticket.seat.seatType}">VIP</span>) - 
+                <span th:text="${#numbers.formatDecimal(ticket.price, 0, 'COMMA', 0, 'POINT')}">100,000</span> VNĐ
+            </div>
+        </div>
+        
+        <div class="total-amount">
+            💰 Tổng tiền: <span th:text="${#numbers.formatDecimal(booking.totalPrice, 0, 'COMMA', 0, 'POINT')}">200,000</span> VNĐ
+        </div>
+        
+        <!-- QR Codes Section -->
+        <!-- QR Codes Section -->
+        <div style="text-align: center; margin: 20px 0;">
+            <h3>🎟️ Mã QR vé của bạn:</h3>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 15px;">
+                <div th:each="info : ${ticketDTOs}">
+                    <div style="font-weight: bold; margin-bottom: 5px;">
+                        Ghế <span th:text="${info.seat.seatNumber}">A1</span>
+                    </div>
+                    <!-- dùng base64 thay vì cid -->
+                    <img th:src="${info.qrBase64}" alt="QR Code"
+                         style="width:150px;height:150px;margin:0 auto;" />
+                    <div style="font-size:12px;color:#6b7280;margin-top:5px;">
+                        <strong>Mã vé:</strong> <span th:text="${info.id}">ID</span><br>
+                        <strong>Token:</strong> <span th:text="${info.token}">ABC123</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="qr-note">
+            <h3>📱 Hướng dẫn sử dụng vé:</h3>
+            <ul>
+                <li>Vui lòng đến rạp trước giờ chiếu <strong>15 phút</strong></li>
+                <li>Xuất trình mã QR trong ứng dụng hoặc email này tại quầy vé</li>
+                <li>Mang theo giấy tờ tùy thân để đối chiếu thông tin</li>
+                <li>Liên hệ hotline nếu cần hỗ trợ: <strong>1900-xxxx</strong></li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!</p>
+            <p><strong>🎭 Cinema Team</strong></p>
+            <p style="font-size: 12px; color: #9ca3af;">
+                Email này được gửi tự động, vui lòng không trả lời trực tiếp.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

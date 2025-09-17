@@ -28,6 +28,10 @@ public class Seat {
     @Column(name = "seat_column", nullable = false)
     private Integer columnNumber; // Ví dụ: 1, 2, 3...
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "seat_type", nullable = false)
+    private SeatType seatType; // Loại ghế: REGULAR, VIP, COUPLE
+
     @ManyToOne
     @JoinColumn(name = "roomId", nullable = false)
     @JsonBackReference
@@ -55,10 +59,23 @@ public class Seat {
     @JsonManagedReference
     private List<ShowtimeSeatBooking> showtimeSeatBookings;
 
+    // Transient field for frontend display - not stored in database
+    @Transient
+    private String status; // AVAILABLE, BOOKED, SELECTED, OCCUPIED
+
     public Seat(String seatNumber, String rowNumber, Integer columnNumber, Room room) {
         this.seatNumber = seatNumber;
         this.rowNumber = rowNumber;
         this.columnNumber = columnNumber;
         this.room = room;
+        this.seatType = SeatType.REGULAR; // Default seat type
+    }
+
+    public Seat(String seatNumber, String rowNumber, Integer columnNumber, Room room, SeatType seatType) {
+        this.seatNumber = seatNumber;
+        this.rowNumber = rowNumber;
+        this.columnNumber = columnNumber;
+        this.room = room;
+        this.seatType = seatType;
     }
 }

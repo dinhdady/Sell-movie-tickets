@@ -45,14 +45,14 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
           movieAPI.getShowtimes(movieId)
         ]);
 
-        if (movieResponse.status === '200') {
-          setMovie(movieResponse.data);
+        if (movieResponse.state === 'SUCCESS') {
+          setMovie(movieResponse.object);
         } else {
           setError('Không tìm thấy phim');
         }
 
-        if (showtimesResponse.status === '200') {
-          setShowtimes(showtimesResponse.data);
+        if (showtimesResponse.state === 'SUCCESS') {
+          setShowtimes(showtimesResponse.object);
         }
       } catch (err) {
         console.error('Error fetching movie details:', err);

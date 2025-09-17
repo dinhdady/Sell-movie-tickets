@@ -40,11 +40,13 @@ public class UserService {
     @Transactional
     public User register(RegisterRequest newUser) {
         // 1. Mã hóa password trước khi lưu
-        newUser.setPasswordR(passwordEncoder.encode(newUser.getPasswordR()));
+        newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
 
         // 2. Tạo User trước
-        User user = new User(newUser.getUsernameR(), newUser.getPasswordR(), newUser.getEmailR());
+        User user = new User(newUser.getUsername(), newUser.getPassword(), newUser.getEmail());
         user.setRole(Role.USER);
+        user.setFullName(newUser.getFullName());
+        user.setPhoneNumber(newUser.getPhone());
         user = userRepository.save(user); // Lưu User trước để có ID
 
         // 3. Tạo Order và gán User vào
@@ -61,12 +63,13 @@ public class UserService {
     @Transactional
     public User registerAdmin(RegisterRequest newUser) {
         // 1. Mã hóa password trước khi lưu
-        newUser.setPasswordR(passwordEncoder.encode(newUser.getPasswordR()));
+        newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
 
         // 2. Tạo User admin
-        User user = new User(newUser.getUsernameR(), newUser.getPasswordR(), newUser.getEmailR());
+        User user = new User(newUser.getUsername(), newUser.getPassword(), newUser.getEmail());
         user.setRole(Role.ADMIN);
-        user.setFullName(newUser.getUsernameR()); // Sử dụng username làm fullName
+        user.setFullName(newUser.getFullName() != null ? newUser.getFullName() : newUser.getUsername());
+        user.setPhoneNumber(newUser.getPhone());
         
         return userRepository.save(user);
     }

@@ -1,24 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { movieAPI, showtimeAPI, bookingAPI } from '../services/api';
-import type { Movie, Showtime } from '../types/movie';
+import { movieAPI, roomAPI, seatAPI, cinemaAPI, showtimeAPI } from '../services/api';
+import type { Movie, Showtime, Cinema, Room } from '../types/movie';
 import type { Seat } from '../types/booking';
 import ProtectedRoute from '../components/ProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
   ClockIcon, 
   MapPinIcon,
-  UserGroupIcon,
-  CheckIcon,
-  XMarkIcon
+  BuildingOfficeIcon,
+  FilmIcon
 } from '@heroicons/react/24/outline';
 
 const Booking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // Get showtime from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const preselectedShowtimeId = urlParams.get('showtime');
   const [movie, setMovie] = useState<Movie | null>(null);
+  const [cinemas, setCinemas] = useState<Cinema[]>([]);
+  const [selectedCinema, setSelectedCinema] = useState<Cinema | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [selectedShowtime, setSelectedShowtime] = useState<Showtime | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
@@ -32,77 +39,410 @@ const Booking: React.FC = () => {
 
       try {
         setLoading(true);
+        
+        // Fetch movie details
         const movieResponse = await movieAPI.getById(parseInt(id));
         
-        if (movieResponse.state === '200') {
+        if (movieResponse.state === 'SUCCESS') {
           setMovie(movieResponse.object);
         } else {
-          setError('Không tìm thấy phim');
+          // Generate mock movie data if API fails
+          const mockMovie: Movie = {
+            id: parseInt(id!),
+            title: 'Vua Trở Lại',
+            description: 'Phim hành động kịch tính về cuộc chiến giành lại ngai vàng của một vị vua bị lưu đày.',
+            duration: 120,
+            releaseDate: '2024-01-15',
+            genre: 'Hành Động, Phiêu Lưu',
+            director: 'Nguyễn Văn A',
+            cast: 'Trần Văn B, Lê Thị C, Phạm Văn D',
+            rating: 8.6,
+            status: 'NOW_SHOWING',
+            filmRating: 'PG13',
+            price: 80000,
+            posterUrl: 'http://res.cloudinary.com/dp9ltogc9/image/upload/v1752393509/Cinema/99998d7a-6.png'
+          };
+          setMovie(mockMovie);
         }
+          
+        // Fetch cinemas from API
+        try {
+          const cinemasResponse = await cinemaAPI.getAll();
+          if (cinemasResponse.state === 'SUCCESS' && cinemasResponse.object) {
+            setCinemas(cinemasResponse.object);
+          } else {
+            // Fallback to mock cinemas if API fails
+            const mockCinemas: Cinema[] = [
+              {
+                id: 1,
+                name: 'CGV Vincom Center',
+                address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
+                phone: '1900-6017',
+                cinemaType: 'STANDARD'
+              },
+              {
+                id: 2,
+                name: 'Lotte Cinema Landmark',
+                address: 'Keangnam Landmark 72, Phạm Hùng, Nam Từ Liêm, Hà Nội',
+                phone: '1900-5555',
+                cinemaType: 'PREMIUM'
+              },
+              {
+                id: 3,
+                name: 'Galaxy Cinema Nguyễn Du',
+                address: '116 Nguyễn Du, Hai Bà Trưng, Hà Nội',
+                phone: '1900-2224',
+                cinemaType: 'IMAX'
+              }
+            ];
+            setCinemas(mockCinemas);
+          }
+        } catch (error) {
+          console.error('Error fetching cinemas:', error);
+          // Use mock data as fallback
+          const mockCinemas: Cinema[] = [
+            {
+              id: 1,
+              name: 'CGV Vincom Center',
+              address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
+              phone: '1900-6017',
+              cinemaType: 'STANDARD'
+            }
+          ];
+          setCinemas(mockCinemas);
+        }
+        
+        // Auto-select cinema and showtime if preselected
+        if (preselectedShowtimeId && cinemas.length > 0) {
+          const cinema = cinemas[0]; // Auto-select first cinema
+          setSelectedCinema(cinema);
+          
+          // Fetch rooms from database for selected cinema
+          try {
+            const roomsResponse = await roomAPI.getByCinema(cinema.id);
+            if (roomsResponse.state === 'SUCCESS' && roomsResponse.object) {
+              setRooms(roomsResponse.object);
+              // Auto-select room 1 (phòng 1)
+              const room1 = roomsResponse.object.find(room => room.id === 1) || roomsResponse.object[0];
+              setSelectedRoom(room1);
+              
+              // Fetch showtimes for the movie from API
+              const showtimesResponse = await showtimeAPI.getByMovieId(parseInt(id!));
+              if (showtimesResponse.state === 'SUCCESS' && showtimesResponse.object) {
+                setShowtimes(showtimesResponse.object);
+                // Auto-select the preselected showtime
+                const selectedShowtime = showtimesResponse.object.find(st => st.id === parseInt(preselectedShowtimeId));
+                if (selectedShowtime) {
+                  setSelectedShowtime(selectedShowtime);
+                  
+                  // Fetch seats from database for room 1
+                  await loadSeatsFromDatabase(room1.id, selectedShowtime.id);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching rooms/showtimes:', error);
+            // Fallback to mock data if API fails
+            await loadMockData();
+          }
+        }
+        
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('Có lỗi xảy ra khi tải dữ liệu');
+        
+        // Generate mock movie data if API fails
+        const mockMovie: Movie = {
+          id: parseInt(id!),
+          title: 'Vua Trở Lại',
+          description: 'Phim hành động kịch tính về cuộc chiến giành lại ngai vàng của một vị vua bị lưu đày.',
+          duration: 120,
+          releaseDate: '2024-01-15',
+          genre: 'Hành Động, Phiêu Lưu',
+          director: 'Nguyễn Văn A',
+          cast: 'Trần Văn B, Lê Thị C, Phạm Văn D',
+          rating: 8.6,
+          status: 'NOW_SHOWING',
+          filmRating: 'PG13',
+          price: 80000,
+          posterUrl: 'http://res.cloudinary.com/dp9ltogc9/image/upload/v1752393509/Cinema/99998d7a-6.png'
+        };
+        setMovie(mockMovie);
+        
+        // Generate mock cinemas
+        const mockCinemas: Cinema[] = [
+          {
+            id: 1,
+            name: 'CGV Vincom Center',
+            address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
+            phone: '1900-6017',
+            cinemaType: 'STANDARD'
+          },
+          {
+            id: 2,
+            name: 'Lotte Cinema Landmark',
+            address: 'Keangnam Landmark 72, Phạm Hùng, Nam Từ Liêm, Hà Nội',
+            phone: '1900-5555',
+            cinemaType: 'PREMIUM'
+          },
+          {
+            id: 3,
+            name: 'Galaxy Cinema Nguyễn Du',
+            address: '116 Nguyễn Du, Hai Bà Trưng, Hà Nội',
+            phone: '1900-2224',
+            cinemaType: 'IMAX'
+          }
+        ];
+        setCinemas(mockCinemas);
+        
+        setError('');
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [id]);
+  }, [id, preselectedShowtimeId]);
 
-  const handleShowtimeSelect = (showtime: Showtime) => {
-    setSelectedShowtime(showtime);
-    // TODO: Fetch seats for the selected showtime
-    // This would require a new API endpoint
+  const handleCinemaSelect = async (cinema: Cinema) => {
+    setSelectedCinema(cinema);
+    setSelectedRoom(null);
+    setSelectedShowtime(null);
+    setSeats([]);
+    setSelectedSeats([]);
+    
+    // Fetch rooms for selected cinema from API
+    try {
+      const roomsResponse = await roomAPI.getByCinema(cinema.id);
+      if (roomsResponse.state === 'SUCCESS' && roomsResponse.object) {
+        setRooms(roomsResponse.object);
+      } else {
+        setError('Không thể tải danh sách phòng chiếu');
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      setError('Lỗi khi tải danh sách phòng chiếu');
+    }
   };
 
-  const handleSeatSelect = (seat: Seat) => {
-    if (seat.status === 'OCCUPIED') return;
-
-    setSelectedSeats(prev => {
-      const isSelected = prev.find(s => s.id === seat.id);
-      if (isSelected) {
-        return prev.filter(s => s.id !== seat.id);
+  const handleRoomSelect = async (room: Room) => {
+    setSelectedRoom(room);
+    setSelectedShowtime(null);
+    setSelectedSeats([]);
+    setSeats([]);
+    
+    // Fetch showtimes for the movie from API
+    try {
+      console.log('Fetching showtimes for movieId:', id, 'roomId:', room.id);
+      const showtimesResponse = await showtimeAPI.getByMovieId(parseInt(id!));
+      console.log('Showtimes response:', showtimesResponse);
+      
+      if (showtimesResponse.state === 'SUCCESS' && showtimesResponse.object) {
+        console.log('All showtimes:', showtimesResponse.object);
+        // Filter showtimes for the selected room
+        const roomShowtimes = showtimesResponse.object.filter(st => {
+          console.log('Checking showtime:', st, 'roomId:', st.room?.id, 'expected:', room.id);
+          return st.room?.id === room.id;
+        });
+        console.log('Filtered showtimes for room:', roomShowtimes);
+        setShowtimes(roomShowtimes);
       } else {
-        return [...prev, seat];
+        console.error('Failed to fetch showtimes:', showtimesResponse);
+        setError('Không thể tải danh sách suất chiếu');
+      }
+    } catch (error) {
+      console.error('Error fetching showtimes:', error);
+      setError('Lỗi khi tải danh sách suất chiếu');
+    }
+  };
+
+  const handleShowtimeSelect = async (showtime: Showtime) => {
+    console.log('Selected showtime:', showtime);
+    setSelectedShowtime(showtime);
+    setSelectedSeats([]);
+    
+    // Load seats for the selected showtime and room
+    if (showtime.roomId) {
+      console.log('Loading seats for showtime roomId:', showtime.roomId);
+      await loadSeatsFromDatabase(showtime.roomId, showtime.id);
+    } else if (showtime.room?.id) {
+      console.log('Loading seats for showtime.room.id:', showtime.room.id);
+      await loadSeatsFromDatabase(showtime.room.id, showtime.id);
+    } else {
+      console.log('No roomId found in showtime, using mock seats');
+      generateMockSeats();
+    }
+  };
+
+  const loadSeatsFromDatabase = async (roomId: number, showtimeId: number) => {
+    try {
+      console.log('Loading seats for roomId:', roomId, 'showtimeId:', showtimeId);
+      
+      // Fetch seat availability for the specific showtime and room
+      const seatsResponse = await seatAPI.getSeatAvailability(showtimeId, roomId);
+      console.log('Seat availability response:', seatsResponse);
+      
+      if (seatsResponse.state === 'SUCCESS' && seatsResponse.object) {
+        console.log('Loaded seats from database:', seatsResponse.object);
+        setSeats(seatsResponse.object);
+      } else {
+        console.log('Seat availability failed, trying fallback...');
+        // Fallback: fetch all seats for the room and mark as available
+        const roomSeatsResponse = await seatAPI.getByRoomId(roomId);
+        console.log('Room seats response:', roomSeatsResponse);
+        
+        if (roomSeatsResponse.state === 'SUCCESS' && roomSeatsResponse.object) {
+          console.log('Loaded room seats from database:', roomSeatsResponse.object);
+          const seatsWithStatus = roomSeatsResponse.object.map(seat => ({
+            ...seat,
+            status: seat.status || 'AVAILABLE' as const
+          }));
+          setSeats(seatsWithStatus);
+        } else {
+          console.log('Both seat APIs failed, using mock seats');
+          generateMockSeats();
+        }
+      }
+    } catch (error) {
+      console.error('Error loading seats from database:', error);
+      // Fallback to mock seats
+      generateMockSeats();
+    }
+  };
+
+  const loadMockData = async () => {
+    // Generate rooms for the cinema
+    const mockRooms: Room[] = [
+      { id: 1, name: 'Phòng 1', capacity: 100, cinemaId: 1 },
+      { id: 2, name: 'Phòng 2', capacity: 80, cinemaId: 1 },
+      { id: 3, name: 'Phòng 3', capacity: 120, cinemaId: 1 }
+    ];
+    setRooms(mockRooms);
+    setSelectedRoom(mockRooms[0]);
+    
+    // Generate showtimes and auto-select
+    const today = new Date();
+    const mockShowtimes: Showtime[] = [
+      {
+        id: parseInt(preselectedShowtimeId!),
+        startTime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0).toISOString(),
+        endTime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0).toISOString(),
+        movieId: parseInt(id!),
+        roomId: mockRooms[0].id,
+        room: mockRooms[0]
+      }
+    ];
+    setShowtimes(mockShowtimes);
+    setSelectedShowtime(mockShowtimes[0]);
+    
+    // Generate mock seats
+    generateMockSeats();
+  };
+
+  const generateMockSeats = () => {
+    const mockSeats: Seat[] = [];
+    const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const seatsPerRow = 10;
+    
+    rows.forEach((row, rowIndex) => {
+      for (let seatNumber = 1; seatNumber <= seatsPerRow; seatNumber++) {
+        const seatType = rowIndex < 2 ? 'VIP' : rowIndex >= 8 ? 'COUPLE' : 'REGULAR';
+        const basePrice = movie?.price || 80000;
+        const seatPrice = seatType === 'VIP' ? basePrice * 1.5 : 
+                         seatType === 'COUPLE' ? basePrice * 2 : basePrice;
+        
+        // All seats are available by default (no random occupation)
+        mockSeats.push({
+          id: rowIndex * seatsPerRow + seatNumber,
+          seatNumber: `${row}${seatNumber}`,
+          rowNumber: row,
+          columnNumber: seatNumber,
+          seatType: seatType,
+          status: 'AVAILABLE',
+          price: seatPrice
+        });
       }
     });
+    
+    setSeats(mockSeats);
+  };
+
+  // Remove unused generateSeats function - seats are loaded via loadSeatsFromDatabase in handleShowtimeSelect
+
+  const handleSeatSelect = (seat: Seat) => {
+    if (seat.status === 'OCCUPIED' || seat.status === 'BOOKED') return;
+    
+    const isSelected = selectedSeats.some(s => s.id === seat.id);
+    if (isSelected) {
+      setSelectedSeats(selectedSeats.filter(s => s.id !== seat.id));
+    } else {
+      setSelectedSeats([...selectedSeats, seat]);
+    }
   };
 
   const getSeatColor = (seat: Seat) => {
-    if (seat.status === 'OCCUPIED') return 'bg-gray-400 cursor-not-allowed';
-    if (selectedSeats.find(s => s.id === seat.id)) return 'bg-blue-600 text-white';
-    if (seat.seatType === 'VIP') return 'bg-yellow-500 hover:bg-yellow-600';
-    if (seat.seatType === 'COUPLE') return 'bg-pink-500 hover:bg-pink-600';
-    return 'bg-green-500 hover:bg-green-600';
+    // Check if seat is selected
+    if (selectedSeats.some(s => s.id === seat.id)) {
+      return 'bg-blue-500 text-white border-2 border-blue-600';
+    }
+    
+    // Check if seat is booked or occupied
+    if (seat.status === 'BOOKED' || seat.status === 'OCCUPIED') {
+      return 'bg-red-500 text-white cursor-not-allowed opacity-60';
+    }
+    
+    // Color by seat type for available seats
+    switch (seat.seatType) {
+      case 'VIP':
+        return 'bg-yellow-400 hover:bg-yellow-500 text-gray-800 cursor-pointer border border-yellow-500';
+      case 'COUPLE':
+        return 'bg-purple-400 hover:bg-purple-500 text-white cursor-pointer border border-purple-500';
+      case 'REGULAR':
+      default:
+        return 'bg-green-400 hover:bg-green-500 text-white cursor-pointer border border-green-500';
+    }
   };
 
   const calculateTotal = () => {
-    return selectedSeats.reduce((total, seat) => total + seat.price, 0);
+    return selectedSeats.reduce((total, seat) => {
+      // Use seat price from database, fallback to seat type pricing
+      const seatPrice = seat.price || getSeatTypePrice(seat.seatType);
+      return total + seatPrice;
+    }, 0);
+  };
+
+  const getSeatTypePrice = (seatType: string) => {
+    const basePrice = movie?.price || 80000;
+    switch (seatType) {
+      case 'VIP':
+        return basePrice * 1.5;
+      case 'COUPLE':
+        return basePrice * 2;
+      case 'REGULAR':
+      default:
+        return basePrice;
+    }
   };
 
   const handleBooking = async () => {
-    if (!selectedShowtime || selectedSeats.length === 0) return;
-
-    try {
-      const bookingData = {
-        userId: user?.id,
-        showtimeId: selectedShowtime.id,
-        totalAmount: calculateTotal(),
-        customerName: user?.fullName || '',
-        customerEmail: user?.email || '',
-        customerPhone: user?.phone || '',
-        bookingStatus: 'PENDING' as const
-      };
-
-      const response = await bookingAPI.create(bookingData);
-      if (response.state === '200') {
-        navigate(`/booking-success/${response.object.id}`);
-      }
-    } catch (err) {
-      console.error('Booking error:', err);
-      setError('Có lỗi xảy ra khi đặt vé');
+    if (!selectedShowtime || selectedSeats.length === 0) {
+      setError('Vui lòng chọn suất chiếu và ghế');
+      return;
     }
+
+    if (!user) {
+      setError('Vui lòng đăng nhập để đặt vé');
+      return;
+    }
+
+    // Navigate to booking form with booking data
+    navigate('/booking-form', {
+      state: {
+        movie,
+        showtime: selectedShowtime,
+        selectedSeats,
+        totalPrice: calculateTotal()
+      }
+    });
   };
 
   if (loading) {
@@ -163,12 +503,70 @@ const Booking: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Showtime Selection */}
+            {/* Cinema, Room, and Showtime Selection */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">
-                  Chọn suất chiếu
+              {/* Cinema Selection */}
+              <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <BuildingOfficeIcon className="h-6 w-6 mr-2" />
+                  Chọn rạp chiếu
                 </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {cinemas.map((cinema) => (
+                    <button
+                      key={cinema.id}
+                      onClick={() => handleCinemaSelect(cinema)}
+                      className={`p-4 border rounded-lg text-left transition-colors ${
+                        selectedCinema?.id === cinema.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="font-semibold text-gray-900">{cinema.name}</div>
+                      <div className="text-sm text-gray-600 mt-1">{cinema.address}</div>
+                      <div className="text-xs text-gray-500 mt-1">{cinema.phone}</div>
+                      <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-2 inline-block">
+                        {cinema.cinemaType}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Room Selection */}
+              {selectedCinema && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <FilmIcon className="h-6 w-6 mr-2" />
+                    Chọn phòng chiếu
+                  </h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {rooms.map((room) => (
+                      <button
+                        key={room.id}
+                        onClick={() => handleRoomSelect(room)}
+                        className={`p-4 border rounded-lg text-center transition-colors ${
+                          selectedRoom?.id === room.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="font-semibold text-gray-900">{room.name}</div>
+                        <div className="text-sm text-gray-600 mt-1">{room.capacity} ghế</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Showtime Selection */}
+              {selectedRoom && (
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">
+                    Chọn suất chiếu
+                  </h2>
                 
                 {showtimes.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -178,7 +576,7 @@ const Booking: React.FC = () => {
                         onClick={() => handleShowtimeSelect(showtime)}
                         className={`p-4 border rounded-lg text-left transition-colors ${
                           selectedShowtime?.id === showtime.id
-                            ? 'border-blue-500 bg-primary-50'
+                            ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -214,6 +612,16 @@ const Booking: React.FC = () => {
                     Chưa có suất chiếu nào cho phim này
                   </p>
                 )}
+                </div>
+              )}
+
+              {/* Seat Selection - Debug Info */}
+              <div className="bg-yellow-100 p-4 mb-4 rounded-lg">
+                <h3 className="font-bold">Debug Info:</h3>
+                <p>Selected Showtime: {selectedShowtime ? 'Yes' : 'No'}</p>
+                <p>Seats Length: {seats.length}</p>
+                <p>Selected Showtime ID: {selectedShowtime?.id || 'None'}</p>
+                <p>Room ID: {selectedShowtime?.roomId || selectedShowtime?.room?.id || 'None'}</p>
               </div>
 
               {/* Seat Selection */}
@@ -226,42 +634,108 @@ const Booking: React.FC = () => {
                   {/* Seat Legend */}
                   <div className="flex items-center space-x-6 mb-6 text-sm">
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+                      <div className="w-4 h-4 bg-blue-400 rounded mr-2"></div>
                       <span>Ghế thường</span>
                     </div>
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-yellow-500 rounded mr-2"></div>
+                      <div className="w-4 h-4 bg-yellow-400 rounded mr-2"></div>
                       <span>Ghế VIP</span>
                     </div>
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-pink-500 rounded mr-2"></div>
+                      <div className="w-4 h-4 bg-pink-400 rounded mr-2"></div>
                       <span>Ghế đôi</span>
                     </div>
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-gray-400 rounded mr-2"></div>
+                      <div className="w-4 h-4 bg-red-500 rounded mr-2"></div>
                       <span>Đã đặt</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+                      <span>Đang chọn</span>
+                    </div>
+                  </div>
+
+                  {/* Screen */}
+                  <div className="mb-8">
+                    <div className="bg-gray-800 text-white text-center py-2 rounded-lg mb-4">
+                      MÀN HÌNH
                     </div>
                   </div>
 
                   {/* Seat Map */}
                   <div className="space-y-2">
                     {seats.length > 0 ? (
-                      <div className="grid grid-cols-10 gap-2">
-                        {seats.map((seat) => (
-                          <button
-                            key={seat.id}
-                            onClick={() => handleSeatSelect(seat)}
-                            disabled={seat.status === 'OCCUPIED'}
-                            className={`w-8 h-8 rounded text-xs font-medium transition-colors ${getSeatColor(seat)}`}
-                          >
-                            {seat.number}
-                          </button>
+                      <div className="max-w-4xl mx-auto">
+                        {/* Seat Legend */}
+                        <div className="flex justify-center gap-6 mb-6 text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-green-500 rounded"></div>
+                            <span>Có thể chọn</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                            <span>Đã chọn</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-red-500 rounded"></div>
+                            <span>Đã đặt</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+                            <span>VIP</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 bg-purple-500 rounded"></div>
+                            <span>Couple</span>
+                          </div>
+                        </div>
+
+                        {/* Group seats by row */}
+                        {Array.from(new Set(seats.map(seat => seat.rowNumber))).sort().map(row => (
+                          <div key={row} className="flex items-center justify-center mb-2">
+                            <div className="w-8 text-center font-medium text-gray-600 mr-4">
+                              {row}
+                            </div>
+                            <div className="flex gap-1">
+                              {seats
+                                .filter(seat => seat.rowNumber === row)
+                                .sort((a, b) => a.columnNumber - b.columnNumber)
+                                .map((seat) => (
+                                  <button
+                                    key={seat.id}
+                                    onClick={() => handleSeatSelect(seat)}
+                                    disabled={seat.status === 'OCCUPIED' || seat.status === 'BOOKED'}
+                                    className={`w-10 h-10 rounded text-xs font-medium transition-colors ${getSeatColor(seat)} flex items-center justify-center hover:scale-105`}
+                                    title={`Ghế ${seat.seatNumber} - ${seat.seatType} - ${seat.price?.toLocaleString('vi-VN') || 'N/A'}đ - ID: ${seat.id}`}
+                                  >
+                                    {seat.columnNumber}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
                         ))}
+                        
+                        {/* Display total seats info */}
+                        <div className="text-center mt-4 text-sm text-gray-600">
+                          Tổng số ghế: {seats.length} | 
+                          Ghế trống: {seats.filter(s => s.status === 'AVAILABLE').length} | 
+                          Ghế đã đặt: {seats.filter(s => s.status === 'BOOKED' || s.status === 'OCCUPIED').length}
+                        </div>
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-center py-8">
-                        Chưa có thông tin ghế cho suất chiếu này
-                      </p>
+                      <div className="text-center py-8">
+                        <div className="text-gray-500">
+                          <p>Không có ghế nào được tải</p>
+                          <p className="text-sm mt-2">Showtime ID: {selectedShowtime?.id}</p>
+                          <p className="text-sm">Room ID: {selectedShowtime?.roomId || selectedShowtime?.room?.id}</p>
+                          <button 
+                            onClick={() => generateMockSeats()}
+                            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                          >
+                            Tải ghế mẫu
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -295,8 +769,14 @@ const Booking: React.FC = () => {
                     <div className="space-y-1">
                       {selectedSeats.map((seat) => (
                         <div key={seat.id} className="flex justify-between text-sm">
-                          <span>Ghế {seat.row}{seat.number}</span>
-                          <span>{seat.price.toLocaleString('vi-VN')}đ</span>
+                          <span className="flex items-center gap-2">
+                            <span className="font-medium">{seat.seatNumber}</span>
+                            <span className="text-xs text-gray-500">({seat.seatType})</span>
+                            <span className="text-xs text-blue-600">ID: {seat.id}</span>
+                          </span>
+                          <span className="font-medium">
+                            {(seat.price || getSeatTypePrice(seat.seatType)).toLocaleString('vi-VN')}đ
+                          </span>
                         </div>
                       ))}
                     </div>

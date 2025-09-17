@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,6 +10,9 @@ import Register from './pages/Register';
 import Movies from './pages/Movies';
 import MovieDetail from './pages/MovieDetail';
 import Booking from './pages/Booking';
+import BookingSuccess from './pages/BookingSuccess';
+import BookingForm from './pages/BookingForm';
+import PaymentCallback from './pages/PaymentCallback';
 
 function App() {
   return (
@@ -27,6 +29,9 @@ function App() {
                 <Route path="/movies" element={<Movies />} />
                 <Route path="/movies/:id" element={<MovieDetail />} />
                 <Route path="/booking/:id" element={<Booking />} />
+                <Route path="/booking-form" element={<BookingForm />} />
+                <Route path="/booking-success/:id" element={<BookingSuccess />} />
+                <Route path="/payment-callback" element={<PaymentCallback />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

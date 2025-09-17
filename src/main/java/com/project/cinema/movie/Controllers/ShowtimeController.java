@@ -29,8 +29,16 @@ public class ShowtimeController {
     private RoomService roomService;
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping
-    public List<Showtime> getAllShowtime(){
-        return showtimeService.getAllShowtime();
+    public ResponseEntity<ResponseObject> getAllShowtime(){
+        List<Showtime> showtimes = showtimeService.getAllShowtime();
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Showtimes retrieved successfully!", showtimes));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    @GetMapping("/movie/{movieId}")
+    public ResponseEntity<ResponseObject> getShowtimesByMovie(@PathVariable Long movieId){
+        List<Showtime> showtimes = showtimeService.getShowtimesByMovieId(movieId);
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Showtimes for movie retrieved successfully!", showtimes));
     }
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/{id}")

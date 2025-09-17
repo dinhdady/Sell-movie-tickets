@@ -13,14 +13,15 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  token: string;
-  user: User;
+  success: boolean;
+  accessToken: string;
+  refreshToken: string;
   message: string;
 }
 
 // User types
 export interface User {
-  id: number;
+  id: string; // Changed to string to match backend UUID format
   username: string;
   email: string;
   fullName: string;

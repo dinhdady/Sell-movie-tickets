@@ -3,11 +3,13 @@ package com.project.cinema.movie.Services;
 import com.project.cinema.movie.DTO.SeatDTO;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.BookingRepository;
+import com.project.cinema.movie.Repositories.RoomRepository;
 import com.project.cinema.movie.Repositories.SeatRepository;
 import com.project.cinema.movie.Repositories.ShowtimeSeatBookingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -124,20 +126,18 @@ public class SeatService {
 
     public Seat createSeat(SeatDTO seatDTO) {
         // Kiểm tra ghế đã tồn tại chưa
-        if (seatRepository.existsBySeatNumberAndRoomId(seatDTO.getSeatName(), seatDTO.getRoomId())) {
-            throw new RuntimeException("Seat already exists: " + seatDTO.getSeatName());
+        if (seatRepository.existsBySeatNumberAndRoomId(seatDTO.getSeatNumber(), seatDTO.getRoomId())) {
+            throw new RuntimeException("Seat already exists: " + seatDTO.getSeatNumber());
         }
-        
-        // Tạo ghế mới (cần Room object)
-        // Room room = roomRepository.findById(seatDTO.getRoomId()).orElse(null);
-        // if (room == null) {
-        //     throw new RuntimeException("Room not found: " + seatDTO.getRoomId());
-        // }
-        // Seat seat = new Seat(seatDTO.getSeatName(), seatDTO.getRowNumber(), seatDTO.getColumnNumber(), room);
-        // return seatRepository.save(seat);
-        
-        // Tạm thời return null vì cần Room object
-        throw new RuntimeException("Method not fully implemented - needs Room object");
+
+        // Tạo ghế mới với seat type
+        Seat seat = new Seat();
+        seat.setSeatNumber(seatDTO.getSeatNumber());
+        seat.setRowNumber(seatDTO.getRowNumber());
+        seat.setColumnNumber(seatDTO.getColumnNumber());
+        seat.setSeatType(seatDTO.getSeatType() != null ? seatDTO.getSeatType() : SeatType.REGULAR);
+
+        return seatRepository.save(seat);
     }
 
     public void deleteSeat(Long id) {
@@ -161,10 +161,50 @@ public class SeatService {
             seat.setSeatNumber(seatDetails.getSeatNumber());
             seat.setRowNumber(seatDetails.getRowNumber());
             seat.setColumnNumber(seatDetails.getColumnNumber());
+            seat.setSeatType(seatDetails.getSeatType());
             
             return seatRepository.save(seat);
         }
         
         return null;
+    }
+
+    // Get all seats for a specific room
+    public List<Seat> getSeatsByRoomId(Long roomId) {
+        return seatRepository.findByRoomId(roomId);
+    }
+
+    // Get seats with availability status for a specific showtime and room
+    public List<Seat> getSeatsWithAvailability(Long showtimeId, Long roomId) {
+        List<Seat> allSeats = seatRepository.findByRoomId(roomId);
+        
+        // Check availability for each seat based on actual bookings
+        for (Seat seat : allSeats) {
+            ShowtimeSeatBooking booking = showtimeSeatBookingRepository.findByShowtimeIdAndSeatId(showtimeId, seat.getId());
+            if (booking != null && booking.getStatus() == SeatStatus.BOOKED) {
+                seat.setStatus("BOOKED");
+            } else {
+                // All seats are available by default since database has all seats as available
+                seat.setStatus("AVAILABLE");
+            }
+        }
+        
+        return allSeats;
+    }
+
+    // Get only available seats for a specific showtime
+    public List<Seat> getAvailableSeats(Long showtimeId) {
+        List<Seat> availableSeats = new ArrayList<>();
+        List<Seat> allSeats = seatRepository.findAll();
+        
+        for (Seat seat : allSeats) {
+            ShowtimeSeatBooking booking = showtimeSeatBookingRepository.findByShowtimeIdAndSeatId(showtimeId, seat.getId());
+            if (booking == null || booking.getStatus() != SeatStatus.BOOKED) {
+                seat.setStatus("AVAILABLE");
+                availableSeats.add(seat);
+            }
+        }
+        
+        return availableSeats;
     }
 }

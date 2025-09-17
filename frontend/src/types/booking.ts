@@ -3,24 +3,28 @@ import type { Showtime } from './movie';
 // Seat types
 export interface Seat {
   id: number;
-  row: string;
-  number: number;
-  roomId: number;
-  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
-  seatType: 'STANDARD' | 'VIP' | 'COUPLE';
+  seatNumber: string;
+  rowNumber: string;
+  columnNumber: number;
+  seatType: 'REGULAR' | 'VIP' | 'COUPLE';
   price: number;
+  isBooked?: boolean;
+  status?: 'AVAILABLE' | 'BOOKED' | 'SELECTED' | 'OCCUPIED';
 }
 
 // Booking types
 export interface Booking {
   id: number;
-  userId: number;
+  userId: string;
   showtimeId: number;
   totalAmount: number;
-  bookingStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  totalPrice: number;
+  status: string;
+  bookingStatus: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  customerAddress: string;
   createdAt: string;
   showtime?: Showtime;
   tickets?: Ticket[];

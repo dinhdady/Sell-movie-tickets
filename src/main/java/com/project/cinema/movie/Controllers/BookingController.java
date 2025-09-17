@@ -1,9 +1,13 @@
 package com.project.cinema.movie.Controllers;
 
 import com.project.cinema.movie.DTO.BookingDTO;
+import com.project.cinema.movie.DTO.BookingDetailsResponse;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.ShowtimeRepository;
 import com.project.cinema.movie.Services.*;
+import org.slf4j.ILoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.project.cinema.movie.Models.Showtime;
 import org.springframework.http.HttpStatus;
@@ -14,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/booking")
@@ -28,6 +33,7 @@ public class BookingController {
     private QRCodeService qrCodeService;
     @Autowired
     private OrderService orderService;
+    public static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     @GetMapping
     public List<Booking> getAllBookings(){
         return bookingService.getAllBookings();
@@ -53,49 +59,70 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<ResponseObject> createBooking(@RequestBody BookingDTO bookingDTO) {
         System.out.println("[BookingController] Received bookingDTO: " + bookingDTO);
-        Showtime showtime = showtimeRepository.findById(bookingDTO.getShowtimeId()).orElse(null);
-
-        if (showtime == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ResponseObject("400", "Showtime không hợp lệ.", null));
-        }
-
-        // Tạo một Booking mới nhưng không gắn với Order
-        Booking booking = new Booking();
         
-        // For guest bookings, user can be null
-        if (bookingDTO.getUserId() != null) {
-            User user = userService.findByUserId(bookingDTO.getUserId()).orElse(null);
-            if (user == null) {
+        try {
+            // Validate showtime
+            Showtime showtime = showtimeRepository.findById(bookingDTO.getShowtimeId()).orElse(null);
+            if (showtime == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject("400", "User không hợp lệ.", null));
+                    .body(new ResponseObject("ERROR", "Showtime không hợp lệ.", null));
             }
+
+            // Validate user
+            User user = null;
+            if (bookingDTO.getUserId() != null) {
+                user = userService.findByUserId(bookingDTO.getUserId()).orElse(null);
+                if (user == null) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseObject("ERROR", "User không hợp lệ.", null));
+                }
+            }
+
+            // Check seat availability for this showtime
+            if (bookingDTO.getSeatIds() != null && !bookingDTO.getSeatIds().isEmpty()) {
+                boolean seatsAvailable = bookingService.checkSeatAvailability(bookingDTO.getShowtimeId(), bookingDTO.getSeatIds());
+                if (!seatsAvailable) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseObject("ERROR", "Một hoặc nhiều ghế đã được đặt cho suất chiếu này.", null));
+                }
+            }
+
+            // Create booking
+            Booking booking = new Booking();
             booking.setUser(user);
-        } else {
-            booking.setUser(null); // Guest booking - no user associated
+            booking.setShowtime(showtime);
+            booking.setTotalPrice(bookingDTO.getTotalPrice());
+            booking.setStatus(BookingStatus.PENDING);
+            booking.setCustomerName(bookingDTO.getCustomerName());
+            booking.setCustomerEmail(bookingDTO.getCustomerEmail());
+            booking.setCustomerPhone(bookingDTO.getCustomerPhone());
+            booking.setCustomerAddress(bookingDTO.getCustomerAddress());
+            
+            // Associate with existing Order if orderId is provided
+            if (bookingDTO.getOrderId() != null) {
+                Order order = orderService.findById(bookingDTO.getOrderId());
+
+                booking.setOrder(order);
+                System.out.println("[BookingController] Associated booking with order ID: " + order.getId());
+            }
+
+            // Save booking first
+            Booking savedBooking = bookingService.save(booking);
+
+            // Reserve seats for this showtime
+            if (bookingDTO.getSeatIds() != null && !bookingDTO.getSeatIds().isEmpty()) {
+                bookingService.reserveSeats(savedBooking.getId(), bookingDTO.getShowtimeId(), bookingDTO.getSeatIds());
+                System.out.println("[BookingController] Reserved seats: " + bookingDTO.getSeatIds() + " for showtime: " + bookingDTO.getShowtimeId());
+            }
+
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Đặt vé thành công!", savedBooking));
+            
+        } catch (Exception e) {
+            System.err.println("[BookingController] Error creating booking: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("ERROR", "Lỗi khi tạo booking: " + e.getMessage(), null));
         }
-        
-        booking.setShowtime(showtime);
-        booking.setTotalPrice(bookingDTO.getTotalPrice());
-        booking.setStatus(BookingStatus.PENDING); // Trạng thái chờ thanh toán
-        booking.setCustomerName(bookingDTO.getCustomerName());
-        booking.setCustomerEmail(bookingDTO.getCustomerEmail());
-        booking.setCustomerPhone(bookingDTO.getCustomerPhone());
-        booking.setCustomerAddress(bookingDTO.getCustomerAddress());
-
-        Booking savedBooking = bookingService.save(booking);
-
-        // Lưu thông tin seatIds vào booking để sử dụng sau khi thanh toán thành công
-        // Không gán ghế ngay lập tức, chỉ lưu thông tin seatIds
-        if (bookingDTO.getSeatIds() != null && !bookingDTO.getSeatIds().isEmpty()) {
-            System.out.println("[BookingController] Saving seat IDs for later assignment: " + bookingDTO.getSeatIds());
-            savedBooking.setSeatIds(bookingDTO.getSeatIds());
-            bookingService.save(savedBooking); // Save the booking with seat IDs
-        } else {
-            System.out.println("[BookingController] No seat IDs to save for booking ID: " + savedBooking.getId());
-        }
-
-        return ResponseEntity.ok(new ResponseObject("201", "Create booking successfully!", savedBooking));
     }
 
     // Kiểm tra ghế có sẵn
@@ -173,6 +200,31 @@ public class BookingController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ResponseObject("400", "Error cancelling booking: " + e.getMessage(), null));
+        }
+    }
+
+    // Get booking by transaction reference
+    @GetMapping("/txnRef/{txnRef}")
+    public ResponseEntity<ResponseObject> getBookingByTxnRef(@PathVariable String txnRef) {
+        try {
+            BookingDetailsResponse bookingDetails = bookingService.getBookingWithDetails(txnRef);
+            logger.info(bookingDetails.getMovie().getTitle());
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Booking retrieved successfully!", bookingDetails));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ResponseObject("ERROR", "Booking not found: " + e.getMessage(), null));
+        }
+    }
+
+    // Confirm payment and generate tickets
+    @PostMapping("/confirm-payment/{txnRef}")
+    public ResponseEntity<ResponseObject> confirmPayment(@PathVariable String txnRef) {
+        try {
+            Booking booking = bookingService.confirmPaymentAndGenerateTickets(txnRef);
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Payment confirmed and tickets generated!", booking));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ResponseObject("ERROR", "Error confirming payment: " + e.getMessage(), null));
         }
     }
 

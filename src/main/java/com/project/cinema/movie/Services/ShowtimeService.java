@@ -16,6 +16,10 @@ public class ShowtimeService {
         return showtimeRepository.findByMovieIdWithRoomAndCinema(movieId);
     }
 
+    public List<Showtime> getShowtimesByMovieId(Long movieId) {
+        return showtimeRepository.findByMovieIdWithRoomAndCinema(movieId);
+    }
+
     public Showtime createShowtime(Showtime showtime) {
         return showtimeRepository.save(showtime);
     }

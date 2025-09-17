@@ -49,28 +49,28 @@ public class AuthenticationController {
      */
     @PostMapping("/register")
     public ResponseEntity<ResponseObject> register(@RequestBody @Validated RegisterRequest registerRequest) {
-        logger.info("User attempting to register: {}", registerRequest.getUsernameR());
+        logger.info("User attempting to register: {}", registerRequest.getUsername());
 
         try {
-            if (userService.findByUsername(registerRequest.getUsernameR()).isPresent()) {
-                logger.warn("Username '{}' is already in use", registerRequest.getUsernameR());
+            if (userService.findByUsername(registerRequest.getUsername()).isPresent()) {
+                logger.warn("Username '{}' is already in use", registerRequest.getUsername());
                 return ResponseEntity.status(HttpStatus.CONFLICT)
                         .body(new ResponseObject("FAILED", "Username already exists", null));
             }
 
-            if (registerRequest.getPasswordR() == null || registerRequest.getPasswordR().trim().isEmpty()) {
-                logger.warn("Password is null or empty for username: {}", registerRequest.getUsernameR());
+            if (registerRequest.getPassword() == null || registerRequest.getPassword().trim().isEmpty()) {
+                logger.warn("Password is null or empty for username: {}", registerRequest.getUsername());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new ResponseObject("FAILED", "Password cannot be null or empty", null));
             }
 
             userService.register(registerRequest);
-            logger.info("User '{}' registered successfully", registerRequest.getUsernameR());
+            logger.info("User '{}' registered successfully", registerRequest.getUsername());
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ResponseObject("SUCCESS", "User registered successfully", null));
         } catch (Exception e) {
-            logger.error("Error during user registration for username '{}'", registerRequest.getUsernameR(), e);
+            logger.error("Error during user registration for username '{}'", registerRequest.getUsername(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseObject("FAILED", "Registration failed: " + e.getMessage(), null));
         }
@@ -292,36 +292,36 @@ public class AuthenticationController {
      */
     @PostMapping("/create-admin")
     public ResponseEntity<ResponseObject> createAdmin(@RequestBody @Validated RegisterRequest registerRequest) {
-        logger.info("Creating admin user: {}", registerRequest.getUsernameR());
+        logger.info("Creating admin user: {}", registerRequest.getUsername());
 
         try {
-            if (userService.findByUsername(registerRequest.getUsernameR()).isPresent()) {
-                logger.warn("Username '{}' is already in use", registerRequest.getUsernameR());
+            if (userService.findByUsername(registerRequest.getUsername()).isPresent()) {
+                logger.warn("Username '{}' is already in use", registerRequest.getUsername());
                 return ResponseEntity.status(HttpStatus.CONFLICT)
                         .body(new ResponseObject("FAILED", "Username already exists", null));
             }
 
-            if (registerRequest.getPasswordR() == null || registerRequest.getPasswordR().trim().isEmpty()) {
-                logger.warn("Password is null or empty for username: {}", registerRequest.getUsernameR());
+            if (registerRequest.getPassword() == null || registerRequest.getPassword().trim().isEmpty()) {
+                logger.warn("Password is null or empty for username: {}", registerRequest.getUsername());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new ResponseObject("FAILED", "Password cannot be null or empty", null));
             }
 
             // Create admin user with ADMIN role
             User adminUser = new User();
-            adminUser.setUsername(registerRequest.getUsernameR());
-            adminUser.setPassword(new BCryptPasswordEncoder().encode(registerRequest.getPasswordR()));
-            adminUser.setEmail(registerRequest.getEmailR());
-            adminUser.setFullName(registerRequest.getUsernameR()); // Use username as fullName
+            adminUser.setUsername(registerRequest.getUsername());
+            adminUser.setPassword(new BCryptPasswordEncoder().encode(registerRequest.getPassword()));
+            adminUser.setEmail(registerRequest.getEmail());
+            adminUser.setFullName(registerRequest.getFullName() != null ? registerRequest.getFullName() : registerRequest.getUsername());
             adminUser.setRole(Role.ADMIN);
             
             userService.save(adminUser);
-            logger.info("Admin user '{}' created successfully", registerRequest.getUsernameR());
+            logger.info("Admin user '{}' created successfully", registerRequest.getUsername());
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ResponseObject("SUCCESS", "Admin user created successfully", null));
         } catch (Exception e) {
-            logger.error("Error during admin user creation for username '{}'", registerRequest.getUsernameR(), e);
+            logger.error("Error during admin user creation for username '{}'", registerRequest.getUsername(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseObject("FAILED", "Admin creation failed: " + e.getMessage(), null));
         }
@@ -345,9 +345,9 @@ public class AuthenticationController {
 
             // Tạo admin mặc định
             RegisterRequest adminRequest = new RegisterRequest();
-            adminRequest.setUsernameR("admin");
-            adminRequest.setEmailR("admin@cinema.com");
-            adminRequest.setPasswordR("admin123");
+            adminRequest.setUsername("admin");
+            adminRequest.setEmail("admin@cinema.com");
+            adminRequest.setPassword("admin123");
             
             userService.registerAdmin(adminRequest);
             logger.info("Default admin user created successfully");

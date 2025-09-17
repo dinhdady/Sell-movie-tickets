@@ -1,8 +1,38 @@
 import axios from 'axios';
 import type { Movie, Showtime } from '../types/movie';
-import type { Booking } from '../types/booking';
 import type { User, AuthRequest, RegisterRequest, AuthResponse } from '../types/auth';
-import type { ResponseObject, PaginatedResponse, VnpayRequest, VNPayResponseDTO } from '../types/api';
+import type { Seat } from '../types/booking';
+
+interface Cinema {
+  id: number;
+  name: string;
+  address: string;
+  phone: string;
+  cinemaType: 'STANDARD' | 'PREMIUM' | 'IMAX' | '4DX';
+}
+
+interface Room {
+  id: number;
+  name: string;
+  capacity: number;
+  cinemaId: number;
+}
+
+interface Booking {
+  id: number;
+  userId: string;
+  showtimeId: number;
+  totalPrice: number;
+  totalAmount: number;
+  status: string;
+  bookingStatus: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerAddress: string;
+  createdAt: string;
+}
+import type { ResponseObject, VnpayRequest, VNPayResponseDTO } from '../types/api';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
@@ -14,20 +44,25 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
-// Handle auth errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to login for actual authentication errors, not for other 401s
+    if (error.response?.status === 401 && error.response?.data?.message?.includes('authentication')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -40,11 +75,14 @@ api.interceptors.response.use(
 export const authAPI = {
   login: async (credentials: AuthRequest): Promise<ResponseObject<AuthResponse>> => {
     const response = await api.post('/auth/login', credentials);
+    console.log('Login API response:', response.data);
     return response.data;
   },
 
   register: async (userData: RegisterRequest): Promise<ResponseObject<AuthResponse>> => {
+    console.log('Sending registration data:', userData);
     const response = await api.post('/auth/register', userData);
+    console.log('Registration response:', response.data);
     return response.data;
   },
 
@@ -121,7 +159,12 @@ export const movieAPI = {
 
 // Showtime API
 export const showtimeAPI = {
-  getAll: async (): Promise<Showtime[]> => {
+  getByMovieId: async (movieId: number): Promise<ResponseObject<Showtime[]>> => {
+    const response = await api.get(`/showtime/movie/${movieId}`);
+    return response.data;
+  },
+
+  getAll: async (): Promise<ResponseObject<Showtime[]>> => {
     const response = await api.get('/showtime');
     return response.data;
   },
@@ -173,6 +216,73 @@ export const userAPI = {
   },
 };
 
+// Cinema API
+export const cinemaAPI = {
+  getAll: async (): Promise<ResponseObject<Cinema[]>> => {
+    const response = await api.get('/cinema');
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<ResponseObject<Cinema>> => {
+    const response = await api.get(`/cinema/${id}`);
+    return response.data;
+  },
+};
+
+// Room API
+export const roomAPI = {
+  getAll: async (): Promise<ResponseObject<Room[]>> => {
+    const response = await api.get('/room');
+    return response.data;
+  },
+
+  getByCinema: async (cinemaId: number): Promise<ResponseObject<Room[]>> => {
+    const response = await api.get(`/room/cinema/${cinemaId}`);
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<ResponseObject<any>> => {
+    const response = await api.get(`/room/${id}`);
+    return response.data;
+  },
+};
+
+// Seat API
+export const seatAPI = {
+  getByRoomId: async (roomId: number): Promise<ResponseObject<Seat[]>> => {
+    const response = await api.get(`/seat/room/${roomId}`);
+    return response.data;
+  },
+
+  getAvailableSeats: async (showtimeId: number): Promise<ResponseObject<Seat[]>> => {
+    const response = await api.get(`/seat/available/${showtimeId}`);
+    return response.data;
+  },
+
+  getSeatAvailability: async (showtimeId: number, roomId: number): Promise<ResponseObject<Seat[]>> => {
+    const response = await api.get(`/seat/availability?showtimeId=${showtimeId}&roomId=${roomId}`);
+    return response.data;
+  },
+};
+
+// Order API
+export const orderAPI = {
+  create: async (orderData: any): Promise<ResponseObject<any>> => {
+    const response = await api.post('/order', orderData);
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<ResponseObject<any>> => {
+    const response = await api.get(`/order/${id}`);
+    return response.data;
+  },
+
+  getByTxnRef: async (txnRef: string): Promise<ResponseObject<any>> => {
+    const response = await api.get(`/order/txnRef/${txnRef}`);
+    return response.data;
+  },
+};
+
 // Payment API
 export const paymentAPI = {
   createVNPayPayment: async (paymentData: VnpayRequest): Promise<string> => {
@@ -182,6 +292,24 @@ export const paymentAPI = {
 
   getTicketsByOrderId: async (orderId: string): Promise<VNPayResponseDTO> => {
     const response = await api.get(`/vnpay/tickets/${orderId}`);
+    return response.data;
+  },
+
+  verifyPayment: async (paymentData: any): Promise<ResponseObject<any>> => {
+    const response = await api.post('/vnpay/verify', paymentData);
+    return response.data;
+  },
+
+  getBookingByTxnRef: async (txnRef: string): Promise<any> => {
+    const response = await api.get(`/booking/txnRef/${txnRef}`);
+    console.log('movie:', response?.data?.object?.movie);
+    console.log('movie title:', response?.data?.object?.movie?.title);
+    console.log('tickets:', response?.data?.object?.order?.tickets);
+    return response.data;
+  },
+
+  confirmPayment: async (txnRef: string): Promise<ResponseObject<any>> => {
+    const response = await api.post(`/booking/confirm-payment/${txnRef}`);
     return response.data;
   },
 };

@@ -16,4 +16,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     // Lấy ghế theo số ghế và phòng
     @Query("SELECT s FROM Seat s WHERE s.seatNumber = :seatNumber AND s.room.id = :roomId")
     Seat findBySeatNumberAndRoom(@Param("seatNumber") String seatNumber, @Param("roomId") Long roomId);
+    
+    // Đếm số ghế theo phòng
+    long countByRoomId(Long roomId);
 }

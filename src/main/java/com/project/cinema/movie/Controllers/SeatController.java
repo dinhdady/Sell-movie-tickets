@@ -44,4 +44,27 @@ public class SeatController {
         Seat updatedSeat = seatService.updateSeat(id,seat);
         return ResponseEntity.status(HttpStatus.OK).body(new ResponseObject("200","Updated!",updatedSeat));
     }
+
+    // Get all seats for a specific room
+    @GetMapping("/room/{roomId}")
+    public ResponseEntity<ResponseObject> getSeatsByRoomId(@PathVariable Long roomId) {
+        List<Seat> seats = seatService.getSeatsByRoomId(roomId);
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Seats retrieved successfully!", seats));
+    }
+
+    // Get seat availability for a specific showtime and room
+    @GetMapping("/availability")
+    public ResponseEntity<ResponseObject> getSeatAvailability(
+            @RequestParam Long showtimeId, 
+            @RequestParam Long roomId) {
+        List<Seat> seats = seatService.getSeatsWithAvailability(showtimeId, roomId);
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Seat availability retrieved successfully!", seats));
+    }
+
+    // Get available seats for a specific showtime
+    @GetMapping("/available/{showtimeId}")
+    public ResponseEntity<ResponseObject> getAvailableSeats(@PathVariable Long showtimeId) {
+        List<Seat> availableSeats = seatService.getAvailableSeats(showtimeId);
+        return ResponseEntity.ok(new ResponseObject("SUCCESS", "Available seats retrieved successfully!", availableSeats));
+    }
 }

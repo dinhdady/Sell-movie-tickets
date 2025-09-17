@@ -17,11 +17,13 @@ const Home: React.FC = () => {
   const [comingSoonMovies, setComingSoonMovies] = useState<Movie[]>([]);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMovies = async () => {
       try {
         setLoading(true);
+        setError(null);
         
         // Fetch from API
         const [nowShowingResponse, comingSoonResponse] = await Promise.all([
@@ -29,29 +31,89 @@ const Home: React.FC = () => {
           movieAPI.getComingSoon()
         ]);
 
-        if (nowShowingResponse.status === '200' && nowShowingResponse.data) {
-          setNowShowingMovies(nowShowingResponse.data);
+        console.log('Now showing response:', nowShowingResponse);
+        console.log('Coming soon response:', comingSoonResponse);
+
+        if (nowShowingResponse.state === '200' && nowShowingResponse.object) {
+          setNowShowingMovies(nowShowingResponse.object);
           // Set first movie as featured
-          if (nowShowingResponse.data.length > 0) {
-            setFeaturedMovie(nowShowingResponse.data[0]);
+          if (nowShowingResponse.object.length > 0) {
+            setFeaturedMovie(nowShowingResponse.object[0]);
           }
         } else {
           console.warn('Now showing movies response:', nowShowingResponse);
           setNowShowingMovies([]);
         }
 
-        if (comingSoonResponse.status === '200' && comingSoonResponse.data) {
-          setComingSoonMovies(comingSoonResponse.data);
+        if (comingSoonResponse.state === '200' && comingSoonResponse.object) {
+          setComingSoonMovies(comingSoonResponse.object);
         } else {
           console.warn('Coming soon movies response:', comingSoonResponse);
           setComingSoonMovies([]);
         }
       } catch (error) {
         console.error('Error fetching movies:', error);
-        // Set empty arrays on error to show proper empty states
-        setNowShowingMovies([]);
-        setComingSoonMovies([]);
-        setFeaturedMovie(null);
+        
+        // For development, add some mock data if API fails
+        const mockNowShowing: Movie[] = [
+          {
+            id: 1,
+            title: "Spider-Man: No Way Home",
+            description: "Peter Parker's secret identity is revealed to the entire world. Desperate for help, Peter turns to Doctor Strange to make the world forget that he is Spider-Man.",
+            duration: 148,
+            rating: 8.4,
+            releaseDate: "2021-12-17",
+            status: "NOW_SHOWING",
+            genre: "Action, Adventure, Fantasy",
+            director: "Jon Watts",
+            cast: "Tom Holland, Zendaya, Benedict Cumberbatch",
+            filmRating: "PG13",
+            price: 120000,
+            posterUrl: "https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
+            trailerUrl: "https://www.youtube.com/watch?v=JfVOs4VSpmA"
+          },
+          {
+            id: 2,
+            title: "The Batman",
+            description: "When a killer targets Gotham's elite with a series of sadistic machinations, a trail of cryptic clues sends the World's Greatest Detective on an investigation into the underworld.",
+            duration: 176,
+            rating: 7.8,
+            releaseDate: "2022-03-04",
+            status: "NOW_SHOWING",
+            genre: "Action, Crime, Drama",
+            director: "Matt Reeves",
+            cast: "Robert Pattinson, Zoë Kravitz, Jeffrey Wright",
+            filmRating: "PG13",
+            price: 130000,
+            posterUrl: "https://image.tmdb.org/t/p/w500/b0PlSFdDwbyK0cf5RxwDpaOJQvQ.jpg",
+            trailerUrl: "https://www.youtube.com/watch?v=mqqft2x_Aa4"
+          }
+        ];
+
+        const mockComingSoon: Movie[] = [
+          {
+            id: 3,
+            title: "Vua Trở Lại",
+            description: "Phim hành động kịch tính về cuộc chiến giành lại ngai vàng của một vị vua bị lưu đày.",
+            duration: 120,
+            rating: 8.6,
+            releaseDate: "2024-01-15",
+            status: "NOW_SHOWING",
+            genre: "Hành Động, Phiêu Lưu",
+            director: "Nguyễn Văn A",
+            cast: "Trần Văn B, Lê Thị C, Phạm Văn D",
+            filmRating: "PG13",
+            price: 80000,
+            posterUrl: "http://res.cloudinary.com/dp9ltogc9/image/upload/v1752393509/Cinema/99998d7a-6.png",
+            trailerUrl: "https://www.youtube.com/watch?v=aWzlQ2N6qqg"
+          }
+        ];
+
+        setNowShowingMovies([...mockNowShowing, ...mockComingSoon]);
+        setComingSoonMovies(mockComingSoon);
+        setFeaturedMovie(mockNowShowing[0]);
+        
+        console.log('Using mock data due to API error');
       } finally {
         setLoading(false);
       }
@@ -72,6 +134,25 @@ const Home: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-lg max-w-md">
+            <h3 className="font-semibold mb-2">Lỗi kết nối</h3>
+            <p>{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Thử lại
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

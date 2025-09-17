@@ -81,4 +81,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
            "CAST(b.status AS string) LIKE %:query%")
     Page<Booking> searchBookings(@Param("query") String query, Pageable pageable);
     
+    // Find booking by order ID
+    Booking findByOrderId(Long orderId);
+    
 }
