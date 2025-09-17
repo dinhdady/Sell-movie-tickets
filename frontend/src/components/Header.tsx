@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
 import { 
   FilmIcon, 
   UserIcon, 
   MagnifyingGlassIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  ShoppingCartIcon
 } from '@heroicons/react/24/outline';
 
 const Header: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
+  const { totalItems } = useCart();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,6 +74,19 @@ const Header: React.FC = () => {
               className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
             >
               Rạp chiếu
+            </Link>
+
+            {/* Shopping Cart */}
+            <Link 
+              to="/cart" 
+              className="relative text-gray-700 hover:text-blue-600 transition-colors"
+            >
+              <ShoppingCartIcon className="h-6 w-6" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
             </Link>
             
             {isAuthenticated ? (
@@ -159,6 +175,21 @@ const Header: React.FC = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Rạp chiếu
+              </Link>
+
+              {/* Mobile Cart */}
+              <Link 
+                to="/cart" 
+                className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-100 rounded-md"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <ShoppingCartIcon className="h-5 w-5" />
+                <span>Giỏ hàng</span>
+                {totalItems > 0 && (
+                  <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
               </Link>
               
               {isAuthenticated ? (

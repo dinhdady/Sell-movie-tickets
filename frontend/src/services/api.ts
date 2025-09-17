@@ -42,6 +42,10 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  maxRedirects: 0, // Disable automatic redirects
+  validateStatus: function (status) {
+    return status >= 200 && status < 400; // Accept 2xx and 3xx status codes
+  },
 });
 
 // Request interceptor to add auth token
@@ -58,9 +62,23 @@ api.interceptors.request.use(
   }
 );
 
+// Response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Handle 302 redirects as successful responses
+    if (response.status === 302) {
+      console.log('API redirect (302) - treating as success:', response.data);
+      return response;
+    }
+    return response;
+  },
   (error) => {
+    if (error.response?.status === 302) {
+      console.log('API redirect (302) in error handler:', error.response.data);
+      // Return the response data as if it was successful
+      return Promise.resolve(error.response);
+    }
+    
     // Only redirect to login for actual authentication errors, not for other 401s
     if (error.response?.status === 401 && error.response?.data?.message?.includes('authentication')) {
       localStorage.removeItem('token');

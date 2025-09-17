@@ -283,7 +283,14 @@ const Booking: React.FC = () => {
       
       if (seatsResponse.state === 'SUCCESS' && seatsResponse.object) {
         console.log('Loaded seats from database:', seatsResponse.object);
-        setSeats(seatsResponse.object);
+        // Ensure seats have proper status for display
+        const seatsWithStatus = seatsResponse.object.map(seat => ({
+          ...seat,
+          status: seat.status || 'AVAILABLE' as const,
+          // Ensure seatNumber is properly formatted
+          seatNumber: seat.seatNumber || `${seat.rowNumber}${seat.columnNumber}`
+        }));
+        setSeats(seatsWithStatus);
       } else {
         console.log('Seat availability failed, trying fallback...');
         // Fallback: fetch all seats for the room and mark as available
@@ -294,7 +301,9 @@ const Booking: React.FC = () => {
           console.log('Loaded room seats from database:', roomSeatsResponse.object);
           const seatsWithStatus = roomSeatsResponse.object.map(seat => ({
             ...seat,
-            status: seat.status || 'AVAILABLE' as const
+            status: seat.status || 'AVAILABLE' as const,
+            // Ensure seatNumber is properly formatted
+            seatNumber: seat.seatNumber || `${seat.rowNumber}${seat.columnNumber}`
           }));
           setSeats(seatsWithStatus);
         } else {
@@ -344,7 +353,7 @@ const Booking: React.FC = () => {
     const seatsPerRow = 10;
     
     rows.forEach((row, rowIndex) => {
-      for (let seatNumber = 1; seatNumber <= seatsPerRow; seatNumber++) {
+      for (let columnNumber = 1; columnNumber <= seatsPerRow; columnNumber++) {
         const seatType = rowIndex < 2 ? 'VIP' : rowIndex >= 8 ? 'COUPLE' : 'REGULAR';
         const basePrice = movie?.price || 80000;
         const seatPrice = seatType === 'VIP' ? basePrice * 1.5 : 
@@ -352,10 +361,10 @@ const Booking: React.FC = () => {
         
         // All seats are available by default (no random occupation)
         mockSeats.push({
-          id: rowIndex * seatsPerRow + seatNumber,
-          seatNumber: `${row}${seatNumber}`,
+          id: rowIndex * seatsPerRow + columnNumber,
+          seatNumber: `${row}${columnNumber}`,
           rowNumber: row,
-          columnNumber: seatNumber,
+          columnNumber: columnNumber,
           seatType: seatType,
           status: 'AVAILABLE',
           price: seatPrice
@@ -385,7 +394,7 @@ const Booking: React.FC = () => {
       return 'bg-blue-500 text-white border-2 border-blue-600';
     }
     
-    // Check if seat is booked or occupied
+    // Check if seat is booked or occupied - these should be red and not clickable
     if (seat.status === 'BOOKED' || seat.status === 'OCCUPIED') {
       return 'bg-red-500 text-white cursor-not-allowed opacity-60';
     }
@@ -434,12 +443,32 @@ const Booking: React.FC = () => {
       return;
     }
 
+    // Validate selected seats have proper data
+    const validatedSeats = selectedSeats.map(seat => ({
+      ...seat,
+      // Ensure seat has all required properties
+      id: seat.id,
+      seatNumber: seat.seatNumber,
+      rowNumber: seat.rowNumber,
+      columnNumber: seat.columnNumber,
+      seatType: seat.seatType,
+      price: seat.price || getSeatTypePrice(seat.seatType),
+      status: seat.status || 'AVAILABLE'
+    }));
+
+    console.log('Booking data being passed:', {
+      movie,
+      showtime: selectedShowtime,
+      selectedSeats: validatedSeats,
+      totalPrice: calculateTotal()
+    });
+
     // Navigate to booking form with booking data
     navigate('/booking-form', {
       state: {
         movie,
         showtime: selectedShowtime,
-        selectedSeats,
+        selectedSeats: validatedSeats,
         totalPrice: calculateTotal()
       }
     });
@@ -615,14 +644,6 @@ const Booking: React.FC = () => {
                 </div>
               )}
 
-              {/* Seat Selection - Debug Info */}
-              <div className="bg-yellow-100 p-4 mb-4 rounded-lg">
-                <h3 className="font-bold">Debug Info:</h3>
-                <p>Selected Showtime: {selectedShowtime ? 'Yes' : 'No'}</p>
-                <p>Seats Length: {seats.length}</p>
-                <p>Selected Showtime ID: {selectedShowtime?.id || 'None'}</p>
-                <p>Room ID: {selectedShowtime?.roomId || selectedShowtime?.room?.id || 'None'}</p>
-              </div>
 
               {/* Seat Selection */}
               {selectedShowtime && (
@@ -765,20 +786,26 @@ const Booking: React.FC = () => {
                   )}
                   
                   <div>
-                    <div className="text-sm text-gray-600">Ghế đã chọn</div>
-                    <div className="space-y-1">
-                      {selectedSeats.map((seat) => (
-                        <div key={seat.id} className="flex justify-between text-sm">
-                          <span className="flex items-center gap-2">
-                            <span className="font-medium">{seat.seatNumber}</span>
-                            <span className="text-xs text-gray-500">({seat.seatType})</span>
-                            <span className="text-xs text-blue-600">ID: {seat.id}</span>
-                          </span>
-                          <span className="font-medium">
-                            {(seat.price || getSeatTypePrice(seat.seatType)).toLocaleString('vi-VN')}đ
-                          </span>
-                        </div>
-                      ))}
+                    <div className="text-sm text-gray-600">Ghế đã chọn ({selectedSeats.length})</div>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {selectedSeats.length > 0 ? (
+                        selectedSeats.map((seat) => (
+                          <div key={seat.id} className="flex justify-between text-sm py-1">
+                            <span className="flex items-center gap-2">
+                              <span className="font-medium">{seat.seatNumber}</span>
+                              <span className="text-xs text-gray-500">
+                                ({seat.seatType === 'VIP' ? 'VIP' : 
+                                  seat.seatType === 'COUPLE' ? 'Ghế đôi' : 'Ghế thường'})
+                              </span>
+                            </span>
+                            <span className="font-medium">
+                              {(seat.price || getSeatTypePrice(seat.seatType)).toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-500 italic">Chưa chọn ghế nào</div>
+                      )}
                     </div>
                   </div>
                   

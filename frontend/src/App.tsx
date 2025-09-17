@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -13,31 +14,41 @@ import Booking from './pages/Booking';
 import BookingSuccess from './pages/BookingSuccess';
 import BookingForm from './pages/BookingForm';
 import PaymentCallback from './pages/PaymentCallback';
+import Cinemas from './pages/Cinemas';
+import Profile from './pages/Profile';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
 
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Router>
-          <div className="min-h-screen flex flex-col">
-            <Header />
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/movies" element={<Movies />} />
-                <Route path="/movies/:id" element={<MovieDetail />} />
-                <Route path="/booking/:id" element={<Booking />} />
-                <Route path="/booking-form" element={<BookingForm />} />
-                <Route path="/booking-success/:id" element={<BookingSuccess />} />
-                <Route path="/payment-callback" element={<PaymentCallback />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </Router>
+        <CartProvider>
+          <Router>
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/movies" element={<Movies />} />
+                  <Route path="/movies/:id" element={<MovieDetail />} />
+                  <Route path="/cinemas" element={<Cinemas />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/cart" element={<Cart />} />
+                  <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/booking/:id" element={<Booking />} />
+                  <Route path="/booking-form" element={<BookingForm />} />
+                  <Route path="/booking-success/:id" element={<BookingSuccess />} />
+                  <Route path="/payment-callback" element={<PaymentCallback />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+          </Router>
+        </CartProvider>
       </AuthProvider>
     </ErrorBoundary>
   );
