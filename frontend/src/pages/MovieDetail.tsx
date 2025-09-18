@@ -24,29 +24,46 @@ const MovieDetail: React.FC = () => {
 
   useEffect(() => {
     const fetchMovieDetails = async () => {
-      if (!id) return;
+      if (!id || isNaN(parseInt(id))) {
+        setError('ID phim không hợp lệ');
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
+        setError('');
+        
+        console.log(`Fetching movie details for ID: ${id}`);
+        
         const [movieResponse, showtimesResponse] = await Promise.all([
           movieAPI.getById(parseInt(id)),
           movieAPI.getShowtimes(parseInt(id))
         ]);
 
-        if (movieResponse.state === 'SUCCESS') {
+        console.log('Movie API response:', movieResponse);
+        console.log('Showtimes API response:', showtimesResponse);
+
+        // Handle movie response
+        if (movieResponse && movieResponse.state === 'SUCCESS' && movieResponse.object) {
           setMovie(movieResponse.object);
+          console.log('Movie loaded successfully:', movieResponse.object);
+        } else if (movieResponse && movieResponse.state === '200' && movieResponse.object) {
+          setMovie(movieResponse.object);
+          console.log('Movie loaded successfully (200 state):', movieResponse.object);
         } else {
+          console.warn('Movie API response not successful, using mock data');
           // Generate mock movie data if API fails
           const mockMovie: Movie = {
             id: parseInt(id!),
-            title: 'Vua Trở Lại',
-            description: 'Phim hành động kịch tính về cuộc chiến giành lại ngai vàng của một vị vua bị lưu đày.',
+            title: `Phim ID ${id}`,
+            description: 'Mô tả phim sẽ được tải từ server. Hiện đang sử dụng dữ liệu tạm thời.',
             duration: 120,
             releaseDate: '2024-01-15',
             genre: 'Hành Động, Phiêu Lưu',
-            director: 'Nguyễn Văn A',
-            cast: 'Trần Văn B, Lê Thị C, Phạm Văn D',
-            rating: 8.6,
+            director: 'Chưa xác định',
+            cast: 'Chưa xác định',
+            rating: 8.0,
             status: 'NOW_SHOWING',
             filmRating: 'PG13',
             price: 80000,
@@ -55,9 +72,15 @@ const MovieDetail: React.FC = () => {
           setMovie(mockMovie);
         }
 
-        if (showtimesResponse.state === 'SUCCESS') {
+        // Handle showtimes response
+        if (showtimesResponse && showtimesResponse.state === 'SUCCESS' && showtimesResponse.object) {
           setShowtimes(showtimesResponse.object);
+          console.log('Showtimes loaded successfully:', showtimesResponse.object);
+        } else if (showtimesResponse && showtimesResponse.state === '200' && showtimesResponse.object) {
+          setShowtimes(showtimesResponse.object);
+          console.log('Showtimes loaded successfully (200 state):', showtimesResponse.object);
         } else {
+          console.warn('Showtimes API response not successful, using mock data');
           // Generate mock showtimes if API fails
           const mockShowtimes: Showtime[] = [];
           const today = new Date();

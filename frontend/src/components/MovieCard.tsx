@@ -69,14 +69,15 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
   };
 
   return (
-    <div className="movie-card card-hover group min-w-0">
+    <div className="movie-card card-hover group min-w-0 h-full flex flex-col">
       {/* Movie Poster */}
-      <div className="relative aspect-[2/3] overflow-hidden">
+      <div className="relative aspect-[2/3] overflow-hidden flex-shrink-0">
         {movie.posterUrl ? (
           <img
             src={movie.posterUrl}
             alt={movie.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
           />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -109,63 +110,69 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
       </div>
 
       {/* Movie Info */}
-      <div className="p-4 min-w-0">
-        <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-2 break-words">
-          {movie.title}
-        </h3>
+      <div className="p-4 min-w-0 flex flex-col flex-1">
+        {/* Movie Title - Fixed height */}
+        <div className="h-14 mb-2 flex items-start">
+          <h3 className="font-semibold text-lg text-gray-900 line-clamp-2 break-words leading-tight">
+            {movie.title}
+          </h3>
+        </div>
         
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2 break-words">
-          {movie.description}
-        </p>
+        {/* Movie Description - Fixed height */}
+        <div className="h-10 mb-3">
+          <p className="text-gray-600 text-sm line-clamp-2 break-words leading-tight">
+            {movie.description}
+          </p>
+        </div>
 
-        {/* Movie Details */}
-        <div className="space-y-2 mb-4">
-          <div className="flex items-center text-sm text-gray-500 min-w-0">
+        {/* Movie Details - Fixed height */}
+        <div className="space-y-1 mb-4 flex-shrink-0">
+          <div className="flex items-center text-sm text-gray-500 min-w-0 h-5">
             <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-            <span className="text-ellipsis">{formatDuration(movie.duration)}</span>
+            <span className="truncate">{formatDuration(movie.duration)}</span>
           </div>
           
-          <div className="flex items-center text-sm text-gray-500 min-w-0">
+          <div className="flex items-center text-sm text-gray-500 min-w-0 h-5">
             <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-            <span className="text-ellipsis">{formatDate(movie.releaseDate)}</span>
+            <span className="truncate">{formatDate(movie.releaseDate)}</span>
           </div>
           
-          <div className="flex items-center text-sm text-gray-500 min-w-0">
-            <span className="mr-2 flex-shrink-0">Thể loại:</span>
-            <span className="font-medium text-ellipsis">{movie.genre}</span>
+          <div className="flex items-center text-sm text-gray-500 min-w-0 h-5">
+            <span className="mr-2 flex-shrink-0 text-xs">Thể loại:</span>
+            <span className="font-medium truncate text-xs">{movie.genre}</span>
           </div>
         </div>
 
-        {/* Rating */}
-        <div className="flex items-center justify-between mb-4 min-w-0">
+        {/* Rating and Price - Fixed height */}
+        <div className="flex items-center justify-between mb-4 min-w-0 h-6 flex-shrink-0">
           <div className="flex items-center flex-1 min-w-0">
             <StarSolidIcon className="h-4 w-4 text-yellow-400 mr-1 flex-shrink-0" />
-            <span className="text-sm font-medium text-gray-700 text-ellipsis">
+            <span className="text-sm font-medium text-gray-700 truncate">
               {movie.rating.toFixed(1)}
             </span>
           </div>
-          <div className="text-lg font-bold text-blue-600 flex-shrink-0 ml-2">
-            <span className="text-ellipsis">{movie.price.toLocaleString('vi-VN')}đ</span>
+          <div className="text-base font-bold text-blue-600 flex-shrink-0 ml-2">
+            <span className="truncate">{movie.price.toLocaleString('vi-VN')}đ</span>
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Actions - Fixed at bottom */}
         {showActions && (
-          <div className="flex space-x-2 min-w-0">
+          <div className="flex space-x-2 min-w-0 mt-auto">
             <Link
               to={`/movies/${movie.id}`}
-              className="btn-primary flex-1 text-center form-element"
+              className="btn-primary flex-1 text-center form-element py-2 px-3 text-sm"
               onClick={(e) => e.stopPropagation()}
             >
-              <span className="text-ellipsis">Chi tiết</span>
+              <span className="truncate">Chi tiết</span>
             </Link>
             {movie.status === 'NOW_SHOWING' && (
               <Link
                 to={`/booking/${movie.id}`}
-                className="flex-1 bg-green-600 text-white text-center py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium form-element"
+                className="flex-1 bg-green-600 text-white text-center py-2 px-3 rounded-lg hover:bg-green-700 transition-colors font-medium form-element text-sm"
                 onClick={(e) => e.stopPropagation()}
               >
-                <span className="text-ellipsis">Đặt vé</span>
+                <span className="truncate">Đặt vé</span>
               </Link>
             )}
           </div>

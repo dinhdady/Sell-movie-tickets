@@ -1,32 +1,20 @@
 package com.project.cinema.movie.Services;
 
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.WriterException;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
 import com.project.cinema.movie.DTO.SeatDTO;
 import com.project.cinema.movie.DTO.TicketDTO;
 import com.project.cinema.movie.Models.Booking;
 import com.project.cinema.movie.Models.Ticket;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -35,80 +23,35 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
-    @Autowired
-    private TemplateEngine templateEngine;
-    
-    @Autowired
-    private QRCodeService qrCodeService;
-
     @Value("${spring.mail.username}")
     private String fromEmail;
 
+    // Legacy method - no longer used, email is sent from frontend
+    @Deprecated
     public void sendBookingConfirmation(Booking booking, List<Ticket> tickets) {
+        System.out.println("📧 [EMAIL] Legacy email method called - email should be sent from frontend");
+        sendSimpleBookingConfirmation(booking, tickets);
+    }
+
+    /**
+     * Send booking confirmation with HTML content from frontend
+     */
+    public void sendBookingConfirmationWithHtml(String toEmail, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
             helper.setFrom(fromEmail);
-            helper.setTo(booking.getCustomerEmail());
-            helper.setSubject("Xác nhận đặt vé - " + booking.getShowtime().getMovie().getTitle());
-            Context context = new Context();
-            context.setVariable("booking", booking);
-            context.setVariable("movie", booking.getShowtime().getMovie());
-            context.setVariable("showtime", booking.getShowtime().getShowtimeSeatBookings());
-            context.setVariable("cinema", booking.getShowtime().getRoom().getCinema());
-            context.setVariable("room", booking.getShowtime().getRoom());
-
-            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
-            SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
-            context.setVariable("showDate", dateFormat.format(booking.getShowtime().getStartTime()));
-            context.setVariable("showStartTime", timeFormat.format(booking.getShowtime().getStartTime()));
-            context.setVariable("showEndTime", timeFormat.format(booking.getShowtime().getEndTime()));
-
-// ✅ Tạo list TicketDTO có qrCid
-            List<TicketDTO> ticketDTOs = new ArrayList<>();
-            for (int i = 0; i < tickets.size(); i++) {
-                Ticket t = tickets.get(i);
-
-                // Sinh QR từ token
-                byte[] qrBytes = qrCodeService.generateQRCodeBytes("TICKET_" + t.getToken());
-                helper.addInline("qr_" + i, new ByteArrayResource(qrBytes), "image/png");
-                // Lưu id này (qr_i) vào DTO để Thymeleaf render
-                // Map Ticket -> TicketDTO
-                SeatDTO seatDTO = new SeatDTO();
-                seatDTO.setSeatNumber(t.getSeat().getSeatNumber());
-                seatDTO.setRowNumber(t.getSeat().getRowNumber());
-                seatDTO.setColumnNumber(t.getSeat().getColumnNumber());
-                seatDTO.setRoomId(t.getSeat().getRoom().getId());
-                seatDTO.setSeatType(t.getSeat().getSeatType());
-                // price not in Seat model, set to 0 or ticket price?
-                seatDTO.setPrice(t.getPrice()); // assuming seat price is ticket price
-
-                TicketDTO dto = new TicketDTO(
-                        t.getId(),
-                        t.getOrder().getId(),
-                        t.getSeat().getId(),
-                        t.getPrice(),
-                        t.getToken(),
-                        t.getStatus().toString(),
-                        null,          // qrCid
-                        null,     // qrBase64
-                        seatDTO
-                );
-                dto.setQrCid("qr_"+i);
-                ticketDTOs.add(dto);
-            }
-
-// Truyền list TicketDTO vào template
-            context.setVariable("ticketDTOs", ticketDTOs);
-
-            String html = templateEngine.process("booking-confirmation", context);
-            helper.setText(html, true);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+            
             mailSender.send(message);
 
-        } catch (MessagingException | WriterException e) {
-            // Fallback to simple text email
-            sendSimpleBookingConfirmation(booking, tickets);
+            System.out.println("🎯 [EMAIL] Sent booking confirmation email with HTML from frontend");
+        } catch (Exception e) {
+            System.err.println("❌ [EMAIL] Failed to send email with HTML content: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

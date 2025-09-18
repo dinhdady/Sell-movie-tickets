@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { movieAPI } from '../services/api';
 import type { Movie } from '../types/movie';
 import MovieCard from '../components/MovieCard';
@@ -11,7 +11,6 @@ import {
 
 const Movies: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
@@ -125,9 +124,6 @@ const Movies: React.FC = () => {
     setSearchParams({});
   };
 
-  const handleMovieClick = (movieId: number) => {
-    navigate(`/movies/${movieId}`);
-  };
 
   const getCategoryTitle = () => {
     if (searchQuery) return `Kết quả tìm kiếm cho "${searchQuery}"`;
@@ -249,7 +245,7 @@ const Movies: React.FC = () => {
         ) : movies.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {movies.map((movie) => (
-              <div key={movie.id} onClick={() => handleMovieClick(movie.id)} className="cursor-pointer min-w-0">
+              <div key={movie.id} className="min-w-0 h-full">
                 <MovieCard movie={movie} showActions={true} />
               </div>
             ))}

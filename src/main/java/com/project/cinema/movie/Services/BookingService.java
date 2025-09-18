@@ -483,12 +483,8 @@ public class BookingService {
             ticketRepository.save(ticket);
         }
         
-        // Send booking confirmation email
-        try {
-            emailService.sendBookingConfirmation(booking, tickets);
-        } catch (Exception e) {
-            System.err.println("Failed to send booking confirmation email: " + e.getMessage());
-        }
+        // Email will be sent from frontend after QR code generation
+        System.out.println("🎯 [BOOKING] Email will be handled by frontend with QR code");
         
         return booking;
     }
@@ -593,6 +589,18 @@ public class BookingService {
         }
 
         return response;
+    }
+
+    /**
+     * Get list of tickets for a given booking ID
+     */
+    public List<Ticket> getTicketsByBookingId(Long bookingId) {
+        Booking booking = getBookingById(bookingId);
+        if (booking == null || booking.getOrder() == null) {
+            throw new RuntimeException("Booking or order not found for id: " + bookingId);
+        }
+        Long orderId = booking.getOrder().getId();
+        return ticketRepository.findByOrderId(orderId);
     }
 
 }

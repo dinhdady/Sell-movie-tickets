@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/booking")
@@ -33,6 +34,8 @@ public class BookingController {
     private QRCodeService qrCodeService;
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private EmailService emailService;
     public static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     @GetMapping
     public List<Booking> getAllBookings(){
@@ -238,6 +241,40 @@ public class BookingController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ResponseObject("400", "Error confirming booking: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Endpoint to send email with HTML content from frontend
+     */
+    @PostMapping("/{id}/send-email")
+    public ResponseEntity<?> sendEmail(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String htmlContent = body.get("htmlContent");
+        String subject = body.get("subject");
+        String toEmail = body.get("toEmail");
+        
+        if (htmlContent == null || htmlContent.isEmpty()) {
+            return ResponseEntity.badRequest().body("Missing htmlContent");
+        }
+        if (subject == null || subject.isEmpty()) {
+            return ResponseEntity.badRequest().body("Missing subject");
+        }
+        if (toEmail == null || toEmail.isEmpty()) {
+            // Get email from booking if not provided
+            try {
+                Booking booking = bookingService.getBookingById(id);
+                toEmail = booking.getCustomerEmail();
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body("Missing toEmail and cannot get from booking");
+            }
+        }
+        
+        try {
+            emailService.sendBookingConfirmationWithHtml(toEmail, subject, htmlContent);
+            return ResponseEntity.ok("Email sent successfully");
+        } catch (Exception e) {
+            logger.error("Failed to send email", e);
+            return ResponseEntity.status(500).body("Error sending email: " + e.getMessage());
         }
     }
 }

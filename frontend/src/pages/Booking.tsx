@@ -43,26 +43,12 @@ const Booking: React.FC = () => {
         // Fetch movie details
         const movieResponse = await movieAPI.getById(parseInt(id));
         
-        if (movieResponse.state === 'SUCCESS') {
+        if (movieResponse.state === 'SUCCESS' && movieResponse.object) {
+          setMovie(movieResponse.object);
+        } else if (movieResponse.state === '200' && movieResponse.object) {
           setMovie(movieResponse.object);
         } else {
-          // Generate mock movie data if API fails
-          const mockMovie: Movie = {
-            id: parseInt(id!),
-            title: 'Vua Trở Lại',
-            description: 'Phim hành động kịch tính về cuộc chiến giành lại ngai vàng của một vị vua bị lưu đày.',
-            duration: 120,
-            releaseDate: '2024-01-15',
-            genre: 'Hành Động, Phiêu Lưu',
-            director: 'Nguyễn Văn A',
-            cast: 'Trần Văn B, Lê Thị C, Phạm Văn D',
-            rating: 8.6,
-            status: 'NOW_SHOWING',
-            filmRating: 'PG13',
-            price: 80000,
-            posterUrl: 'http://res.cloudinary.com/dp9ltogc9/image/upload/v1752393509/Cinema/99998d7a-6.png'
-          };
-          setMovie(mockMovie);
+          throw new Error('Failed to load movie details');
         }
           
         // Fetch cinemas from API
@@ -70,46 +56,14 @@ const Booking: React.FC = () => {
           const cinemasResponse = await cinemaAPI.getAll();
           if (cinemasResponse.state === 'SUCCESS' && cinemasResponse.object) {
             setCinemas(cinemasResponse.object);
+          } else if (cinemasResponse.state === '200' && cinemasResponse.object) {
+            setCinemas(cinemasResponse.object);
           } else {
-            // Fallback to mock cinemas if API fails
-            const mockCinemas: Cinema[] = [
-              {
-                id: 1,
-                name: 'CGV Vincom Center',
-                address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
-                phone: '1900-6017',
-                cinemaType: 'STANDARD'
-              },
-              {
-                id: 2,
-                name: 'Lotte Cinema Landmark',
-                address: 'Keangnam Landmark 72, Phạm Hùng, Nam Từ Liêm, Hà Nội',
-                phone: '1900-5555',
-                cinemaType: 'PREMIUM'
-              },
-              {
-                id: 3,
-                name: 'Galaxy Cinema Nguyễn Du',
-                address: '116 Nguyễn Du, Hai Bà Trưng, Hà Nội',
-                phone: '1900-2224',
-                cinemaType: 'IMAX'
-              }
-            ];
-            setCinemas(mockCinemas);
+            throw new Error('Failed to load cinemas');
           }
         } catch (error) {
           console.error('Error fetching cinemas:', error);
-          // Use mock data as fallback
-          const mockCinemas: Cinema[] = [
-            {
-              id: 1,
-              name: 'CGV Vincom Center',
-              address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
-              phone: '1900-6017',
-              cinemaType: 'STANDARD'
-            }
-          ];
-          setCinemas(mockCinemas);
+          throw new Error('Failed to load cinemas');
         }
         
         // Auto-select cinema and showtime if preselected
@@ -142,59 +96,13 @@ const Booking: React.FC = () => {
             }
           } catch (error) {
             console.error('Error fetching rooms/showtimes:', error);
-            // Fallback to mock data if API fails
-            await loadMockData();
+            throw new Error('Failed to load rooms and showtimes');
           }
         }
         
       } catch (err) {
         console.error('Error fetching data:', err);
-        
-        // Generate mock movie data if API fails
-        const mockMovie: Movie = {
-          id: parseInt(id!),
-          title: 'Vua Trở Lại',
-          description: 'Phim hành động kịch tính về cuộc chiến giành lại ngai vàng của một vị vua bị lưu đày.',
-          duration: 120,
-          releaseDate: '2024-01-15',
-          genre: 'Hành Động, Phiêu Lưu',
-          director: 'Nguyễn Văn A',
-          cast: 'Trần Văn B, Lê Thị C, Phạm Văn D',
-          rating: 8.6,
-          status: 'NOW_SHOWING',
-          filmRating: 'PG13',
-          price: 80000,
-          posterUrl: 'http://res.cloudinary.com/dp9ltogc9/image/upload/v1752393509/Cinema/99998d7a-6.png'
-        };
-        setMovie(mockMovie);
-        
-        // Generate mock cinemas
-        const mockCinemas: Cinema[] = [
-          {
-            id: 1,
-            name: 'CGV Vincom Center',
-            address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
-            phone: '1900-6017',
-            cinemaType: 'STANDARD'
-          },
-          {
-            id: 2,
-            name: 'Lotte Cinema Landmark',
-            address: 'Keangnam Landmark 72, Phạm Hùng, Nam Từ Liêm, Hà Nội',
-            phone: '1900-5555',
-            cinemaType: 'PREMIUM'
-          },
-          {
-            id: 3,
-            name: 'Galaxy Cinema Nguyễn Du',
-            address: '116 Nguyễn Du, Hai Bà Trưng, Hà Nội',
-            phone: '1900-2224',
-            cinemaType: 'IMAX'
-          }
-        ];
-        setCinemas(mockCinemas);
-        
-        setError('');
+        setError('Không thể tải thông tin đặt vé. Vui lòng kiểm tra kết nối mạng và thử lại.');
       } finally {
         setLoading(false);
       }
@@ -268,8 +176,8 @@ const Booking: React.FC = () => {
       console.log('Loading seats for showtime.room.id:', showtime.room.id);
       await loadSeatsFromDatabase(showtime.room.id, showtime.id);
     } else {
-      console.log('No roomId found in showtime, using mock seats');
-      generateMockSeats();
+      console.log('No roomId found in showtime');
+      setError('Không thể tải thông tin ghế');
     }
   };
 
@@ -307,75 +215,16 @@ const Booking: React.FC = () => {
           }));
           setSeats(seatsWithStatus);
         } else {
-          console.log('Both seat APIs failed, using mock seats');
-          generateMockSeats();
+          console.log('Both seat APIs failed');
+          throw new Error('Failed to load seats');
         }
       }
     } catch (error) {
       console.error('Error loading seats from database:', error);
-      // Fallback to mock seats
-      generateMockSeats();
+      throw new Error('Failed to load seats');
     }
   };
 
-  const loadMockData = async () => {
-    // Generate rooms for the cinema
-    const mockRooms: Room[] = [
-      { id: 1, name: 'Phòng 1', capacity: 100, cinemaId: 1 },
-      { id: 2, name: 'Phòng 2', capacity: 80, cinemaId: 1 },
-      { id: 3, name: 'Phòng 3', capacity: 120, cinemaId: 1 }
-    ];
-    setRooms(mockRooms);
-    setSelectedRoom(mockRooms[0]);
-    
-    // Generate showtimes and auto-select
-    const today = new Date();
-    const mockShowtimes: Showtime[] = [
-      {
-        id: parseInt(preselectedShowtimeId!),
-        startTime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0).toISOString(),
-        endTime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0).toISOString(),
-        movieId: parseInt(id!),
-        roomId: mockRooms[0].id,
-        room: mockRooms[0]
-      }
-    ];
-    setShowtimes(mockShowtimes);
-    setSelectedShowtime(mockShowtimes[0]);
-    
-    // Generate mock seats
-    generateMockSeats();
-  };
-
-  const generateMockSeats = () => {
-    const mockSeats: Seat[] = [];
-    const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-    const seatsPerRow = 10;
-    
-    rows.forEach((row, rowIndex) => {
-      for (let columnNumber = 1; columnNumber <= seatsPerRow; columnNumber++) {
-        const seatType = rowIndex < 2 ? 'VIP' : rowIndex >= 8 ? 'COUPLE' : 'REGULAR';
-        const basePrice = movie?.price || 80000;
-        const seatPrice = seatType === 'VIP' ? basePrice * 1.5 : 
-                         seatType === 'COUPLE' ? basePrice * 2 : basePrice;
-        
-        // All seats are available by default (no random occupation)
-        mockSeats.push({
-          id: rowIndex * seatsPerRow + columnNumber,
-          seatNumber: `${row}${columnNumber}`,
-          rowNumber: row,
-          columnNumber: columnNumber,
-          seatType: seatType,
-          status: 'AVAILABLE',
-          price: seatPrice
-        });
-      }
-    });
-    
-    setSeats(mockSeats);
-  };
-
-  // Remove unused generateSeats function - seats are loaded via loadSeatsFromDatabase in handleShowtimeSelect
 
   const handleSeatSelect = (seat: Seat) => {
     if (seat.status === 'OCCUPIED' || seat.status === 'BOOKED') return;
@@ -746,15 +595,8 @@ const Booking: React.FC = () => {
                     ) : (
                       <div className="text-center py-8">
                         <div className="text-gray-500">
-                          <p>Không có ghế nào được tải</p>
-                          <p className="text-sm mt-2">Showtime ID: {selectedShowtime?.id}</p>
-                          <p className="text-sm">Room ID: {selectedShowtime?.roomId || selectedShowtime?.room?.id}</p>
-                          <button 
-                            onClick={() => generateMockSeats()}
-                            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                          >
-                            Tải ghế mẫu
-                          </button>
+                          <p>Không thể tải thông tin ghế</p>
+                          <p className="text-sm mt-2">Vui lòng thử lại sau</p>
                         </div>
                       </div>
                     )}

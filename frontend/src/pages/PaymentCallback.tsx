@@ -101,6 +101,148 @@ const PaymentCallback: React.FC = () => {
   const [status, setStatus] = useState<'success' | 'failed' | 'pending'>('pending');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
+  // Function to create HTML email and send to user
+  const sendQREmailToUser = async (bookingId: number, qrCodeDataUrl: string, currentBookingDetails?: BookingDetails) => {
+    try {
+      console.log('🎯 [FRONTEND] Sending QR email for booking:', bookingId);
+      
+      // Use current booking details or fallback to state
+      const details = currentBookingDetails || bookingDetails;
+      if (!details) {
+        console.error('❌ [FRONTEND] No booking details available for email');
+        return false;
+      }
+
+      // Create HTML email content
+      const htmlContent = createEmailHTML(details, qrCodeDataUrl);
+      const subject = `Xác nhận đặt vé - ${details.movie.title}`;
+      
+      console.log('📧 [FRONTEND] Sending email to:', details.customerEmail);
+      const response = await fetch(`/api/booking/${bookingId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ 
+          htmlContent,
+          subject,
+          toEmail: details.customerEmail
+        })
+      });
+      
+      if (response.ok) {
+        console.log('✅ [FRONTEND] Email sent successfully');
+        return true;
+      } else {
+        console.error('❌ [FRONTEND] Failed to send email:', response.statusText);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ [FRONTEND] Error sending email:', error);
+      return false;
+    }
+  };
+
+  // Helper function to generate QR code and send email
+  const generateQRAndSendEmail = async (bookingDetails: BookingDetails) => {
+    try {
+      console.log('🎯 [FRONTEND] Starting QR generation and email sending for booking:', bookingDetails.id);
+      
+      // Generate QR code
+      let qrData = `BOOKING_${bookingDetails.id}`; // Default fallback
+      if (bookingDetails.order?.tickets && bookingDetails.order.tickets.length > 0) {
+        const firstTicket = bookingDetails.order.tickets[0];
+        if (firstTicket.token) {
+          qrData = `TICKET_${firstTicket.token}`;
+        }
+      }
+      
+      console.log('📱 [FRONTEND] Generating QR code with data:', qrData);
+      const qrCodeDataUrl = await QRCode.toDataURL(qrData);
+      setQrCodeUrl(qrCodeDataUrl);
+      
+      // Send email with QR code
+      const emailSent = await sendQREmailToUser(bookingDetails.id, qrCodeDataUrl, bookingDetails);
+      if (emailSent) {
+        console.log('✅ [FRONTEND] QR code generated and email sent successfully');
+      } else {
+        console.warn('⚠️ [FRONTEND] QR code generated but email failed');
+      }
+      
+      return { qrCodeDataUrl, emailSent };
+    } catch (error) {
+      console.error('❌ [FRONTEND] Error in QR generation and email sending:', error);
+      return { qrCodeDataUrl: null, emailSent: false };
+    }
+  };
+
+  // Function to create HTML email content
+  const createEmailHTML = (booking: BookingDetails, qrCodeDataUrl: string): string => {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đặt vé</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        .container { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #1f2937, #374151); color: white; padding: 25px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; }
+        .qr-section { text-align: center; margin: 30px 0; padding: 25px; background-color: #f8fafc; border-radius: 10px; border: 2px dashed #e5e7eb; }
+        .qr-section img { width: 150px; height: 150px; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; }
+        .booking-info { background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
+        .footer { text-align: center; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; }
+        .highlight { color: #1f2937; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Xác nhận đặt vé thành công!</h1>
+        </div>
+        
+        <p>Xin chào <span class="highlight">${booking.customerName}</span>,</p>
+        
+        <p>Cảm ơn bạn đã đặt vé tại rạp chiếu phim của chúng tôi! Vé của bạn đã được xác nhận thành công.</p>
+        
+        <div class="booking-info">
+            <p><strong>🎭 Phim:</strong> ${booking.movie.title}</p>
+            <p><strong>🏢 Rạp:</strong> ${booking.showtime.room.cinema.name}</p>
+            <p><strong>🚪 Phòng:</strong> ${booking.showtime.room.name}</p>
+            <p><strong>📅 Ngày & Giờ:</strong> ${new Date(booking.showtime.startTime).toLocaleString('vi-VN')}</p>
+            <p><strong>💰 Tổng tiền:</strong> ${booking.totalPrice.toLocaleString('vi-VN')} VNĐ</p>
+            <p><strong>🪑 Ghế:</strong> ${booking.order.tickets.map(t => t.seat?.seatNumber || 'N/A').join(', ')}</p>
+        </div>
+        
+        <div class="qr-section">
+            <h3>🎟️ Mã QR Vé của bạn</h3>
+            <img src="${qrCodeDataUrl}" alt="QR Code vé" />
+            <p><strong>Xuất trình mã QR này tại quầy vé để nhận vé</strong></p>
+        </div>
+        
+        <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+            <h4 style="color: #92400e; margin-bottom: 10px;">📱 Lưu ý quan trọng</h4>
+            <ul style="color: #78350f; margin: 0; padding-left: 20px;">
+                <li>Có mặt trước giờ chiếu <strong>15 phút</strong></li>
+                <li>Xuất trình mã QR tại quầy vé</li>
+                <li>Mang theo giấy tờ tùy thân</li>
+                <li>Liên hệ hotline nếu cần hỗ trợ: <strong>1900-xxxx</strong></li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!</p>
+            <p><strong>🎭 Cinema Team</strong></p>
+            <p>Email này được gửi tự động, vui lòng không phản hồi trực tiếp.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+  };
+
   useEffect(() => {
     const processPayment = async () => {
       try {
@@ -129,64 +271,129 @@ const PaymentCallback: React.FC = () => {
                 const bookingDetailsResponse = await bookingAPI.getById(booking.id);
                 console.log('Booking details from API:', bookingDetailsResponse);
                 
-                // Xử lý response 302 (redirect)
+                // Xử lý response với các state khác nhau
                 let bookingData;
-                if (bookingDetailsResponse.state === '302') {
-                  console.log('Received 302 redirect, using object data:', bookingDetailsResponse.object);
+                if (bookingDetailsResponse.state === 'SUCCESS' || bookingDetailsResponse.state === '200' || bookingDetailsResponse.state === '302') {
                   bookingData = bookingDetailsResponse.object;
+                  console.log('Raw booking data:', bookingData);
                 } else {
-                  bookingData = bookingDetailsResponse.object;
+                  throw new Error(`API returned state: ${bookingDetailsResponse.state}`);
                 }
                 
+                // Cố gắng lấy thông tin vé với nhiều cách khác nhau
+                let tickets = [];
+                const anyBookingData = bookingData as any; // Cast to any to access dynamic properties
+                
+                // Cách 1: Từ bookingData.tickets trực tiếp
+                if (anyBookingData.tickets && Array.isArray(anyBookingData.tickets)) {
+                  console.log('Found tickets directly in booking data:', anyBookingData.tickets);
+                  tickets = anyBookingData.tickets;
+                }
+                // Cách 2: Từ bookingData.order.tickets
+                else if (anyBookingData.order?.tickets && Array.isArray(anyBookingData.order.tickets)) {
+                  console.log('Found tickets in booking order:', anyBookingData.order.tickets);
+                  tickets = anyBookingData.order.tickets;
+                }
+                // Cách 3: Từ bookingData.bookingTickets (có thể có tên khác)
+                else if (anyBookingData.bookingTickets && Array.isArray(anyBookingData.bookingTickets)) {
+                  console.log('Found bookingTickets:', anyBookingData.bookingTickets);
+                  tickets = anyBookingData.bookingTickets;
+                }
+                
+                console.log('Processed tickets array:', tickets);
+                
                 // Tạo booking details từ dữ liệu thực tế
+                const anyBooking = booking as any; // Cast booking to any for accessing extended properties
+                
                 const realBookingDetails: BookingDetails = {
-                  id: bookingData.id,
+                  id: bookingData.id || booking.id,
                   movie: {
-                    title: (bookingData as any).showtime?.movie?.title || 'Phim đã đặt',
-                    posterUrl: (bookingData as any).showtime?.movie?.posterUrl
+                    title: anyBookingData.movie?.title || 
+                           anyBookingData.showtime?.movie?.title || 
+                           (tickets[0] as any)?.showtime?.movie?.title || 
+                           anyBooking.movie?.title || 
+                           'Phim đã đặt',
+                    posterUrl: anyBookingData.movie?.posterUrl || 
+                              anyBookingData.showtime?.movie?.posterUrl || 
+                              (tickets[0] as any)?.showtime?.movie?.posterUrl ||
+                              anyBooking.movie?.posterUrl
                   },
                   showtime: {
-                    startTime: (bookingData as any).showtime?.startTime || new Date().toISOString(),
-                    endTime: (bookingData as any).showtime?.endTime || new Date().toISOString(),
+                    startTime: anyBookingData.showtime?.startTime || 
+                              (tickets[0] as any)?.showtime?.startTime || 
+                              anyBooking.showtime?.startTime || 
+                              new Date().toISOString(),
+                    endTime: anyBookingData.showtime?.endTime || 
+                            (tickets[0] as any)?.showtime?.endTime || 
+                            anyBooking.showtime?.endTime || 
+                            new Date().toISOString(),
                     room: {
-                      name: (bookingData as any).showtime?.room?.name || 'Phòng chiếu',
+                      name: anyBookingData.showtime?.room?.name || 
+                           (tickets[0] as any)?.showtime?.room?.name || 
+                           anyBooking.showtime?.room?.name || 
+                           'Phòng chiếu',
                       cinema: {
-                        name: (bookingData as any).showtime?.room?.cinema?.name || 'Rạp chiếu phim',
-                        address: (bookingData as any).showtime?.room?.cinema?.address || 'Địa chỉ rạp chiếu'
+                        name: anyBookingData.showtime?.room?.cinema?.name || 
+                             (tickets[0] as any)?.showtime?.room?.cinema?.name || 
+                             anyBooking.showtime?.room?.cinema?.name || 
+                             'Rạp chiếu phim',
+                        address: anyBookingData.showtime?.room?.cinema?.address || 
+                                (tickets[0] as any)?.showtime?.room?.cinema?.address || 
+                                anyBooking.showtime?.room?.cinema?.address || 
+                                'Địa chỉ rạp chiếu'
                       }
                     }
                   },
                   order: {
-                    tickets: (bookingData as any).tickets?.map((ticket: any, index: number) => {
-                      // Tạo seatNumber từ rowNumber và columnNumber nếu không có sẵn
-                      const rowNumber = ticket.seat?.rowNumber || 'A';
-                      const columnNumber = ticket.seat?.columnNumber || index + 1;
-                      const seatNumber = ticket.seat?.seatNumber || `${rowNumber}${columnNumber}`;
+                    tickets: tickets.length > 0 ? tickets.map((ticket: any, index: number) => {
+                      console.log(`Processing ticket ${index}:`, ticket);
+                      
+                      // Lấy thông tin ghế từ các nguồn khác nhau
+                      const seatInfo = ticket.seat || ticket.bookingSeat || ticket;
+                      console.log(`Seat info for ticket ${index}:`, seatInfo);
+                      
+                      // Tạo seatNumber từ rowNumber và columnNumber
+                      const rowNumber = seatInfo.rowNumber || seatInfo.row || String.fromCharCode(65 + index); // A, B, C...
+                      const columnNumber = seatInfo.columnNumber || seatInfo.column || (index + 1);
+                      const seatNumber = seatInfo.seatNumber || `${rowNumber}${columnNumber}`;
+                      
+                      console.log(`Generated seat info: ${seatNumber} (${rowNumber}${columnNumber})`);
                       
                       return {
-                        id: ticket.id || index + 1,
-                        orderId: ticket.orderId || bookingData.id,
-                        seatId: ticket.seatId || index + 1,
-                        seat: ticket.seat ? {
+                        id: ticket.id || ticket.ticketId || index + 1,
+                        orderId: ticket.orderId || ticket.bookingId || bookingData.id,
+                        seatId: ticket.seatId || seatInfo.id || index + 1,
+                        seat: {
                           seatNumber: seatNumber,
                           rowNumber: rowNumber,
                           columnNumber: columnNumber,
-                          roomId: ticket.seat.roomId || 1,
-                          seatType: ticket.seat.seatType || 'REGULAR',
-                          price: ticket.seat.price || ticket.price || 80000
-                        } : {
-                          seatNumber: seatNumber,
-                          rowNumber: rowNumber,
-                          columnNumber: columnNumber,
-                          roomId: 1,
-                          seatType: 'REGULAR' as const,
-                          price: ticket.price || 80000
+                          roomId: seatInfo.roomId || 1,
+                          seatType: (seatInfo.seatType || 'REGULAR') as 'REGULAR' | 'VIP' | 'COUPLE',
+                          price: seatInfo.price || ticket.price || 80000
                         },
-                        price: ticket.price || 80000,
+                        price: ticket.price || seatInfo.price || 80000,
                         token: ticket.token || `token_${ticket.id || index + 1}`,
                         status: ticket.status || 'PAID'
                       };
-                    }) || [],
+                    }) : [
+                      // Fallback nếu không có thông tin vé chi tiết
+                      {
+                        id: 1,
+                        orderId: bookingData.id,
+                        seatId: 1,
+                        seat: {
+                          seatNumber: 'A1',
+                          rowNumber: 'A',
+                          columnNumber: 1,
+                          roomId: 1,
+                          seatType: 'REGULAR' as const,
+                          price: bookingData.totalPrice || booking.totalPrice || 80000
+                        },
+                        price: bookingData.totalPrice || booking.totalPrice || 80000,
+                        token: `token_${bookingData.id}`,
+                        status: 'PAID'
+                      }
+                    ],
                     status: bookingData.status || 'PAID'
                   },
                   customerName: bookingData.customerName || booking.customerName,
@@ -194,7 +401,13 @@ const PaymentCallback: React.FC = () => {
                   totalPrice: bookingData.totalPrice || booking.totalPrice
                 };
                 
+                console.log('Final booking details:', realBookingDetails);
                 setBookingDetails(realBookingDetails);
+                
+                setStatus('success');
+                
+                // Tạo QR code và gửi email
+                await generateQRAndSendEmail(realBookingDetails);
               } catch (apiError) {
                 console.error('API call failed:', apiError);
                 
@@ -203,21 +416,6 @@ const PaymentCallback: React.FC = () => {
                 setStatus('failed');
                 setLoading(false);
                 return;
-              }
-              
-              setStatus('success');
-              
-              // Tạo QR code từ dữ liệu thực tế
-              if (bookingDetails && bookingDetails.order.tickets && bookingDetails.order.tickets.length > 0) {
-                const firstTicket = bookingDetails.order.tickets[0];
-                const qrData = firstTicket.token ? `TICKET_${firstTicket.token}` : `BOOKING_${booking.id}`;
-                const qrCodeDataUrl = await QRCode.toDataURL(qrData);
-                setQrCodeUrl(qrCodeDataUrl);
-              } else {
-                // Fallback nếu không có ticket
-                const qrData = `BOOKING_${booking.id}`;
-                const qrCodeDataUrl = await QRCode.toDataURL(qrData);
-                setQrCodeUrl(qrCodeDataUrl);
               }
               
               // Xóa dữ liệu từ localStorage
@@ -262,20 +460,8 @@ const PaymentCallback: React.FC = () => {
                 setBookingDetails(response.object);
                 setStatus('success');
 
-                // Generate QR code with first ticket token if available
-                if (response.object.order?.tickets && response.object.order.tickets.length > 0) {
-                  const firstTicket = response.object.order.tickets[0];
-                  console.log('Ticket data:', firstTicket);
-                  // Đảm bảo ticket có token
-                  if (firstTicket.token) {
-                    const qrData = `TICKET_${firstTicket.token}`;
-                    console.log('Generating QR code with data:', qrData);
-                    const qrCodeDataUrl = await QRCode.toDataURL(qrData);
-                    setQrCodeUrl(qrCodeDataUrl);
-                  } else {
-                    console.error('Ticket token is missing');
-                  }
-                }
+                // Generate QR code and send email
+                await generateQRAndSendEmail(response.object);
 
                 // Xóa txnRef từ localStorage sau khi đã sử dụng
                 localStorage.removeItem('lastTxnRef');
@@ -355,31 +541,24 @@ const PaymentCallback: React.FC = () => {
               if (response.state === 'SUCCESS') {
                 setBookingDetails(response.object);
 
-                // Generate QR code with first ticket token if available
+                // Generate QR code and send email
+                await generateQRAndSendEmail(response.object);
+
+                // Log ticket status if available
                 if (response.object.order?.tickets && response.object.order.tickets.length > 0) {
                   const firstTicket = response.object.order.tickets[0];
                   console.log('Ticket data:', firstTicket);
+                  
+                  // Lấy thông tin phim từ ticket nếu không có trong bookingDetails
+                  if (!response.object.movie && firstTicket.showtime?.movie) {
+                    response.object.movie = firstTicket.showtime.movie;
+                    console.log('Updated movie info from ticket:', response.object.movie);
+                  }
 
-                  // Đảm bảo ticket có token
-                  if (firstTicket.token) {
-                    const qrData = `TICKET_${firstTicket.token}`;
-                    console.log('Generating QR code with data:', qrData);
-                    const qrCodeDataUrl = await QRCode.toDataURL(qrData);
-                    setQrCodeUrl(qrCodeDataUrl);
-
-                    // Lấy thông tin phim từ ticket nếu không có trong bookingDetails
-                    if (!response.object.movie && firstTicket.showtime?.movie) {
-                      response.object.movie = firstTicket.showtime.movie;
-                      console.log('Updated movie info from ticket:', response.object.movie);
-                    }
-
-                    // Kiểm tra trạng thái vé
-                    console.log('Ticket status:', firstTicket.status);
-                    if (firstTicket.status === 'PAID') {
-                      console.log('Ticket is paid');
-                    }
-                  } else {
-                    console.error('Ticket token is missing');
+                  // Kiểm tra trạng thái vé
+                  console.log('Ticket status:', firstTicket.status);
+                  if (firstTicket.status === 'PAID') {
+                    console.log('Ticket is paid');
                   }
                 }
               } else {
@@ -594,70 +773,78 @@ const PaymentCallback: React.FC = () => {
                     </h3>
                     {bookingDetails?.order?.tickets && bookingDetails.order.tickets.length > 0 ? (
                       <div className="space-y-2">
-                        {bookingDetails.order.tickets.map((ticket, index) => (
-                          <div 
-                            key={ticket?.id ?? ticket?.token ?? index} 
-                            className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-900">
-                                {ticket?.seat?.seatNumber || `A${index + 1}`}
-                              </span>
-                              {ticket?.seat?.seatType && (
+                        {bookingDetails.order.tickets.map((ticket, index) => {
+                          console.log(`Rendering ticket ${index}:`, ticket);
+                          
+                          // Đảm bảo có thông tin ghế để hiển thị
+                          const seatNumber = ticket?.seat?.seatNumber || `Ghế ${index + 1}`;
+                          const seatType = ticket?.seat?.seatType || 'REGULAR';
+                          const seatPrice = ticket?.seat?.price || ticket?.price || 80000;
+                          
+                          return (
+                            <div 
+                              key={ticket?.id ?? ticket?.token ?? index} 
+                              className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-gray-900 bg-blue-50 px-2 py-1 rounded">
+                                  {seatNumber}
+                                </span>
                                 <span className="text-sm text-gray-500">
-                                  ({ticket.seat.seatType === 'VIP' ? 'VIP' : 
-                                    ticket.seat.seatType === 'COUPLE' ? 'Ghế đôi' : 'Ghế thường'})
+                                  ({seatType === 'VIP' ? 'VIP' : 
+                                    seatType === 'COUPLE' ? 'Ghế đôi' : 'Ghế thường'})
                                 </span>
-                              )}
-                              {ticket.status === 'PAID' && (
-                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                  Đã thanh toán
-                                </span>
-                              )}
+                                {ticket.status === 'PAID' && (
+                                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                    Đã thanh toán
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-medium text-gray-900">
+                                {seatPrice.toLocaleString('vi-VN')}đ
+                              </div>
                             </div>
-                            <div className="font-medium text-gray-900">
-                            {/* Adjust price display based on seat type */}
-                            {(() => {
-                              if (!ticket.seat) return (ticket.price || 0).toLocaleString('vi-VN') + 'đ';
-                              switch (ticket.seat.seatType) {
-                                case 'VIP':
-                                  return (120000).toLocaleString('vi-VN') + 'đ';
-                                case 'COUPLE':
-                                  return (160000).toLocaleString('vi-VN') + 'đ';
-                                case 'REGULAR':
-                                default:
-                                  return (80000).toLocaleString('vi-VN') + 'đ';
-                              }
-                            })()}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         
                         <div className="pt-2 mt-2 border-t">
                           <div className="flex justify-between items-center font-medium">
                             <span>Tổng cộng:</span>
-                        <span className="text-lg">
-                          {/* Calculate total price as sum of seat prices */}
-                          {bookingDetails.order.tickets.reduce((sum, ticket) => {
-                            if (!ticket.seat) return sum + (ticket.price || 0);
-                            switch (ticket.seat.seatType) {
-                              case 'VIP':
-                                return sum + 120000;
-                              case 'COUPLE':
-                                return sum + 160000;
-                              case 'REGULAR':
-                              default:
-                                return sum + 80000;
-                            }
-                          }, 0).toLocaleString('vi-VN')}đ
-                        </span>
+                            <span className="text-lg text-blue-600">
+                              {bookingDetails.order.tickets.reduce((sum, ticket) => {
+                                const seatPrice = ticket?.seat?.price || ticket?.price || 80000;
+                                return sum + seatPrice;
+                              }, 0).toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Thông tin thêm về booking */}
+                        <div className="pt-2 mt-2 border-t bg-gray-50 p-3 rounded">
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Mã booking:</span>
+                              <span className="font-medium">#{bookingDetails.id}</span>
+                            </div>
+                            {bookingDetails.totalPrice && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Tổng thanh toán:</span>
+                                <span className="font-medium">{bookingDetails.totalPrice.toLocaleString('vi-VN')}đ</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
                     ) : (
                       <div className="text-center text-gray-500 py-4">
-                        <p>Chưa có thông tin ghế chi tiết</p>
-                        <p className="text-sm mt-1">Vui lòng liên hệ hỗ trợ để được hỗ trợ</p>
+                        <TicketIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                        <p className="font-medium">Không tìm thấy thông tin ghế chi tiết</p>
+                        <p className="text-sm mt-1">
+                          Booking #{bookingDetails.id} - Tổng: {bookingDetails.totalPrice?.toLocaleString('vi-VN')}đ
+                        </p>
+                        <p className="text-xs mt-1 text-gray-400">
+                          Vui lòng liên hệ hỗ trợ nếu cần thông tin chi tiết
+                        </p>
                       </div>
                     )}
                   </div>
