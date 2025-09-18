@@ -144,18 +144,27 @@ const Home: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Link
-                    to={`/movies/${featuredMovie.id}`}
-                    className="btn-primary px-8 py-3 text-center"
-                  >
-                    Xem chi tiết
-                  </Link>
-                  {featuredMovie.status === 'NOW_SHOWING' && (
+                  {featuredMovie.status === 'NOW_SHOWING' ? (
                     <Link
                       to={`/booking/${featuredMovie.id}`}
+                      className="btn-primary px-8 py-3 text-center"
+                    >
+                      Thêm vào giỏ hàng
+                    </Link>
+                  ) : (
+                    <Link
+                      to={`/movies/${featuredMovie.id}`}
+                      className="btn-primary px-8 py-3 text-center"
+                    >
+                      Xem chi tiết
+                    </Link>
+                  )}
+                  {featuredMovie.status === 'NOW_SHOWING' && (
+                    <Link
+                      to={`/movies/${featuredMovie.id}`}
                       className="bg-white text-blue-600 px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-center border-2 border-blue-600"
                     >
-                      Đặt vé ngay
+                      Xem chi tiết
                     </Link>
                   )}
                 </div>

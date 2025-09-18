@@ -1,5 +1,5 @@
-import { Movie, Showtime } from './movie';
-import { Seat } from './booking';
+import type { Movie, Showtime } from './movie';
+import type { Seat } from './booking';
 
 export interface CartItem {
   id: string; // unique identifier for cart item
@@ -20,4 +20,5 @@ export interface CartContextType {
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
   isInCart: (movieId: number, showtimeId: number) => boolean;
+  debugCart: () => void;
 }

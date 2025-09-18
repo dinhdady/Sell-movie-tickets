@@ -312,7 +312,7 @@ const Booking: React.FC = () => {
       totalPrice: calculateTotal()
     });
 
-    // Navigate to booking form with booking data
+    // Always navigate to booking form for payment
     navigate('/booking-form', {
       state: {
         movie,
@@ -663,7 +663,7 @@ const Booking: React.FC = () => {
                     disabled={!selectedShowtime || selectedSeats.length === 0}
                     className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                   >
-                    Đặt vé
+                    Xác nhận và thanh toán
                   </button>
                 </div>
               </div>

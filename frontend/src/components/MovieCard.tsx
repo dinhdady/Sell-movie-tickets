@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { Movie } from '../types/movie';
+import type { Movie, Showtime } from '../types/movie';
+import { useCart } from '../contexts/CartContext';
 import { 
   ClockIcon, 
   CalendarIcon, 
   FilmIcon,
-  PlayIcon
+  PlayIcon,
+  ShoppingCartIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
@@ -15,6 +17,9 @@ interface MovieCardProps {
 }
 
 const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
+  const { addToCart } = useCart();
+  const [isLoading, setIsLoading] = useState(false);
+
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -68,10 +73,43 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
     }
   };
 
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsLoading(true);
+    try {
+      // Tạo showtime mặc định (sẽ được chọn lại trong booking page)
+      const defaultShowtime: Showtime = {
+        id: 0, // Temporary ID
+        movieId: movie.id,
+        roomId: 0, // Will be selected later
+        startTime: new Date().toISOString(),
+        endTime: new Date().toISOString(),
+      };
+      
+      // Tạo item để thêm vào giỏ hàng
+      const cartItem = {
+        movie,
+        showtime: defaultShowtime,
+        seats: [], // Để trống, sẽ chọn ghế sau khi vào trang booking
+        quantity: 1,
+        totalPrice: movie.price
+      };
+
+      addToCart(cartItem);
+      // Thêm vào giỏ hàng thành công - không hiển thị thông báo
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="movie-card card-hover group min-w-0 h-full flex flex-col">
       {/* Movie Poster */}
-      <div className="relative aspect-[2/3] overflow-hidden flex-shrink-0">
+      <Link to={`/movies/${movie.id}`} className="relative aspect-[2/3] overflow-hidden flex-shrink-0 block">
         {movie.posterUrl ? (
           <img
             src={movie.posterUrl}
@@ -102,20 +140,22 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
         {/* Play Button Overlay */}
         {movie.trailerUrl && (
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
-            <button className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white bg-opacity-90 rounded-full p-3 hover:bg-opacity-100">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white bg-opacity-90 rounded-full p-3 hover:bg-opacity-100">
               <PlayIcon className="h-8 w-8 text-gray-800" />
-            </button>
+            </div>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Movie Info */}
       <div className="p-4 min-w-0 flex flex-col flex-1">
         {/* Movie Title - Fixed height */}
         <div className="h-14 mb-2 flex items-start">
-          <h3 className="font-semibold text-lg text-gray-900 line-clamp-2 break-words leading-tight">
-            {movie.title}
-          </h3>
+          <Link to={`/movies/${movie.id}`} className="block">
+            <h3 className="font-semibold text-lg text-gray-900 line-clamp-2 break-words leading-tight hover:text-blue-600 transition-colors">
+              {movie.title}
+            </h3>
+          </Link>
         </div>
         
         {/* Movie Description - Fixed height */}
@@ -159,20 +199,58 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
         {/* Actions - Fixed at bottom */}
         {showActions && (
           <div className="flex space-x-2 min-w-0 mt-auto">
-            <Link
-              to={`/movies/${movie.id}`}
-              className="btn-primary flex-1 text-center form-element py-2 px-3 text-sm"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="truncate">Chi tiết</span>
-            </Link>
-            {movie.status === 'NOW_SHOWING' && (
+            {movie.status === 'NOW_SHOWING' ? (
+              <>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isLoading}
+                  className={`flex items-center justify-center p-2 rounded-lg transition-colors text-white ${
+                    isLoading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                  title={isLoading ? 'Đang thêm...' : 'Thêm vào giỏ hàng'}
+                >
+                  <ShoppingCartIcon className={`h-5 w-5 ${isLoading ? 'animate-pulse' : ''}`} />
+                </button>
+                <Link
+                  to={`/movies/${movie.id}`}
+                  className="btn-primary flex-1 text-center form-element py-2 px-3 text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="truncate">Mua ngay</span>
+                </Link>
+              </>
+            ) : movie.status === 'COMING_SOON' ? (
+              <>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isLoading}
+                  className={`flex items-center justify-center p-2 rounded-lg transition-colors text-white ${
+                    isLoading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                  title={isLoading ? 'Đang thêm...' : 'Thêm vào giỏ hàng'}
+                >
+                  <ShoppingCartIcon className={`h-5 w-5 ${isLoading ? 'animate-pulse' : ''}`} />
+                </button>
+                <Link
+                  to={`/movies/${movie.id}`}
+                  className="btn-primary flex-1 text-center form-element py-2 px-3 text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="truncate">Xem chi tiết</span>
+                </Link>
+              </>
+            ) : (
+              // Phim đã kết thúc - chỉ hiển thị nút xem chi tiết
               <Link
-                to={`/booking/${movie.id}`}
-                className="flex-1 bg-green-600 text-white text-center py-2 px-3 rounded-lg hover:bg-green-700 transition-colors font-medium form-element text-sm"
+                to={`/movies/${movie.id}`}
+                className="btn-primary flex-1 text-center form-element py-2 px-3 text-sm"
                 onClick={(e) => e.stopPropagation()}
               >
-                <span className="truncate">Đặt vé</span>
+                <span className="truncate">Xem chi tiết</span>
               </Link>
             )}
           </div>

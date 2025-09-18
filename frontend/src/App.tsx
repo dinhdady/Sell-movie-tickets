@@ -17,7 +17,6 @@ import PaymentCallback from './pages/PaymentCallback';
 import Cinemas from './pages/Cinemas';
 import Profile from './pages/Profile';
 import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
 
 function App() {
   return (
@@ -37,7 +36,6 @@ function App() {
                   <Route path="/cinemas" element={<Cinemas />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/cart" element={<Cart />} />
-                  <Route path="/checkout" element={<Checkout />} />
                   <Route path="/booking/:id" element={<Booking />} />
                   <Route path="/booking-form" element={<BookingForm />} />
                   <Route path="/booking-success/:id" element={<BookingSuccess />} />

@@ -18,9 +18,12 @@ interface CartState {
 const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
     case 'ADD_TO_CART': {
+      // Create unique ID using movie ID and timestamp to avoid conflicts
+      const uniqueId = `${action.payload.movie.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
       const newItem: CartItem = {
         ...action.payload,
-        id: `${action.payload.movie.id}-${action.payload.showtime.id}-${Date.now()}`,
+        id: uniqueId,
         addedAt: new Date(),
       };
       
@@ -81,21 +84,51 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedCart) {
       try {
         const cartItems = JSON.parse(savedCart);
+        
+        // Validate and clean cart items
+        const validItems = cartItems.filter((item: any) => {
+          return item && 
+                 item.id && 
+                 item.movie && 
+                 item.movie.id && 
+                 item.movie.title &&
+                 item.showtime &&
+                 typeof item.totalPrice === 'number' &&
+                 typeof item.quantity === 'number';
+        });
+        
         // Convert addedAt strings back to Date objects
-        const itemsWithDates = cartItems.map((item: any) => ({
+        const itemsWithDates = validItems.map((item: any) => ({
           ...item,
-          addedAt: new Date(item.addedAt),
+          addedAt: item.addedAt ? new Date(item.addedAt) : new Date(),
         }));
-        dispatch({ type: 'LOAD_CART', payload: itemsWithDates });
+        
+        if (itemsWithDates.length > 0) {
+          dispatch({ type: 'LOAD_CART', payload: itemsWithDates });
+          console.log('Cart loaded from localStorage:', itemsWithDates.length, 'items');
+        }
       } catch (error) {
         console.error('Error loading cart from localStorage:', error);
+        // Clear corrupted data
+        localStorage.removeItem('movie-cart');
       }
     }
   }, []);
 
   // Save cart to localStorage whenever items change
   useEffect(() => {
-    localStorage.setItem('movie-cart', JSON.stringify(state.items));
+    try {
+      if (state.items.length > 0) {
+        localStorage.setItem('movie-cart', JSON.stringify(state.items));
+        console.log('Cart saved to localStorage:', state.items.length, 'items');
+      } else {
+        // Clear localStorage when cart is empty
+        localStorage.removeItem('movie-cart');
+        console.log('Cart cleared from localStorage');
+      }
+    } catch (error) {
+      console.error('Error saving cart to localStorage:', error);
+    }
   }, [state.items]);
 
   // Calculate total items
@@ -135,6 +168,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // Debug function to check localStorage
+  const debugCart = () => {
+    const savedCart = localStorage.getItem('movie-cart');
+    console.log('Current localStorage cart:', savedCart);
+    console.log('Current state items:', state.items);
+    console.log('Total items:', totalItems);
+    console.log('Total price:', totalPrice);
+  };
+
   const value: CartContextType = {
     items: state.items,
     totalItems,
@@ -144,6 +186,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateQuantity,
     clearCart,
     isInCart,
+    debugCart,
   };
 
   return (
