@@ -616,7 +616,19 @@ const PaymentCallback: React.FC = () => {
                               )}
                             </div>
                             <div className="font-medium text-gray-900">
-                              {ticket.price?.toLocaleString('vi-VN') || '0'}đ
+                            {/* Adjust price display based on seat type */}
+                            {(() => {
+                              if (!ticket.seat) return (ticket.price || 0).toLocaleString('vi-VN') + 'đ';
+                              switch (ticket.seat.seatType) {
+                                case 'VIP':
+                                  return (120000).toLocaleString('vi-VN') + 'đ';
+                                case 'COUPLE':
+                                  return (160000).toLocaleString('vi-VN') + 'đ';
+                                case 'REGULAR':
+                                default:
+                                  return (80000).toLocaleString('vi-VN') + 'đ';
+                              }
+                            })()}
                             </div>
                           </div>
                         ))}
@@ -624,9 +636,21 @@ const PaymentCallback: React.FC = () => {
                         <div className="pt-2 mt-2 border-t">
                           <div className="flex justify-between items-center font-medium">
                             <span>Tổng cộng:</span>
-                            <span className="text-lg">
-                              {bookingDetails.totalPrice?.toLocaleString('vi-VN') || '0'}đ
-                            </span>
+                        <span className="text-lg">
+                          {/* Calculate total price as sum of seat prices */}
+                          {bookingDetails.order.tickets.reduce((sum, ticket) => {
+                            if (!ticket.seat) return sum + (ticket.price || 0);
+                            switch (ticket.seat.seatType) {
+                              case 'VIP':
+                                return sum + 120000;
+                              case 'COUPLE':
+                                return sum + 160000;
+                              case 'REGULAR':
+                              default:
+                                return sum + 80000;
+                            }
+                          }, 0).toLocaleString('vi-VN')}đ
+                        </span>
                           </div>
                         </div>
                       </div>

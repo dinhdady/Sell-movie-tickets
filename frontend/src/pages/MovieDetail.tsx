@@ -297,7 +297,7 @@ const MovieDetail: React.FC = () => {
                 )}
                 {movie.status === 'NOW_SHOWING' && (
                   <button
-                    onClick={() => handleBookTicket(movie.id)}
+                    onClick={() => navigate(`/booking/${movie.id}`)}
                     className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold form-element"
                   >
                     <span className="text-ellipsis">Đặt vé ngay</span>

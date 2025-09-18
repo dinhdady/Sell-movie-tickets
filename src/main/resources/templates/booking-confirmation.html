@@ -148,7 +148,7 @@
                         Ghế <span th:text="${info.seat.seatNumber}">A1</span>
                     </div>
                     <!-- dùng base64 thay vì cid -->
-                    <img th:src="${info.qrBase64}" alt="QR Code"
+                    <img th:src="'cid:' + ${info.qrCid}" alt="QR Code"
                          style="width:150px;height:150px;margin:0 auto;" />
                     <div style="font-size:12px;color:#6b7280;margin-top:5px;">
                         <strong>Mã vé:</strong> <span th:text="${info.id}">ID</span><br>

@@ -72,9 +72,8 @@ public class EmailService {
 
                 // Sinh QR từ token
                 byte[] qrBytes = qrCodeService.generateQRCodeBytes("TICKET_" + t.getToken());
-
-                String qrBase64 = "data:image/png;base64," +
-                        Base64.getEncoder().encodeToString(qrBytes);
+                helper.addInline("qr_" + i, new ByteArrayResource(qrBytes), "image/png");
+                // Lưu id này (qr_i) vào DTO để Thymeleaf render
                 // Map Ticket -> TicketDTO
                 SeatDTO seatDTO = new SeatDTO();
                 seatDTO.setSeatNumber(t.getSeat().getSeatNumber());
@@ -93,10 +92,10 @@ public class EmailService {
                         t.getToken(),
                         t.getStatus().toString(),
                         null,          // qrCid
-                        qrBase64,      // qrBase64
+                        null,     // qrBase64
                         seatDTO
                 );
-
+                dto.setQrCid("qr_"+i);
                 ticketDTOs.add(dto);
             }
 
