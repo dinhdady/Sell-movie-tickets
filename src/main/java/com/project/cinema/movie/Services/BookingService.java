@@ -4,6 +4,8 @@ import com.project.cinema.movie.DTO.*;
 import com.project.cinema.movie.Exception.ResourceNotFoundException;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,7 +42,7 @@ public class BookingService {
     
     @Autowired
     private EmailService emailService;
-
+    private static final Logger logger = LoggerFactory.getLogger(BookingService.class);
     public List<Booking> getAllBookings() {
         return bookingRepository.findAllWithDetails();
     }
@@ -83,11 +85,11 @@ public class BookingService {
 
     @Transactional
     public void assignSeatsToBooking(Booking booking, List<Long> seatIds) {
-        System.out.println("[BookingService] Assigning seats to booking ID: " + booking.getId());
-        System.out.println("[BookingService] Seat IDs to assign: " + seatIds);
+        logger.info("[BookingService] Assigning seats to booking ID: " + booking.getId());
+        logger.info("[BookingService] Seat IDs to assign: " + seatIds);
         
         if (seatIds == null || seatIds.isEmpty()) {
-            System.out.println("[BookingService] No seat IDs provided for booking ID: " + booking.getId());
+            logger.info("[BookingService] No seat IDs provided for booking ID: " + booking.getId());
             return;
         }
         
@@ -96,7 +98,7 @@ public class BookingService {
                 Seat seat = seatRepository.findById(seatId)
                     .orElseThrow(() -> new ResourceNotFoundException("Seat not found with id: " + seatId));
                 
-                System.out.println("[BookingService] Found seat: " + seat.getSeatNumber());
+                logger.info("[BookingService] Found seat: " + seat.getSeatNumber());
                 
                 // Check if seat is already booked for this showtime
                 ShowtimeSeatBooking existingBooking = showtimeSeatBookingRepository
@@ -121,9 +123,9 @@ public class BookingService {
                 
                 showtimeSeatBookingRepository.save(showtimeSeatBooking);
                 
-                System.out.println("[BookingService] Seat " + seat.getSeatNumber() + " assigned to booking ID: " + booking.getId());
+                logger.info("[BookingService] Seat " + seat.getSeatNumber() + " assigned to booking ID: " + booking.getId());
             } catch (Exception e) {
-                System.out.println("[BookingService] Error assigning seat ID " + seatId + ": " + e.getMessage());
+                logger.info("[BookingService] Error assigning seat ID " + seatId + ": " + e.getMessage());
                 throw e;
             }
         }
@@ -512,7 +514,7 @@ public class BookingService {
         bookingRepository.save(booking);
         
         // Email will be sent from frontend after QR code generation
-        System.out.println("🎯 [BOOKING] Email will be handled by frontend with QR code");
+        logger.info("🎯 [BOOKING] Email will be handled by frontend with QR code");
         
         return booking;
     }

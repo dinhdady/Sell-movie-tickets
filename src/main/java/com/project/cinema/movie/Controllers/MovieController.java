@@ -6,6 +6,8 @@ import com.project.cinema.movie.Models.ResponseObject;
 import com.project.cinema.movie.Services.CloudinaryService;
 import com.project.cinema.movie.Services.MovieService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -28,32 +30,16 @@ public class MovieController {
     // private CloudinaryService cloudinaryService;
     @Autowired
     private MovieService movieService;
+    private static final Logger logger = LoggerFactory.getLogger(MovieController.class);
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<ResponseObject> addNewMovie(@Valid @ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg){
         try {
-            System.out.println("[MovieController] Creating new movie");
-            System.out.println("[MovieController] MovieDTO received: " + movieDto);
-            System.out.println("[MovieController] Poster file: " + (posterImg != null ? posterImg.getOriginalFilename() : "null"));
-            
-            // Print all form data for debugging
-            System.out.println("[MovieController] All form data:");
-            System.out.println("  - title: '" + movieDto.getTitle() + "'");
-            System.out.println("  - description: '" + movieDto.getDescription() + "'");
-            System.out.println("  - duration: " + movieDto.getDuration());
-            System.out.println("  - releaseDate: '" + movieDto.getReleaseDate() + "'");
-            System.out.println("  - genre: '" + movieDto.getGenre() + "'");
-            System.out.println("  - director: '" + movieDto.getDirector() + "'");
-            System.out.println("  - cast: '" + movieDto.getCast() + "'");
-            System.out.println("  - rating: " + movieDto.getRating());
-            System.out.println("  - status: '" + movieDto.getStatus() + "'");
-            System.out.println("  - filmRating: '" + movieDto.getFilmRating() + "'");
-            System.out.println("  - price: " + movieDto.getPrice());
-            System.out.println("  - language: '" + movieDto.getLanguage() + "'");
-            System.out.println("  - trailerUrl: '" + movieDto.getTrailerUrl() + "'");
-            
+            logger.info("[MovieController] Creating new movie");
+            logger.info("[MovieController] MovieDTO received: " + movieDto);
+            logger.info("[MovieController] Poster file: " + (posterImg != null ? posterImg.getOriginalFilename() : "null"));
             Movie movie = movieService.createMovie(movieDto, posterImg);
-            System.out.println("[MovieController] Movie created successfully with ID: " + movie.getId());
+            logger.info("[MovieController] Movie created successfully with ID: " + movie.getId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(new ResponseObject("201","Adding new movies successfully!",movie));
         } catch (Exception e) {
@@ -96,25 +82,25 @@ public class MovieController {
     @PutMapping("/{id}")
     public ResponseEntity<ResponseObject> updateMovie(@PathVariable Long id, @Valid @ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg) {
         try {
-            System.out.println("[MovieController] Updating movie with ID: " + id);
-            System.out.println("[MovieController] MovieDTO received: " + movieDto);
-            System.out.println("[MovieController] FilmRating value: '" + movieDto.getFilmRating() + "'");
-            System.out.println("[MovieController] FilmRating type: " + (movieDto.getFilmRating() != null ? movieDto.getFilmRating().getClass().getSimpleName() : "null"));
-            System.out.println("[MovieController] FilmRating length: " + (movieDto.getFilmRating() != null ? movieDto.getFilmRating().toString().length() : "null"));
+            logger.info("[MovieController] Updating movie with ID: " + id);
+            logger.info("[MovieController] MovieDTO received: " + movieDto);
+            logger.info("[MovieController] FilmRating value: '" + movieDto.getFilmRating() + "'");
+            logger.info("[MovieController] FilmRating type: " + (movieDto.getFilmRating() != null ? movieDto.getFilmRating().getClass().getSimpleName() : "null"));
+            logger.info("[MovieController] FilmRating length: " + (movieDto.getFilmRating() != null ? movieDto.getFilmRating().toString().length() : "null"));
             
             // Print all form data for debugging
-            System.out.println("[MovieController] All form data:");
-            System.out.println("  - title: '" + movieDto.getTitle() + "'");
-            System.out.println("  - description: '" + movieDto.getDescription() + "'");
-            System.out.println("  - duration: " + movieDto.getDuration());
-            System.out.println("  - releaseDate: '" + movieDto.getReleaseDate() + "'");
-            System.out.println("  - genre: '" + movieDto.getGenre() + "'");
-            System.out.println("  - director: '" + movieDto.getDirector() + "'");
-            System.out.println("  - cast: '" + movieDto.getCast() + "'");
-            System.out.println("  - rating: " + movieDto.getRating());
-            System.out.println("  - status: '" + movieDto.getStatus() + "'");
-            System.out.println("  - filmRating: '" + movieDto.getFilmRating() + "'");
-            System.out.println("  - price: " + movieDto.getPrice());
+            logger.info("[MovieController] All form data:");
+            logger.info("  - title: '" + movieDto.getTitle() + "'");
+            logger.info("  - description: '" + movieDto.getDescription() + "'");
+            logger.info("  - duration: " + movieDto.getDuration());
+            logger.info("  - releaseDate: '" + movieDto.getReleaseDate() + "'");
+            logger.info("  - genre: '" + movieDto.getGenre() + "'");
+            logger.info("  - director: '" + movieDto.getDirector() + "'");
+            logger.info("  - cast: '" + movieDto.getCast() + "'");
+            logger.info("  - rating: " + movieDto.getRating());
+            logger.info("  - status: '" + movieDto.getStatus() + "'");
+            logger.info("  - filmRating: '" + movieDto.getFilmRating() + "'");
+            logger.info("  - price: " + movieDto.getPrice());
             
             Movie updatedMovie = movieService.updateMovie(id, movieDto, posterImg);
             return ResponseEntity.status(HttpStatus.OK).body(new ResponseObject("200", "Movie updated successfully!", updatedMovie));

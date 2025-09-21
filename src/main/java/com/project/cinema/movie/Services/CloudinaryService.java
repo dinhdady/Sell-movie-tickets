@@ -2,6 +2,8 @@ package com.project.cinema.movie.Services;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +20,7 @@ import java.util.regex.Pattern;
 public class CloudinaryService {
     @Autowired
     private Cloudinary cloudinary;
+    private static final Logger logger = LoggerFactory.getLogger(CloudinaryService.class);
     public static boolean isImageFile(MultipartFile file) {
         List<String> IMAGE_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "ico", "tiff", "webp");
         if (file == null || file.isEmpty()) {
@@ -106,7 +109,7 @@ public class CloudinaryService {
             return qrCodeUrl;
             
         } catch (IOException e) {
-            System.err.println("[CloudinaryService] Error uploading QR code: " + e.getMessage());
+            logger.error("[CloudinaryService] Error uploading QR code: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Failed to upload QR code to Cloudinary", e);
         }

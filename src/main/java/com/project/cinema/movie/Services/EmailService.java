@@ -2,6 +2,8 @@ package com.project.cinema.movie.Services;
 
 import com.project.cinema.movie.Models.Booking;
 import com.project.cinema.movie.Models.Ticket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -22,11 +24,11 @@ public class EmailService {
 
     @Value("${spring.mail.username}")
     private String fromEmail;
-
+    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
     // Legacy method - no longer used, email is sent from frontend
     @Deprecated
     public void sendBookingConfirmation(Booking booking, List<Ticket> tickets) {
-        System.out.println("📧 [EMAIL] Legacy email method called - email should be sent from frontend");
+        logger.info("📧 [EMAIL] Legacy email method called - email should be sent from frontend");
         sendSimpleBookingConfirmation(booking, tickets);
     }
 
@@ -35,12 +37,12 @@ public class EmailService {
      */
     public void sendBookingConfirmationWithHtml(String toEmail, String subject, String htmlContent) {
         try {
-            System.out.println("🎯 [EMAIL] Starting to send email...");
-            System.out.println("🎯 [EMAIL] From: " + fromEmail);
-            System.out.println("🎯 [EMAIL] To: " + toEmail);
-            System.out.println("🎯 [EMAIL] Subject: " + subject);
-            System.out.println("🎯 [EMAIL] HTML content length: " + (htmlContent != null ? htmlContent.length() : 0));
-            System.out.println("🎯 [EMAIL] HTML content preview: " + (htmlContent != null ? htmlContent.substring(0, Math.min(200, htmlContent.length())) + "..." : "null"));
+            logger.info("[EMAIL] Starting to send email...");
+            logger.info("[EMAIL] From: " + fromEmail);
+            logger.info("[EMAIL] To: " + toEmail);
+            logger.info("[EMAIL] Subject: " + subject);
+            logger.info("[EMAIL] HTML content length: " + (htmlContent != null ? htmlContent.length() : 0));
+            logger.info("[EMAIL] HTML content preview: " + (htmlContent != null ? htmlContent.substring(0, Math.min(200, htmlContent.length())) + "..." : "null"));
             
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -50,12 +52,12 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(htmlContent, true);
             
-            System.out.println("🎯 [EMAIL] Sending message...");
+            logger.info("[EMAIL] Sending message...");
             mailSender.send(message);
 
-            System.out.println("✅ [EMAIL] Sent booking confirmation email with HTML from frontend");
+            logger.info("[EMAIL] Sent booking confirmation email with HTML from frontend");
         } catch (Exception e) {
-            System.err.println("❌ [EMAIL] Failed to send email with HTML content: " + e.getMessage());
+            System.err.println("[EMAIL] Failed to send email with HTML content: " + e.getMessage());
             e.printStackTrace();
         }
     }
