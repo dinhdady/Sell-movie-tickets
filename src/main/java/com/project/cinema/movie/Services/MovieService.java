@@ -5,6 +5,8 @@ import com.project.cinema.movie.Models.Movie;
 import com.project.cinema.movie.Models.Showtime;
 import com.project.cinema.movie.Repositories.MovieRepository;
 import com.project.cinema.movie.Repositories.ShowtimeRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,7 +26,7 @@ public class MovieService {
     private ShowtimeRepository showtimeRepository;
      @Autowired
      private CloudinaryService cloudinaryService;
-
+    private static final Logger log = LoggerFactory.getLogger(MovieService.class);
     public Movie getMovieById(Long id) {
         return movieRepository.findById(id).orElse(null);
     }
@@ -34,9 +36,9 @@ public class MovieService {
     }
     @Transactional
     public Movie createMovie(MovieDTO movieDto, MultipartFile posterImg) {
-        System.out.println("[MovieService] Creating movie with DTO: " + movieDto);
-        System.out.println("[MovieService] Cast value: '" + movieDto.getCast() + "'");
-        System.out.println("[MovieService] FilmRating value: " + movieDto.getFilmRating());
+        log.info("[MovieService] Creating movie with DTO: " + movieDto);
+        log.info("[MovieService] Cast value: '" + movieDto.getCast() + "'");
+        log.info("[MovieService] FilmRating value: " + movieDto.getFilmRating());
         
         // Check for duplicate title (case-insensitive and trimmed)
         String trimmedTitle = movieDto.getTitle().trim();
@@ -58,9 +60,7 @@ public class MovieService {
         movie.setTrailerUrl(movieDto.getTrailerUrl());
         movie.setFilmRating(movieDto.getFilmRating());
         
-        System.out.println("[MovieService] Movie object before save:");
-        System.out.println("  - Cast: '" + movie.getCast() + "'");
-        System.out.println("  - FilmRating: " + movie.getFilmRating());
+        log.info("[MovieService] Movie object before save:");
         
         // Handle poster upload
         if (posterImg != null && !posterImg.isEmpty()) {
@@ -70,9 +70,9 @@ public class MovieService {
         }
         
         Movie savedMovie = movieRepository.save(movie);
-        System.out.println("[MovieService] Movie saved with ID: " + savedMovie.getId());
-        System.out.println("[MovieService] Saved movie cast: '" + savedMovie.getCast() + "'");
-        System.out.println("[MovieService] Saved movie filmRating: " + savedMovie.getFilmRating());
+        log.info("[MovieService] Movie saved with ID: " + savedMovie.getId());
+        log.info("[MovieService] Saved movie cast: '" + savedMovie.getCast() + "'");
+        log.info("[MovieService] Saved movie filmRating: " + savedMovie.getFilmRating());
         
         return savedMovie;
     }
@@ -82,10 +82,10 @@ public class MovieService {
         return movieRepository.findAll(pageable);
     }
     public Movie updateMovie(Long id, MovieDTO movieDto, MultipartFile posterImg) {
-        System.out.println("[MovieService] Updating movie with ID: " + id);
-        System.out.println("[MovieService] MovieDTO received: " + movieDto);
-        System.out.println("[MovieService] Cast value: '" + movieDto.getCast() + "'");
-        System.out.println("[MovieService] FilmRating value: " + movieDto.getFilmRating());
+        log.info("[MovieService] Updating movie with ID: " + id);
+        log.info("[MovieService] MovieDTO received: " + movieDto);
+        log.info("[MovieService] Cast value: '" + movieDto.getCast() + "'");
+        log.info("[MovieService] FilmRating value: " + movieDto.getFilmRating());
         
         // Check for duplicate title (case-insensitive and trimmed) - exclude current movie
         String trimmedTitle = movieDto.getTitle().trim();
@@ -115,17 +115,17 @@ public class MovieService {
             }
             // If no new poster, keep existing one
             
-            System.out.println("[MovieService] Updated movie object:");
-            System.out.println("  - Cast: '" + movie.getCast() + "'");
-            System.out.println("  - FilmRating: " + movie.getFilmRating());
+            log.info("[MovieService] Updated movie object:");
+            log.info("  - Cast: '" + movie.getCast() + "'");
+            log.info("  - FilmRating: " + movie.getFilmRating());
             
             return movie;
         });
         
         Movie savedMovie = movieRepository.save(updated.get());
-        System.out.println("[MovieService] Movie updated successfully with ID: " + savedMovie.getId());
-        System.out.println("[MovieService] Updated movie cast: '" + savedMovie.getCast() + "'");
-        System.out.println("[MovieService] Updated movie filmRating: " + savedMovie.getFilmRating());
+        log.info("[MovieService] Movie updated successfully with ID: " + savedMovie.getId());
+        log.info("[MovieService] Updated movie cast: '" + savedMovie.getCast() + "'");
+        log.info("[MovieService] Updated movie filmRating: " + savedMovie.getFilmRating());
         
         return savedMovie;
     }

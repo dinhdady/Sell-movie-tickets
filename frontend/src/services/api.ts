@@ -193,8 +193,13 @@ export const authAPI = {
     return response.data;
   },
 
-  resetPassword: async (token: string, newPassword: string): Promise<ResponseObject> => {
-    const response = await api.post('/auth/reset-password', { token, newPassword });
+  resetPassword: async (data: { token: string; newPassword: string; confirmPassword: string }): Promise<ResponseObject> => {
+    const response = await api.post('/auth/reset-password', data);
+    return response.data;
+  },
+
+  validateResetToken: async (token: string): Promise<ResponseObject> => {
+    const response = await api.get(`/auth/validate-reset-token?token=${token}`);
     return response.data;
   },
 

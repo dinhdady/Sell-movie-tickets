@@ -1,6 +1,5 @@
 package com.project.cinema.movie.Services;
 
-//import com.project.tickets.movie.Config.CustomUserDetails;
 import com.project.cinema.movie.DTO.AuthRequest;
 import com.project.cinema.movie.DTO.RegisterRequest;
 import com.project.cinema.movie.DTO.AuthenticationResponse;
@@ -12,7 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,122 +19,110 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class AuthenticationService {
-    @Autowired
-    private UserRepository repository;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-    @Autowired
-    private JwtService jwtService;
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private UserDetailsServiceImp userDetailsService;
-    @Autowired
-    private TokenRepository tokenRepository;
-    private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
-    @Autowired
-    private AuthenticationManager authenticationManager;
+
+    private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final UserService userService;
+    private final UserDetailsServiceImp userDetailsService;
+    private final TokenRepository tokenRepository;
+    private final AuthenticationManager authenticationManager;
+
+    public AuthenticationService(UserRepository userRepository,
+                                 PasswordEncoder passwordEncoder,
+                                 JwtService jwtService,
+                                 UserService userService,
+                                 UserDetailsServiceImp userDetailsService,
+                                 TokenRepository tokenRepository,
+                                 AuthenticationManager authenticationManager) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.userService = userService;
+        this.userDetailsService = userDetailsService;
+        this.tokenRepository = tokenRepository;
+        this.authenticationManager = authenticationManager;
+    }
 
     public AuthenticationResponse register(RegisterRequest request) {
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            return new AuthenticationResponse(false, "", "", "User already exists");
+        }
+        userService.register(request);
+        return new AuthenticationResponse(true, "", "", "User registration was successful");
+    }
 
-        // check if user already exist. if exist than authenticate the user
-        if(repository.findByUsername(request.getUsername()).isPresent()) {
-            return new AuthenticationResponse(false,"","","User already exist");
+    public AuthenticationResponse authenticate(AuthRequest request,
+                                               HttpServletResponse response,
+                                               HttpSession session) {
+
+        if (isBlank(request.getUsername()) || isBlank(request.getPassword())) {
+            return new AuthenticationResponse(false, "", "", "Tên đăng nhập hoặc mật khẩu không được để trống");
         }
 
-        User user = new User();
-        user =userService.register(request);
-        return new AuthenticationResponse(true,"","", "User registration was successful");
-
-    }
-    public AuthenticationResponse authenticate(AuthRequest request, HttpServletResponse httpServletResponse, HttpSession httpSession) {
         try {
-            System.out.println("[AuthService] Starting authentication for username: " + request.getUsername());
-            
-            // Thực hiện xác thực người dùng
-            // Kiểm tra dữ liệu đầu vào
-            if (request.getUsername() == null || request.getUsername().isEmpty() ||
-                    request.getPassword() == null || request.getPassword().isEmpty()) {
-                System.out.println("[AuthService] Username or password is empty");
-                return new AuthenticationResponse(false,"","","Tên đăng nhập hoặc mật khẩu không được để trống");
-            }
+            log.info("Login attempt for username: {}", request.getUsername());
 
-            logger.info("Login request received for username: {}"+ request.getUsername());
-            System.out.println("[AuthService] Calling AuthenticationManager.authenticate()");
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getUsername(),
-                            request.getPassword()
+                            request.getUsername(), request.getPassword()
                     )
             );
-            System.out.println("[AuthService] AuthenticationManager.authenticate() completed successfully");
-            // Lấy thông tin người dùng từ database
-            Optional<User> userOpt = userService.findByUsername(request.getUsername());
-            if (userOpt.isEmpty()) {
-                logger.warn("User not found: {}", request.getUsername());
-                return new AuthenticationResponse(false,"","","Người dùng không tồn tại");
-            }
 
-            User user = userOpt.get();
-            String username = request.getUsername();
-            
-            // Lấy UserDetails để tạo token
-            var userDetails = userDetailsService.loadUserByUsername(username);
-            
-            // Tạo Access Token và Refresh Token
+            User user = userService.findByUsername(request.getUsername())
+                    .orElseThrow(() -> new BadCredentialsException("User not found"));
+
+            var userDetails = userDetailsService.loadUserByUsername(user.getUsername());
+
             String accessToken = jwtService.generateAccessToken(userDetails);
-            logger.info("AccessToken: {}",accessToken);
             String refreshToken = jwtService.generateRefreshToken(userDetails);
-            logger.info("RefreshToken: {}",refreshToken);
-            // Thu hồi các token cũ
-            revokeAllTokenByUser(user);
 
-            // Lưu refreshToken mới
+            log.info("AccessToken generated for {}: {}", user.getUsername(), accessToken);
+            log.info("RefreshToken generated for {}: {}", user.getUsername(), refreshToken);
+
+            revokeAllTokens(user);
             saveUserToken(refreshToken, user);
-            httpSession.setAttribute("username",username);
-            // Không set cookie nữa, chỉ trả về token trong body
-            logger.info("User {} authenticated successfully", request.getUsername());
 
-            return new AuthenticationResponse(true,accessToken, refreshToken, "Đăng nhập thành công!");
+            session.setAttribute("username", user.getUsername());
+
+            return new AuthenticationResponse(true, accessToken, refreshToken, "Đăng nhập thành công!");
         } catch (BadCredentialsException e) {
-            Optional<User> userOpt = userService.findByUsername(request.getUsername());
-            if (userOpt.isEmpty()) {
-                return new AuthenticationResponse(false,"","","Người dùng không tồn tại");
-            } else {
-                return new AuthenticationResponse(false,"","","Mật khẩu không chính xác");
-            }
+            return handleBadCredentials(request.getUsername());
         }
     }
 
-    private void revokeAllTokenByUser(User user) {
+    private void revokeAllTokens(User user) {
         List<Token> validTokens = tokenRepository.findAllTokensByUser(user.getId());
-        if(validTokens.isEmpty()) {
-            return;
+        if (!validTokens.isEmpty()) {
+            validTokens.forEach(t -> t.setRevoked(true));
+            tokenRepository.saveAll(validTokens);
         }
-
-        validTokens.forEach(t-> {
-            t.setRevoked(true);
-        });
-
-        tokenRepository.saveAll(validTokens);
     }
-    public void saveUserToken(String refreshToken, User user) {
-        // Tạo một đối tượng Token mới
+
+    private void saveUserToken(String refreshToken, User user) {
         Token token = new Token();
         token.setRefreshToken(refreshToken);
         token.setUser(user);
         token.setRevoked(false);
-        // Thiết lập thời gian hết hạn (nếu chưa được thiết lập trong constructor)
         if (token.getExpiresAt() == null) {
-            token.setExpiresAt(LocalDateTime.now().plusDays(7)); // Thêm 7 ngày vào thời gian hiện tại
+            token.setExpiresAt(LocalDateTime.now().plusDays(7));
         }
-        logger.info(token.toString());
-        // Lưu token vào database
+        log.debug("Saving refresh token for user {}: {}", user.getUsername(), token);
         tokenRepository.save(token);
     }
 
+    private AuthenticationResponse handleBadCredentials(String username) {
+        boolean userExists = userService.findByUsername(username).isPresent();
+        String message = userExists ? "Mật khẩu không chính xác" : "Người dùng không tồn tại";
+        return new AuthenticationResponse(false, "", "", message);
+    }
+
+    private boolean isBlank(String str) {
+        return str == null || str.isBlank();
+    }
 }

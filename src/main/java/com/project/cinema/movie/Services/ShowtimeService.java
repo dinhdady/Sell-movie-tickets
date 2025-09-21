@@ -25,6 +25,10 @@ public class ShowtimeService {
     @Autowired
     private CinemaRepository cinemaRepository;
 
+    public Optional<Showtime> findById(Long id) {
+        return showtimeRepository.findById(id);
+    }
+
     public List<Map<String, Object>> getShowtimesByMovieId(Long movieId) {
         List<Showtime> showtimes = showtimeRepository.findByMovieIdWithRoomAndCinema(movieId);
         return showtimes.stream().map(this::convertToMap).collect(Collectors.toList());

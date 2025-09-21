@@ -86,7 +86,7 @@ public class VNPayService {
         vnp_Params.put("vnp_Version", vnp_Version);
         vnp_Params.put("vnp_Command", vnp_Command);
         vnp_Params.put("vnp_TmnCode", vnp_TmnCode);
-        System.out.println("Gia thanh: " + amount);
+        logger.info("Gia thanh: " + amount);
         vnp_Params.put("vnp_Amount", String.valueOf(amount));
         vnp_Params.put("vnp_CurrCode", "VND");
 
@@ -131,7 +131,7 @@ public class VNPayService {
 
         String vnp_SecureHash = VNPayConfig.hmacSHA512(VNPayConfig.secretKey, hashData.toString());
         query.append("&vnp_SecureHash=").append(vnp_SecureHash);
-        System.out.println("[VNPAY] vnp_ReturnUrl sử dụng: " + VNPayConfig.vnp_ReturnUrl);
+        logger.info("[VNPAY] vnp_ReturnUrl sử dụng: " + VNPayConfig.vnp_ReturnUrl);
         return VNPayConfig.vnp_PayUrl + "?" + query;
     }
 

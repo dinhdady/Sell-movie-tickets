@@ -3,7 +3,6 @@ package com.project.cinema.movie.Controllers;
 import com.project.cinema.movie.DTO.BookingDTO;
 import com.project.cinema.movie.DTO.BookingDetailsResponse;
 import com.project.cinema.movie.Models.*;
-import com.project.cinema.movie.Repositories.ShowtimeRepository;
 import com.project.cinema.movie.Services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +27,7 @@ public class BookingController {
     @Autowired
     private EmailService emailService;
     @Autowired
-    private ShowtimeRepository showtimeRepository;
-    
+    private ShowtimeService showtimeService;
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     @GetMapping
     public List<BookingDetailsResponse> getAllBookings(){
@@ -70,7 +68,7 @@ public class BookingController {
         
         try {
             // Validate showtime
-            Showtime showtime = showtimeRepository.findById(bookingDTO.getShowtimeId()).orElse(null);
+            Showtime showtime = showtimeService.findById(bookingDTO.getShowtimeId()).orElse(null);
             if (showtime == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject("ERROR", "Showtime không hợp lệ.", null));
