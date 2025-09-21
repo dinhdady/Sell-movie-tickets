@@ -64,7 +64,7 @@ public class BookingController {
     }
     @PostMapping
     public ResponseEntity<ResponseObject> createBooking(@RequestBody BookingDTO bookingDTO) {
-        System.out.println("[BookingController] Received bookingDTO: " + bookingDTO);
+        logger.info("[BookingController] Received bookingDTO: " + bookingDTO);
         
         try {
             // Validate showtime
@@ -109,7 +109,7 @@ public class BookingController {
                 Order order = orderService.findById(bookingDTO.getOrderId());
 
                 booking.setOrder(order);
-                System.out.println("[BookingController] Associated booking with order ID: " + order.getId());
+                logger.info("[BookingController] Associated booking with order ID: " + order.getId());
             }
 
             // Save booking first
@@ -118,7 +118,7 @@ public class BookingController {
             // Reserve seats for this showtime
             if (bookingDTO.getSeatIds() != null && !bookingDTO.getSeatIds().isEmpty()) {
                 bookingService.reserveSeats(savedBooking.getId(), bookingDTO.getShowtimeId(), bookingDTO.getSeatIds());
-                System.out.println("[BookingController] Reserved seats: " + bookingDTO.getSeatIds() + " for showtime: " + bookingDTO.getShowtimeId());
+                logger.info("[BookingController] Reserved seats: " + bookingDTO.getSeatIds() + " for showtime: " + bookingDTO.getShowtimeId());
             }
 
             return ResponseEntity.ok(new ResponseObject("SUCCESS", "Đặt vé thành công!", savedBooking));
@@ -357,13 +357,13 @@ public class BookingController {
         }
         
         try {
-            System.out.println("🎯 [BOOKING] Sending email to: " + toEmail);
-            System.out.println("🎯 [BOOKING] Subject: " + subject);
-            System.out.println("🎯 [BOOKING] HTML content length: " + (htmlContent != null ? htmlContent.length() : 0));
+            logger.info("[BOOKING] Sending email to: " + toEmail);
+            logger.info("[BOOKING] Subject: " + subject);
+            logger.info("[BOOKING] HTML content length: " + (htmlContent != null ? htmlContent.length() : 0));
             
             emailService.sendBookingConfirmationWithHtml(toEmail, subject, htmlContent);
             
-            System.out.println("✅ [BOOKING] Email sent successfully to: " + toEmail);
+            logger.info("[BOOKING] Email sent successfully to: " + toEmail);
             return ResponseEntity.ok("Email sent successfully");
         } catch (Exception e) {
             logger.error("Failed to send email", e);
