@@ -1,7 +1,6 @@
 package com.project.cinema.movie.Models;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -34,7 +33,7 @@ public class Seat {
 
     @ManyToOne
     @JoinColumn(name = "roomId", nullable = false)
-    @JsonBackReference
+    @JsonIgnore
     private Room room;
 
     @Temporal(TemporalType.TIMESTAMP)
@@ -56,7 +55,7 @@ public class Seat {
 
     // One seat can be booked for many showtimes
     @OneToMany(mappedBy = "seat", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @JsonIgnore
     private List<ShowtimeSeatBooking> showtimeSeatBookings;
 
     // Transient field for frontend display - not stored in database

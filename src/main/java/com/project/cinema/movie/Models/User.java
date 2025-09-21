@@ -48,10 +48,18 @@ public class User implements UserDetails {
     @Enumerated(value = EnumType.STRING)
     private Role role;
 
+    @Column(name = "is_active")
+    private Boolean isActive = Boolean.TRUE;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
     public User(String username, String password, String email) {
         this.username = username;
         this.password = password;
         this.email = email;
+        this.isActive = Boolean.TRUE;
+        this.createdAt = LocalDateTime.now();
     }
 
     public User(String id, String username, String passwordHash, String fullName, String email, String phoneNumber, LocalDateTime registrationDate, Role role) {
@@ -63,6 +71,8 @@ public class User implements UserDetails {
         this.phoneNumber = phoneNumber;
         this.registrationDate = registrationDate;
         this.role = role;
+        this.isActive = Boolean.TRUE;
+        this.createdAt = LocalDateTime.now();
     }
 
     @Override
@@ -87,7 +97,25 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return isActive != null ? isActive : true;
+    }
+
+    // Getter and setter for isActive
+    public Boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    // Getter and setter for createdAt
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
 }

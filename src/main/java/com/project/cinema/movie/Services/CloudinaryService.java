@@ -14,17 +14,21 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// @Service
+ @Service
 public class CloudinaryService {
     @Autowired
     private Cloudinary cloudinary;
     public static boolean isImageFile(MultipartFile file) {
         List<String> IMAGE_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "ico", "tiff", "webp");
-        if (file == null || !file.getResource().isFile()) {
+        if (file == null || file.isEmpty()) {
             return false; // Not a valid file
         }
 
-        String fileName = file.getName();
+        String fileName = file.getOriginalFilename();
+        if (fileName == null) {
+            return false;
+        }
+        
         int lastDotIndex = fileName.lastIndexOf('.');
 
         if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {
@@ -44,7 +48,7 @@ public class CloudinaryService {
             if (file.isEmpty()) {
                 return "";
             }
-            if (isImageFile(file)) {
+            if (!isImageFile(file)) {
                 throw new RuntimeException("You can only upload image file!");
             }
             float fileSizeCheck = file.getSize() / 1_000_000_0f;
@@ -77,6 +81,34 @@ public class CloudinaryService {
             cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
         } else {
             // Handle invalid URL case
+        }
+    }
+
+    /**
+     * Upload QR code byte array to Cloudinary
+     * @param qrCodeBytes QR code as byte array
+     * @param publicId Public ID for the QR code
+     * @return Cloudinary URL of the uploaded QR code
+     */
+    public String uploadQRCode(byte[] qrCodeBytes, String publicId) {
+        try {
+            Map<String, Object> options = ObjectUtils.asMap(
+                "folder", "Cinema/QR Codes", // Thư mục riêng cho QR codes
+                "public_id", publicId,
+                "overwrite", true,
+                "resource_type", "image",
+                "format", "png"
+            );
+
+            Map uploadResult = cloudinary.uploader().upload(qrCodeBytes, options);
+            String qrCodeUrl = (String) uploadResult.get("url");
+            
+            return qrCodeUrl;
+            
+        } catch (IOException e) {
+            System.err.println("[CloudinaryService] Error uploading QR code: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to upload QR code to Cloudinary", e);
         }
     }
 }

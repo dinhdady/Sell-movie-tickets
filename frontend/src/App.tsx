@@ -1,10 +1,12 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import NotFound from './components/NotFound';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute';
+import AdminLayout from './components/AdminLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -17,6 +19,16 @@ import PaymentCallback from './pages/PaymentCallback';
 import Cinemas from './pages/Cinemas';
 import Profile from './pages/Profile';
 import Cart from './pages/Cart';
+// Admin pages
+import Dashboard from './pages/admin/Dashboard';
+import MovieManagement from './pages/admin/MovieManagement';
+import BookingManagement from './pages/admin/BookingManagement';
+import UserManagement from './pages/admin/UserManagement';
+import CinemaManagement from './pages/admin/CinemaManagement';
+import RoomManagement from './pages/admin/RoomManagement';
+import SeatManagement from './pages/admin/SeatManagement';
+import Statistics from './pages/admin/Statistics';
+import Settings from './pages/admin/Settings';
 
 function App() {
   return (
@@ -28,6 +40,7 @@ function App() {
               <Header />
               <main className="flex-1">
                 <Routes>
+                  {/* Public routes */}
                   <Route path="/" element={<Home />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
@@ -40,6 +53,25 @@ function App() {
                   <Route path="/booking-form" element={<BookingForm />} />
                   <Route path="/booking-success/:id" element={<BookingSuccess />} />
                   <Route path="/payment-callback" element={<PaymentCallback />} />
+                  
+                  {/* Admin routes */}
+                  <Route path="/admin" element={
+                    <ProtectedAdminRoute>
+                      <AdminLayout />
+                    </ProtectedAdminRoute>
+                  }>
+                    <Route index element={<Dashboard />} />
+                    <Route path="dashboard" element={<Navigate to="/admin" replace />} />
+                    <Route path="movies" element={<MovieManagement />} />
+                    <Route path="bookings" element={<BookingManagement />} />
+                    <Route path="users" element={<UserManagement />} />
+                    <Route path="cinemas" element={<CinemaManagement />} />
+                    <Route path="rooms" element={<RoomManagement />} />
+                    <Route path="seats" element={<SeatManagement />} />
+                    <Route path="statistics" element={<Statistics />} />
+                    <Route path="settings" element={<Settings />} />
+                  </Route>
+                  
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>

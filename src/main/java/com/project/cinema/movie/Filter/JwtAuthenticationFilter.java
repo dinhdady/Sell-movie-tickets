@@ -7,7 +7,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -47,9 +46,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain) throws ServletException, IOException {
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
         System.out.println("[JWT Filter] Processing request: " + request.getRequestURI());
         
@@ -69,9 +68,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             if (!jwtService.isAccessToken(token)) {
-                System.out.println("[JWT Filter] Token is not access token, returning 403");
-                response.setStatus(HttpStatus.FORBIDDEN.value());
-                response.getWriter().write("Refresh token cannot be used for this action.");
+                System.out.println("[JWT Filter] Token is not access token, continuing filter chain");
+                // Don't write to response directly, let Spring Security handle it
+                filterChain.doFilter(request, response);
                 return;
             }
 
@@ -94,21 +93,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authToken);
     }
 
-    private String getAccessTokenFromRequest(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7); // Bỏ "Bearer "
-        }
-        return null;
-    }
-
-    private String getRefreshTokenFromRequest(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("RefreshToken ")) { // Giả sử refresh token được truyền với tiền tố "RefreshToken "
-            return authHeader.substring(12); // Bỏ "RefreshToken "
-        }
-        return null;
-    }
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {

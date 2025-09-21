@@ -32,10 +32,33 @@ public class MovieController {
     @PostMapping("/add")
     public ResponseEntity<ResponseObject> addNewMovie(@Valid @ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg){
         try {
+            System.out.println("[MovieController] Creating new movie");
+            System.out.println("[MovieController] MovieDTO received: " + movieDto);
+            System.out.println("[MovieController] Poster file: " + (posterImg != null ? posterImg.getOriginalFilename() : "null"));
+            
+            // Print all form data for debugging
+            System.out.println("[MovieController] All form data:");
+            System.out.println("  - title: '" + movieDto.getTitle() + "'");
+            System.out.println("  - description: '" + movieDto.getDescription() + "'");
+            System.out.println("  - duration: " + movieDto.getDuration());
+            System.out.println("  - releaseDate: '" + movieDto.getReleaseDate() + "'");
+            System.out.println("  - genre: '" + movieDto.getGenre() + "'");
+            System.out.println("  - director: '" + movieDto.getDirector() + "'");
+            System.out.println("  - cast: '" + movieDto.getCast() + "'");
+            System.out.println("  - rating: " + movieDto.getRating());
+            System.out.println("  - status: '" + movieDto.getStatus() + "'");
+            System.out.println("  - filmRating: '" + movieDto.getFilmRating() + "'");
+            System.out.println("  - price: " + movieDto.getPrice());
+            System.out.println("  - language: '" + movieDto.getLanguage() + "'");
+            System.out.println("  - trailerUrl: '" + movieDto.getTrailerUrl() + "'");
+            
             Movie movie = movieService.createMovie(movieDto, posterImg);
+            System.out.println("[MovieController] Movie created successfully with ID: " + movie.getId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(new ResponseObject("201","Adding new movies successfully!",movie));
         } catch (Exception e) {
+            System.err.println("[MovieController] Error creating movie: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new ResponseObject("409","Không thể thêm phim mới: " + e.getMessage(),""));
         }
     }

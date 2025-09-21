@@ -4,8 +4,10 @@ import com.project.cinema.movie.DTO.RoomDTO;
 import com.project.cinema.movie.Models.Cinema;
 import com.project.cinema.movie.Models.ResponseObject;
 import com.project.cinema.movie.Models.Room;
+import com.project.cinema.movie.Models.Seat;
 import com.project.cinema.movie.Services.CinemaService;
 import com.project.cinema.movie.Services.RoomService;
+import com.project.cinema.movie.Services.SeatService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,8 @@ public class RoomController {
     private RoomService roomService;
     @Autowired
     private CinemaService cinemaService;
+    @Autowired
+    private SeatService seatService;
     @GetMapping
     public ResponseEntity<ResponseObject> getAllRooms(){
         List<Room> rooms = roomService.getAllRooms();
@@ -58,10 +62,25 @@ public class RoomController {
         // Lưu Room vào database
         Room newRoom = roomService.createRoom(room);
 
-        return newRoom != null ? ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ResponseObject("201", "Room created successfully!", newRoom))
-                : ResponseEntity.status(HttpStatus.CONFLICT)
+        if (newRoom != null) {
+            // Tự động tạo ghế cho phòng mới
+            try {
+                List<Seat> seats = seatService.generateDefaultSeatsForRoom(newRoom.getId());
+                newRoom.setCapacity(seats.size()); // Cập nhật capacity thực tế
+                
+                return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ResponseObject("201", 
+                        "Room created successfully with " + seats.size() + " seats!", newRoom));
+            } catch (Exception e) {
+                // Nếu tạo ghế thất bại, vẫn trả về phòng đã tạo
+                return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ResponseObject("201", 
+                        "Room created successfully, but failed to generate seats: " + e.getMessage(), newRoom));
+            }
+        } else {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ResponseObject("409", "Room name existed!", null));
+        }
     }
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")

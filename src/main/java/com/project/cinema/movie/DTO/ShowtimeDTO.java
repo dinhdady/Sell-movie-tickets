@@ -18,4 +18,5 @@ public class ShowtimeDTO {
     private Long movieId;
     private Date startTime;
     private Date endTime;
+    private RoomDTO room;  // thông tin phòng chiếu
 }

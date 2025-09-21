@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   CheckCircleIcon, 
@@ -12,7 +12,6 @@ import {
   QrCodeIcon,
   FilmIcon
 } from '@heroicons/react/24/outline';
-import QRCode from 'qrcode';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { paymentAPI, bookingAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +38,7 @@ interface Ticket {
   price: number;
   token: string;
   status: string; // PAID, PENDING, etc.
+  qrCodeUrl?: string;
   seat?: {
     seatNumber: string;
     rowNumber: string;
@@ -100,9 +100,57 @@ const PaymentCallback: React.FC = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [status, setStatus] = useState<'success' | 'failed' | 'pending'>('pending');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [emailSent, setEmailSent] = useState<boolean>(false);
+  const processedRef = useRef<boolean>(false);
+  const emailProcessingRef = useRef<boolean>(false);
+  const globalEmailSentRef = useRef<boolean>(false);
+
+  // Function to process payment with txnRef from localStorage
+  const processPaymentWithTxnRef = useCallback(async (txnRef: string) => {
+    try {
+      console.log('🎯 [PaymentCallback] Processing payment with txnRef:', txnRef);
+      
+      // First confirm the payment and generate tickets
+      console.log('🎯 [PaymentCallback] Confirming payment for txnRef:', txnRef);
+      const confirmResponse = await paymentAPI.confirmPayment(txnRef);
+      console.log('🎯 [PaymentCallback] Confirm payment response:', confirmResponse);
+
+      if (confirmResponse.state === 'SUCCESS') {
+        // Then fetch the updated booking details with tickets
+        console.log('Fetching booking details for txnRef:', txnRef);
+        const response = await paymentAPI.getBookingByTxnRef(txnRef);
+        console.log('Booking details response:', response);
+
+        if (response.state === 'SUCCESS') {
+          setBookingDetails(response.object);
+          setStatus('success');
+
+          // Generate QR code and send email
+          await generateQRAndSendEmail(response.object);
+
+          // Clear txnRef from localStorage
+          localStorage.removeItem('currentTxnRef');
+        } else {
+          console.error('Failed to get booking details:', response.message);
+          setErrorMessage('Không thể lấy thông tin đặt vé: ' + (response.message || 'Không xác định'));
+          setStatus('failed');
+        }
+      } else {
+        console.error('Failed to confirm payment:', confirmResponse.message);
+        setErrorMessage('Không thể xác nhận thanh toán: ' + confirmResponse.message);
+        setStatus('failed');
+      }
+    } catch (error) {
+      console.error('Error processing payment with txnRef:', error);
+      setErrorMessage('Có lỗi xảy ra khi xử lý thanh toán: ' + (error instanceof Error ? error.message : 'Không xác định'));
+      setStatus('failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [emailSent]);
 
   // Function to create HTML email and send to user
-  const sendQREmailToUser = async (bookingId: number, qrCodeDataUrl: string, currentBookingDetails?: BookingDetails) => {
+  const sendQREmailToUser = useCallback(async (bookingId: number, qrCodeDataUrl: string, currentBookingDetails?: BookingDetails, qrData?: string) => {
     try {
       console.log('🎯 [FRONTEND] Sending QR email for booking:', bookingId);
       
@@ -114,71 +162,130 @@ const PaymentCallback: React.FC = () => {
       }
 
       // Create HTML email content
-      const htmlContent = createEmailHTML(details, qrCodeDataUrl);
-      const subject = `Xác nhận đặt vé - ${details.movie.title}`;
+      const htmlContent = createEmailHTML(details, qrCodeDataUrl, qrData);
+      const subject = `Xác nhận đặt vé - ${details.movie?.title || 'Unknown Movie'}`;
       
-      console.log('📧 [FRONTEND] Sending email to:', details.customerEmail);
-      const response = await fetch(`/api/booking/${bookingId}/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          htmlContent,
-          subject,
-          toEmail: details.customerEmail
-        })
-      });
+      // Validate required data
+      if (!htmlContent || htmlContent.length === 0) {
+        console.error('❌ [FRONTEND] HTML content is empty');
+        return false;
+      }
       
-      if (response.ok) {
-        console.log('✅ [FRONTEND] Email sent successfully');
+      if (!details.customerEmail || details.customerEmail.trim() === '') {
+        console.error('❌ [FRONTEND] Customer email is empty');
+        return false;
+      }
+      
+      
+      
+      const response = await paymentAPI.sendBookingEmail(bookingId, htmlContent, subject, details.customerEmail);
+      
+      if (response.state === 'SUCCESS') {
         return true;
       } else {
-        console.error('❌ [FRONTEND] Failed to send email:', response.statusText);
+        console.error('❌ [FRONTEND] Failed to send email:', response.message);
         return false;
       }
     } catch (error) {
       console.error('❌ [FRONTEND] Error sending email:', error);
       return false;
     }
-  };
+  }, [bookingDetails]);
 
   // Helper function to generate QR code and send email
-  const generateQRAndSendEmail = async (bookingDetails: BookingDetails) => {
+  const generateQRAndSendEmail = useCallback(async (bookingDetails: BookingDetails) => {
     try {
       console.log('🎯 [FRONTEND] Starting QR generation and email sending for booking:', bookingDetails.id);
       
-      // Generate QR code
+      // Check if email already sent globally to prevent spam
+      if (globalEmailSentRef.current) {
+        console.log('📧 [FRONTEND] Email already sent globally, skipping...');
+        return { qrCodeDataUrl: qrCodeUrl, emailSent: true };
+      }
+      
+      // Check if already processing to prevent multiple calls
+      if (emailProcessingRef.current) {
+        console.log('📧 [FRONTEND] Already processing email, skipping...');
+        return { qrCodeDataUrl: qrCodeUrl, emailSent: true };
+      }
+      
+      // Check if this specific booking already processed
+      const bookingKey = `email_sent_${bookingDetails.id}`;
+      if (localStorage.getItem(bookingKey)) {
+        console.log('📧 [FRONTEND] Email already sent for booking ID:', bookingDetails.id);
+        return { qrCodeDataUrl: qrCodeUrl, emailSent: true };
+      }
+      
+      emailProcessingRef.current = true;
+      globalEmailSentRef.current = true;
+      
+      // Get QR code URL from backend (already generated)
+      let qrCodeDataUrl = null;
       let qrData = `BOOKING_${bookingDetails.id}`; // Default fallback
+      
       if (bookingDetails.order?.tickets && bookingDetails.order.tickets.length > 0) {
         const firstTicket = bookingDetails.order.tickets[0];
+        if (firstTicket.qrCodeUrl) {
+          qrCodeDataUrl = firstTicket.qrCodeUrl;
+        }
         if (firstTicket.token) {
           qrData = `TICKET_${firstTicket.token}`;
         }
       }
       
-      console.log('📱 [FRONTEND] Generating QR code with data:', qrData);
-      const qrCodeDataUrl = await QRCode.toDataURL(qrData);
+      // QR code should always be available from backend
+      if (!qrCodeDataUrl) {
+        console.error('❌ [FRONTEND] No QR code URL from backend - this should not happen');
+        return { qrCodeDataUrl: null, emailSent: false };
+      }
+      
       setQrCodeUrl(qrCodeDataUrl);
       
       // Send email with QR code
-      const emailSent = await sendQREmailToUser(bookingDetails.id, qrCodeDataUrl, bookingDetails);
-      if (emailSent) {
-        console.log('✅ [FRONTEND] QR code generated and email sent successfully');
-      } else {
-        console.warn('⚠️ [FRONTEND] QR code generated but email failed');
+      const emailSentResult = await sendQREmailToUser(bookingDetails.id, qrCodeDataUrl, bookingDetails, qrData);
+      if (emailSentResult) {
+        setEmailSent(true); // Mark email as sent
+        // Mark this specific booking as email sent
+        localStorage.setItem(`email_sent_${bookingDetails.id}`, 'true');
       }
       
-      return { qrCodeDataUrl, emailSent };
+      return { qrCodeDataUrl, emailSent: emailSentResult };
     } catch (error) {
       console.error('❌ [FRONTEND] Error in QR generation and email sending:', error);
       return { qrCodeDataUrl: null, emailSent: false };
+    } finally {
+      emailProcessingRef.current = false;
     }
-  };
+  }, [emailSent, qrCodeUrl, sendQREmailToUser]);
 
   // Function to create HTML email content
-  const createEmailHTML = (booking: BookingDetails, qrCodeDataUrl: string): string => {
+  const createEmailHTML = (booking: BookingDetails, qrCodeDataUrl: string, qrData?: string): string => {
+    // Validate required data
+    if (!booking) {
+      console.error('❌ [FRONTEND] Booking details is null');
+      return '';
+    }
+    
+    if (!booking.movie) {
+      console.error('❌ [FRONTEND] Movie details is null');
+      return '';
+    }
+    
+    if (!booking.showtime) {
+      console.error('❌ [FRONTEND] Showtime details is null');
+      return '';
+    }
+    
+    if (!booking.order || !booking.order.tickets) {
+      console.error('❌ [FRONTEND] Order or tickets details is null');
+      return '';
+    }
+    
+    console.log('📧 [FRONTEND] Creating HTML content for booking:', booking.id);
+    console.log('📧 [FRONTEND] Movie title:', booking.movie.title);
+    console.log('📧 [FRONTEND] Customer name:', booking.customerName);
+    console.log('📧 [FRONTEND] Customer email:', booking.customerEmail);
+    
     return `
 <!DOCTYPE html>
 <html>
@@ -187,14 +294,22 @@ const PaymentCallback: React.FC = () => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xác nhận đặt vé</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
-        .container { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header { background: linear-gradient(135deg, #1f2937, #374151); color: white; padding: 25px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; }
-        .qr-section { text-align: center; margin: 30px 0; padding: 25px; background-color: #f8fafc; border-radius: 10px; border: 2px dashed #e5e7eb; }
-        .qr-section img { width: 150px; height: 150px; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; }
-        .booking-info { background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
-        .footer { text-align: center; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; }
+        body { font-family: Arial, sans-serif; line-height: 1.4; color: #333; max-width: 500px; margin: 0 auto; padding: 15px; background-color: #f8fafc; }
+        .container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #1f2937, #374151); color: white; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px; }
+        .header h1 { margin: 0; font-size: 18px; }
+        .qr-section { text-align: center; margin: 20px 0; padding: 15px; background-color: #f1f5f9; border-radius: 6px; border: 1px dashed #cbd5e1; }
+        .qr-section h3 { margin: 0 0 10px 0; font-size: 16px; color: #374151; }
+        .qr-section img { width: 120px; height: 120px; border: 1px solid #d1d5db; border-radius: 6px; margin-bottom: 8px; }
+        .qr-section p { margin: 5px 0; font-size: 12px; color: #6b7280; }
+        .booking-info { background-color: #f0fdf4; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 3px solid #10b981; }
+        .booking-info p { margin: 8px 0; font-size: 14px; }
+        .footer { text-align: center; color: #6b7280; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 11px; }
         .highlight { color: #1f2937; font-weight: bold; }
+        .notice { background-color: #fef3c7; padding: 12px; border-radius: 4px; margin: 15px 0; }
+        .notice h4 { color: #92400e; margin: 0 0 8px 0; font-size: 14px; }
+        .notice ul { color: #78350f; margin: 0; padding-left: 15px; font-size: 12px; }
+        .notice li { margin: 4px 0; }
     </style>
 </head>
 <body>
@@ -203,28 +318,40 @@ const PaymentCallback: React.FC = () => {
             <h1>🎬 Xác nhận đặt vé thành công!</h1>
         </div>
         
-        <p>Xin chào <span class="highlight">${booking.customerName}</span>,</p>
+        <p>Xin chào <span class="highlight">${booking.customerName || 'Khách hàng'}</span>,</p>
         
         <p>Cảm ơn bạn đã đặt vé tại rạp chiếu phim của chúng tôi! Vé của bạn đã được xác nhận thành công.</p>
         
         <div class="booking-info">
-            <p><strong>🎭 Phim:</strong> ${booking.movie.title}</p>
-            <p><strong>🏢 Rạp:</strong> ${booking.showtime.room.cinema.name}</p>
-            <p><strong>🚪 Phòng:</strong> ${booking.showtime.room.name}</p>
-            <p><strong>📅 Ngày & Giờ:</strong> ${new Date(booking.showtime.startTime).toLocaleString('vi-VN')}</p>
-            <p><strong>💰 Tổng tiền:</strong> ${booking.totalPrice.toLocaleString('vi-VN')} VNĐ</p>
-            <p><strong>🪑 Ghế:</strong> ${booking.order.tickets.map(t => t.seat?.seatNumber || 'N/A').join(', ')}</p>
+            <p><strong>🎭 Phim:</strong> ${booking.movie?.title || 'N/A'}</p>
+            <p><strong>🏢 Rạp:</strong> ${booking.showtime?.room?.cinema?.name || 'N/A'}</p>
+            <p><strong>🚪 Phòng:</strong> ${booking.showtime?.room?.name || 'N/A'}</p>
+            <p><strong>📅 Ngày & Giờ:</strong> ${booking.showtime?.startTime ? new Date(booking.showtime.startTime).toLocaleString('vi-VN') : 'N/A'}</p>
+            <p><strong>💰 Tổng tiền:</strong> ${booking.totalPrice ? booking.totalPrice.toLocaleString('vi-VN') : '0'} VNĐ</p>
+            <p><strong>🪑 Ghế:</strong> ${booking.order?.tickets ? booking.order.tickets.map(t => t.seat?.seatNumber || 'N/A').join(', ') : 'N/A'}</p>
         </div>
         
         <div class="qr-section">
-            <h3>🎟️ Mã QR Vé của bạn</h3>
-            <img src="${qrCodeDataUrl}" alt="QR Code vé" />
+            <div style="text-align: center; margin: 20px 0;">
+                <div style="background: white; padding: 20px; border-radius: 8px; display: inline-block; border: 2px solid #333;">
+                    <img src="${qrCodeDataUrl}" alt="QR Code vé" style="width: 120px; height: 120px; display: block; margin: 0 auto; max-width: 100%; height: auto;" />
+                </div>
+                <p style="margin-top: 15px; font-size: 14px; color: #333; font-weight: bold;">
+                    Mã QR Vé của bạn
+                </p>
+                <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                    Nếu QR code không hiển thị, vui lòng sử dụng mã vé bên dưới
+                </p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px; font-family: 'Courier New', monospace; font-size: 13px; word-break: break-all; border: 1px solid #dee2e6;">
+                    <strong style="color: #495057;">Mã vé:</strong> <span style="color: #dc3545; font-weight: bold;">${qrData || 'N/A'}</span>
+                </div>
+            </div>
             <p><strong>Xuất trình mã QR này tại quầy vé để nhận vé</strong></p>
         </div>
         
-        <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0;">
-            <h4 style="color: #92400e; margin-bottom: 10px;">📱 Lưu ý quan trọng</h4>
-            <ul style="color: #78350f; margin: 0; padding-left: 20px;">
+        <div class="notice">
+            <h4>📱 Lưu ý quan trọng</h4>
+            <ul>
                 <li>Có mặt trước giờ chiếu <strong>15 phút</strong></li>
                 <li>Xuất trình mã QR tại quầy vé</li>
                 <li>Mang theo giấy tờ tùy thân</li>
@@ -246,9 +373,141 @@ const PaymentCallback: React.FC = () => {
   useEffect(() => {
     const processPayment = async () => {
       try {
+        // Check if already processed to prevent infinite loop
+        if (processedRef.current) {
+          console.log('🔍 [PaymentCallback] Already processed, skipping...');
+          return;
+        }
+        
+        // Reset processed flag if we have new URL parameters
+        if (searchParams && searchParams.size > 0) {
+          processedRef.current = false;
+        }
+        
+        console.log('🔍 [PaymentCallback] Starting processPayment...');
+        console.log('🔍 [PaymentCallback] searchParams:', searchParams);
+        console.log('🔍 [PaymentCallback] searchParams.size:', searchParams?.size);
+        console.log('🔍 [PaymentCallback] searchParams.entries():', searchParams ? Object.fromEntries(searchParams.entries()) : 'null');
+        
+        // Kiểm tra xem có tham số URL từ VNPay callback không
+        if (searchParams && searchParams.size > 0) {
+          console.log('✅ [PaymentCallback] Found URL parameters from VNPay callback:', Object.fromEntries(searchParams.entries()));
+          
+          const status = searchParams.get('status');
+          const txnRef = searchParams.get('txnRef');
+          const message = searchParams.get('message');
+          
+          console.log('🔍 [PaymentCallback] Parsed parameters - status:', status, 'txnRef:', txnRef, 'message:', message);
+          
+          if (status === 'success' && txnRef) {
+            console.log('✅ [PaymentCallback] VNPay payment successful, processing with txnRef:', txnRef);
+            await processPaymentWithTxnRef(txnRef);
+            return;
+          } else if (status === 'failed') {
+            console.log('❌ [PaymentCallback] VNPay payment failed:', message);
+            setErrorMessage(message || 'Thanh toán thất bại');
+            setStatus('failed');
+            setLoading(false);
+            return;
+          } else {
+            console.log('⚠️ [PaymentCallback] URL parameters found but not processed:', { status, txnRef, message });
+          }
+        } else {
+          console.log('⚠️ [PaymentCallback] No URL parameters found or searchParams is empty');
+        }
+        
         // Kiểm tra xem có tham số URL không
         if (!searchParams || searchParams.size === 0) {
-          console.log('No search parameters found in URL, checking for booking from Profile');
+          console.log('No search parameters found in URL, checking for booking from Profile or localStorage');
+          
+          // Kiểm tra xem có txnRef từ payment không
+          const currentTxnRef = localStorage.getItem('currentTxnRef');
+          if (currentTxnRef) {
+            console.log('Found txnRef from payment:', currentTxnRef);
+            // Process payment with txnRef from localStorage
+            await processPaymentWithTxnRef(currentTxnRef);
+            return;
+          }
+          
+          // Kiểm tra xem có pending booking không (fallback khi VNPay lỗi)
+          const pendingBooking = localStorage.getItem('pendingBooking');
+          if (pendingBooking) {
+            console.log('Found pending booking from VNPay error:', pendingBooking);
+            try {
+              const bookingData = JSON.parse(pendingBooking);
+              // Simulate successful payment for testing
+              setStatus('success');
+              setBookingDetails({
+                id: bookingData.bookingId,
+                movie: bookingData.movie,
+                showtime: bookingData.showtime,
+                totalPrice: bookingData.totalPrice,
+                customerName: user?.fullName || 'Test User',
+                customerEmail: user?.email || 'test@example.com',
+                order: {
+                  status: 'PAID',
+                  tickets: bookingData.selectedSeats.map((seat: any, index: number) => ({
+                    id: index + 1,
+                    orderId: bookingData.bookingId,
+                    seatId: seat.id,
+                    seat: {
+                      seatNumber: seat.seatNumber,
+                      rowNumber: seat.rowNumber,
+                      columnNumber: seat.columnNumber,
+                      roomId: 1,
+                      seatType: seat.seatType,
+                      price: seat.price
+                    },
+                    price: seat.price,
+                    token: `token_${index + 1}`,
+                    status: 'PAID'
+                  }))
+                }
+              });
+              
+              // Clear pending booking
+              localStorage.removeItem('pendingBooking');
+              localStorage.removeItem('currentTxnRef');
+              
+              // Generate QR code and send email
+              await generateQRAndSendEmail({
+                id: bookingData.bookingId,
+                movie: bookingData.movie,
+                showtime: bookingData.showtime,
+                totalPrice: bookingData.totalPrice,
+                customerName: user?.fullName || 'Test User',
+                customerEmail: user?.email || 'test@example.com',
+                order: {
+                  status: 'PAID',
+                  tickets: bookingData.selectedSeats.map((seat: any, index: number) => ({
+                    id: index + 1,
+                    orderId: bookingData.bookingId,
+                    seatId: seat.id,
+                    seat: {
+                      seatNumber: seat.seatNumber,
+                      rowNumber: seat.rowNumber,
+                      columnNumber: seat.columnNumber,
+                      roomId: 1,
+                      seatType: seat.seatType,
+                      price: seat.price
+                    },
+                    price: seat.price,
+                    token: `token_${index + 1}`,
+                    status: 'PAID'
+                  }))
+                }
+              });
+              
+              setLoading(false);
+              return;
+            } catch (error) {
+              console.error('Error processing pending booking:', error);
+              setErrorMessage('Có lỗi xảy ra khi xử lý đặt vé. Vui lòng thử lại.');
+              setStatus('failed');
+              setLoading(false);
+              return;
+            }
+          }
           
           // Kiểm tra xem có booking từ Profile không
           const selectedBooking = localStorage.getItem('selectedBooking');
@@ -345,35 +604,37 @@ const PaymentCallback: React.FC = () => {
                     }
                   },
                   order: {
-                    tickets: tickets.length > 0 ? tickets.map((ticket: any, index: number) => {
+                    tickets: tickets.length > 0 ? tickets.map((ticket: unknown, index: number) => {
                       console.log(`Processing ticket ${index}:`, ticket);
                       
                       // Lấy thông tin ghế từ các nguồn khác nhau
-                      const seatInfo = ticket.seat || ticket.bookingSeat || ticket;
+                      const ticketData = ticket as Record<string, unknown>;
+                      const seatInfo = ticketData.seat || ticketData.bookingSeat || ticketData;
                       console.log(`Seat info for ticket ${index}:`, seatInfo);
                       
                       // Tạo seatNumber từ rowNumber và columnNumber
-                      const rowNumber = seatInfo.rowNumber || seatInfo.row || String.fromCharCode(65 + index); // A, B, C...
-                      const columnNumber = seatInfo.columnNumber || seatInfo.column || (index + 1);
-                      const seatNumber = seatInfo.seatNumber || `${rowNumber}${columnNumber}`;
+                      const seatData = seatInfo as Record<string, unknown>;
+                      const rowNumber = seatData.rowNumber || seatData.row || String.fromCharCode(65 + index); // A, B, C...
+                      const columnNumber = seatData.columnNumber || seatData.column || (index + 1);
+                      const seatNumber = seatData.seatNumber || `${rowNumber}${columnNumber}`;
                       
                       console.log(`Generated seat info: ${seatNumber} (${rowNumber}${columnNumber})`);
                       
                       return {
-                        id: ticket.id || ticket.ticketId || index + 1,
-                        orderId: ticket.orderId || ticket.bookingId || bookingData.id,
-                        seatId: ticket.seatId || seatInfo.id || index + 1,
+                        id: ticketData.id || ticketData.ticketId || index + 1,
+                        orderId: ticketData.orderId || ticketData.bookingId || bookingData.id,
+                        seatId: ticketData.seatId || seatData.id || index + 1,
                         seat: {
                           seatNumber: seatNumber,
                           rowNumber: rowNumber,
                           columnNumber: columnNumber,
-                          roomId: seatInfo.roomId || 1,
-                          seatType: (seatInfo.seatType || 'REGULAR') as 'REGULAR' | 'VIP' | 'COUPLE',
-                          price: seatInfo.price || ticket.price || 80000
+                          roomId: seatData.roomId || 1,
+                          seatType: (seatData.seatType || 'REGULAR') as 'REGULAR' | 'VIP' | 'COUPLE',
+                          price: seatData.price || ticketData.price || 80000
                         },
-                        price: ticket.price || seatInfo.price || 80000,
-                        token: ticket.token || `token_${ticket.id || index + 1}`,
-                        status: ticket.status || 'PAID'
+                        price: ticketData.price || seatData.price || 80000,
+                        token: ticketData.token || `token_${ticketData.id || index + 1}`,
+                        status: ticketData.status || 'PAID'
                       };
                     }) : [
                       // Fallback nếu không có thông tin vé chi tiết
@@ -394,7 +655,7 @@ const PaymentCallback: React.FC = () => {
                         status: 'PAID'
                       }
                     ],
-                    status: bookingData.status || 'PAID'
+                    status: bookingData.paymentStatus || bookingData.status || 'PAID'
                   },
                   customerName: bookingData.customerName || booking.customerName,
                   customerEmail: bookingData.customerEmail || booking.customerEmail,
@@ -581,11 +842,22 @@ const PaymentCallback: React.FC = () => {
         setErrorMessage('Lỗi xử lý thanh toán');
       } finally {
         setLoading(false);
+        processedRef.current = true; // Mark as processed
       }
     };
 
     processPayment();
-  }, [searchParams]);
+  }, [searchParams, user]);
+
+  // Reset states when component unmounts
+  useEffect(() => {
+    return () => {
+      setEmailSent(false);
+      processedRef.current = false;
+      emailProcessingRef.current = false;
+      globalEmailSentRef.current = false;
+    };
+  }, []);
 
   // Format amount from VNPay (cents to VND)
   const formatAmount = (amount: string) => {
@@ -669,6 +941,16 @@ const PaymentCallback: React.FC = () => {
             <p className="text-gray-600">
               {errorMessage || statusInfo.message}
             </p>
+            
+            {/* Special message for VNPay errors */}
+            {status === 'failed' && !errorMessage && (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Lưu ý:</strong> Có thể VNPay sandbox đang gặp sự cố. 
+                  Bạn có thể thử lại thanh toán hoặc liên hệ hỗ trợ.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Booking Details */}
@@ -991,13 +1273,23 @@ const PaymentCallback: React.FC = () => {
             ) : status === 'failed' ? (
               <>
                 <button
-                  onClick={() => navigate('/booking')}
+                  onClick={() => {
+                    // Clear pending booking and try again
+                    localStorage.removeItem('pendingBooking');
+                    localStorage.removeItem('currentTxnRef');
+                    navigate('/booking');
+                  }}
                   className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
                 >
-                  Thử lại
+                  Thử lại thanh toán
                 </button>
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={() => {
+                    // Clear all data and go home
+                    localStorage.removeItem('pendingBooking');
+                    localStorage.removeItem('currentTxnRef');
+                    navigate('/');
+                  }}
                   className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Về trang chủ

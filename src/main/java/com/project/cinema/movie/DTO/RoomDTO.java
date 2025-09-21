@@ -13,6 +13,7 @@ public class RoomDTO {
     private String name;
     private int capacity;
     private Long cinemaId;
+    private CinemaDTO cinema;  // thông tin rạp chiếu
 
     // Getters and Setters
 }

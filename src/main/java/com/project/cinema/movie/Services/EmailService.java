@@ -1,7 +1,5 @@
 package com.project.cinema.movie.Services;
 
-import com.project.cinema.movie.DTO.SeatDTO;
-import com.project.cinema.movie.DTO.TicketDTO;
 import com.project.cinema.movie.Models.Booking;
 import com.project.cinema.movie.Models.Ticket;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,7 +9,6 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
 import java.text.SimpleDateFormat;
@@ -38,6 +35,13 @@ public class EmailService {
      */
     public void sendBookingConfirmationWithHtml(String toEmail, String subject, String htmlContent) {
         try {
+            System.out.println("🎯 [EMAIL] Starting to send email...");
+            System.out.println("🎯 [EMAIL] From: " + fromEmail);
+            System.out.println("🎯 [EMAIL] To: " + toEmail);
+            System.out.println("🎯 [EMAIL] Subject: " + subject);
+            System.out.println("🎯 [EMAIL] HTML content length: " + (htmlContent != null ? htmlContent.length() : 0));
+            System.out.println("🎯 [EMAIL] HTML content preview: " + (htmlContent != null ? htmlContent.substring(0, Math.min(200, htmlContent.length())) + "..." : "null"));
+            
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
@@ -46,9 +50,10 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(htmlContent, true);
             
+            System.out.println("🎯 [EMAIL] Sending message...");
             mailSender.send(message);
 
-            System.out.println("🎯 [EMAIL] Sent booking confirmation email with HTML from frontend");
+            System.out.println("✅ [EMAIL] Sent booking confirmation email with HTML from frontend");
         } catch (Exception e) {
             System.err.println("❌ [EMAIL] Failed to send email with HTML content: " + e.getMessage());
             e.printStackTrace();
@@ -89,7 +94,7 @@ public class EmailService {
             message.setText(content.toString());
             mailSender.send(message);
         } catch (Exception e) {
-            System.err.println("Failed to send booking confirmation email: " + e.getMessage());
+            System.err.println("Failed to send simple booking confirmation email: " + e.getMessage());
         }
     }
 

@@ -33,6 +33,10 @@ public class Ticket {
     private boolean isUsed;
     @Enumerated(EnumType.STRING)
     private TicketStatus status;
+    
+    @Column(name = "qr_code_url")
+    private String qrCodeUrl;
+    
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
 

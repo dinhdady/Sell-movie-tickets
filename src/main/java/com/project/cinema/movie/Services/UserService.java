@@ -234,6 +234,89 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    @Transactional
+    public User createUser(Map<String, Object> userData) {
+        // Tạo username từ email nếu không có username
+        String username = (String) userData.get("username");
+        if (username == null || username.trim().isEmpty()) {
+            String email = (String) userData.get("email");
+            username = email.split("@")[0];
+        }
+
+        // Tạo password mặc định nếu không có
+        String password = (String) userData.get("password");
+        if (password == null || password.trim().isEmpty()) {
+            password = "123456"; // Password mặc định
+        }
+
+        // Kiểm tra username đã tồn tại chưa
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new RuntimeException("Username đã tồn tại: " + username);
+        }
+
+        // Kiểm tra email đã tồn tại chưa
+        String email = (String) userData.get("email");
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email đã tồn tại: " + email);
+        }
+
+        // Tạo User mới
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setEmail(email);
+        user.setFullName((String) userData.get("fullName"));
+        user.setPhoneNumber((String) userData.get("phone"));
+        
+        // Set role
+        String role = (String) userData.get("role");
+        if ("ADMIN".equals(role)) {
+            user.setRole(Role.ADMIN);
+        } else {
+            user.setRole(Role.USER);
+        }
+        
+        user.setActive(Boolean.TRUE);
+        user.setCreatedAt(LocalDateTime.now());
+        
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public User updateUser(String userId, Map<String, Object> userData) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Cập nhật thông tin
+        if (userData.containsKey("fullName")) {
+            user.setFullName((String) userData.get("fullName"));
+        }
+        if (userData.containsKey("email")) {
+            String email = (String) userData.get("email");
+            // Kiểm tra email đã tồn tại chưa (trừ user hiện tại)
+            if (!email.equals(user.getEmail()) && userRepository.findByEmail(email).isPresent()) {
+                throw new RuntimeException("Email đã tồn tại: " + email);
+            }
+            user.setEmail(email);
+        }
+        if (userData.containsKey("phone")) {
+            user.setPhoneNumber((String) userData.get("phone"));
+        }
+        if (userData.containsKey("role")) {
+            String role = (String) userData.get("role");
+            if ("ADMIN".equals(role)) {
+                user.setRole(Role.ADMIN);
+            } else {
+                user.setRole(Role.USER);
+            }
+        }
+        if (userData.containsKey("isActive")) {
+            user.setActive((Boolean) userData.get("isActive"));
+        }
+
+        return userRepository.save(user);
+    }
+
     public User getUserById(String userId) {
         return userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));

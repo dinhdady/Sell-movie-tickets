@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
+
 @Component
 public class DataSeeder implements CommandLineRunner {
 
@@ -26,9 +28,34 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        seedMovies();
         seedCinemaAndRoom();
         seedSeatsForRoom1();
         seedShowtimes();
+    }
+    
+    private void seedMovies() {
+        // Check if Movie 1 exists
+        Movie movie1 = movieRepository.findById(1L).orElse(null);
+        
+        if (movie1 == null) {
+            // Create Movie 1
+            movie1 = new Movie();
+            movie1.setTitle("Vua trở lại");
+            movie1.setDescription("Một bộ phim hành động đầy kịch tính");
+            movie1.setDuration(120);
+            movie1.setGenre("Hành động");
+            movie1.setLanguage("Tiếng Việt");
+            movie1.setStatus("NOW_SHOWING");
+            movie1.setPosterUrl("https://via.placeholder.com/300x400");
+            movie1.setPrice(120000.0);
+            movie1.setRating(8.5);
+            movie1.setDirector("Nguyễn Văn A");
+            movie1.setCast("Diễn viên A, Diễn viên B");
+            movie1.setReleaseDate(new java.util.Date());
+            movie1 = movieRepository.save(movie1);
+            System.out.println("Created Movie 1: " + movie1.getTitle());
+        }
     }
     
     private void seedCinemaAndRoom() {

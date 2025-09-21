@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { User, AuthRequest, RegisterRequest } from '../types/auth';
 import { authAPI, userAPI } from '../services/api';
+import { tokenService } from '../services/tokenService';
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +12,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   isLoading: boolean;
+  loading: boolean; // Alias for isLoading
   isAuthenticated: boolean;
 }
 
@@ -34,21 +36,60 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
 
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      const parsedUser = JSON.parse(storedUser);
-      // Ensure user has a valid ID (string format like backend UUID)
-      if (!parsedUser.id || parsedUser.id === 0) {
-        parsedUser.id = Math.random().toString(36).substring(2, 10);
-        localStorage.setItem('user', JSON.stringify(parsedUser));
+      if (storedToken && storedUser) {
+        // Check if token is expired
+        if (tokenService.isTokenExpired(storedToken)) {
+          console.log('🔄 [AuthContext] Access token expired, attempting refresh...');
+          try {
+            const newToken = await tokenService.refreshAccessToken();
+            setToken(newToken);
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+          } catch (error) {
+            console.error('❌ [AuthContext] Token refresh failed:', error);
+            tokenService.clearTokens();
+            setToken(null);
+            setUser(null);
+          }
+        } else {
+          setToken(storedToken);
+          const parsedUser = JSON.parse(storedUser);
+          // Ensure user has a valid ID (string format like backend UUID)
+          if (!parsedUser.id || parsedUser.id === 0) {
+            parsedUser.id = Math.random().toString(36).substring(2, 10);
+            localStorage.setItem('user', JSON.stringify(parsedUser));
+          }
+          setUser(parsedUser);
+        }
       }
-      setUser(parsedUser);
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
+
+  // Auto refresh token every 10 minutes
+  useEffect(() => {
+    if (!user || !token) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        console.log('🔄 [AuthContext] Auto refreshing token...');
+        const newToken = await tokenService.refreshAccessToken();
+        setToken(newToken);
+        console.log('✅ [AuthContext] Token auto-refreshed successfully');
+      } catch (error) {
+        console.error('❌ [AuthContext] Auto token refresh failed:', error);
+        // Don't logout immediately, let the next API call handle it
+      }
+    }, 10 * 60 * 1000); // 10 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, [user, token]);
 
   const login = async (credentials: AuthRequest) => {
     try {
@@ -75,6 +116,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userProfileResponse = await userAPI.getProfile();
           if (userProfileResponse.state === '200') {
             const realUser = userProfileResponse.object;
+            // Ensure role is properly formatted as string
+            if (realUser.role && typeof realUser.role === 'object') {
+              realUser.role = String(realUser.role);
+            }
+            console.log('Real user from backend:', realUser);
             setUser(realUser);
             localStorage.setItem('user', JSON.stringify(realUser));
           } else {
@@ -155,8 +201,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    tokenService.clearTokens();
   };
 
   const updateUser = (userData: Partial<User>) => {
@@ -175,6 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     updateUser,
     isLoading,
+    loading: isLoading, // Alias for isLoading
     isAuthenticated: !!user && !!token,
   };
 

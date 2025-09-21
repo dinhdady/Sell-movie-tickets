@@ -49,7 +49,7 @@ public class TicketService {
         ticket.setPrice(ticketDTO.getPrice());
         ticket.setStatus(TicketStatus.PENDING);
         ticket = ticketRepository.save(ticket);
-        String qrCode = qrCodeService.generateQRCodeImage("TOKEN="+ticket.getToken()+"MAVE="+ticket.getId()+"VITRI="+ticket.getSeat(), 300, 300);
+        String qrCode = qrCodeService.generateTicketQRCode(ticket.getId(), ticket.getToken());
         return new TicketResponse(ticket,qrCode);
     }
 

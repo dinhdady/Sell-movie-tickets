@@ -1,6 +1,5 @@
 package com.project.cinema.movie.Config;
 
-
 import com.project.cinema.movie.Filter.JwtAuthenticationFilter;
 import com.project.cinema.movie.Services.UserDetailsServiceImp;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
@@ -18,7 +17,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
@@ -56,7 +54,8 @@ public class SecurityConfig {
                 "/api/seat",
                 "/api/booking/showtime/*/seats",
                 "/api/vnpay/**",
-                "/api/booking/**"
+                "/api/booking/**",
+                "/api/testing/**" // <-- Thêm dòng này để công khai test endpoints
         };
 
         private static final String ADMIN_URLS = "/admin/**";
@@ -134,6 +133,7 @@ public class SecurityConfig {
                     .requestMatchers("/favicon.ico","/index.html").permitAll()
                     .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                     .requestMatchers("/api/vnpay/return", "/api/vnpayment/return").permitAll() // Chỉ cho phép public callback
+                    .requestMatchers("/api/vnpay/test-callback").permitAll() // Test callback
                     .requestMatchers("/api/vnpay/**").authenticated() // Các endpoint còn lại phải xác thực
                     .requestMatchers("/api/payment/**").hasRole("USER")
                     .requestMatchers(ADMIN_URLS).hasRole("ADMIN")
@@ -156,15 +156,29 @@ public class SecurityConfig {
                     String requestURI = request.getRequestURI();
                     boolean isApiRequest = requestURI.startsWith("/api/");
                     System.out.println("[AccessDeniedHandler] URI: " + requestURI + ", isApiRequest: " + isApiRequest);
+                    
+                    if (response.isCommitted()) {
+                        System.out.println("[AccessDeniedHandler] Response already committed, skipping");
+                        return;
+                    }
+                    
                     if (isApiRequest) {
                         response.setStatus(HttpStatus.FORBIDDEN.value());
                         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                         String jsonResponse = "{\"status\":\"ERROR\",\"message\":\"Access denied\",\"code\":\"ACCESS_DENIED\"}";
-                        response.getWriter().write(jsonResponse);
+                        try {
+                            response.getWriter().write(jsonResponse);
+                        } catch (IOException e) {
+                            System.out.println("[AccessDeniedHandler] Error writing response: " + e.getMessage());
+                        }
                     } else {
-                        System.out.println("[AccessDeniedHandler] Redirecting to /api/auth");
-                        response.sendRedirect("/api/home");
+                        System.out.println("[AccessDeniedHandler] Redirecting to /api/home");
+                        try {
+                            response.sendRedirect("/api/home");
+                        } catch (IOException e) {
+                            System.out.println("[AccessDeniedHandler] Error redirecting: " + e.getMessage());
+                        }
                     }
                 })
         );
@@ -194,11 +208,21 @@ public class SecurityConfig {
                 boolean isApiRequest = requestURI.startsWith("/api/")
                         || (acceptHeader != null && acceptHeader.contains("application/json"))
                         || (xRequestedWith != null && xRequestedWith.equalsIgnoreCase("XMLHttpRequest"));
-                System.out.println("[AuthenticationEntryPoint] URI: " + requestURI + ", isApiRequest: " + isApiRequest + ", Exception: " + authException.getMessage());
+                boolean isVnpayCallback = requestURI.contains("/api/vnpay/return");
+                
+                System.out.println("[AuthenticationEntryPoint] URI: " + requestURI + ", isApiRequest: " + isApiRequest + ", isVnpayCallback: " + isVnpayCallback + ", Exception: " + authException.getMessage());
                 if (response.isCommitted()) {
                     System.out.println("[AuthenticationEntryPoint] Response already committed, skipping");
                     return;
                 }
+                
+                // Xử lý VNPay callback đặc biệt
+                if (isVnpayCallback) {
+                    System.out.println("[AuthenticationEntryPoint] VNPay callback detected, allowing access");
+                    // Cho phép VNPay callback truy cập mà không cần authentication
+                    return;
+                }
+                
                 if (isApiRequest) {
                     response.setStatus(HttpStatus.UNAUTHORIZED.value());
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -210,8 +234,12 @@ public class SecurityConfig {
                         System.out.println("[AuthenticationEntryPoint] Error writing response: " + e.getMessage());
                     }
                 } else {
-                    System.out.println("[AuthenticationEntryPoint] Redirecting to /api/auth");
-                    response.sendRedirect("/api/home");
+                    System.out.println("[AuthenticationEntryPoint] Redirecting to /api/home");
+                    try {
+                        response.sendRedirect("/api/home");
+                    } catch (IOException e) {
+                        System.out.println("[AuthenticationEntryPoint] Error redirecting: " + e.getMessage());
+                    }
                 }
             }
         }

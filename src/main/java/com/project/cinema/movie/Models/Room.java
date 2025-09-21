@@ -1,7 +1,6 @@
 package com.project.cinema.movie.Models;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,7 +12,6 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Data
 @Table(name = "Rooms")
 public class Room {
     @Id
@@ -27,8 +25,12 @@ public class Room {
 
     @ManyToOne
     @JoinColumn(name = "cinemaId", nullable = false)
-    @JsonBackReference(value = "cinema-rooms")
+    @JsonIgnore
     private Cinema cinema;
+
+    // Transient field for frontend - not stored in database
+    @Transient
+    private Long cinemaId;
 
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
@@ -38,16 +40,25 @@ public class Room {
 
     // One room can have many showtimes (different time slots)
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonBackReference(value = "room-showtimes")
+    @JsonIgnore
     private List<Showtime> showtimes;
 
     // One room has many seats
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @JsonIgnore
     private List<Seat> seats;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date(); // Thiết lập createdAt với ngày giờ hiện tại
+    }
+
+    // Custom getter for cinemaId (transient field)
+    public Long getCinemaId() {
+        return cinema != null ? cinema.getId() : cinemaId;
+    }
+
+    public void setCinemaId(Long cinemaId) {
+        this.cinemaId = cinemaId;
     }
 }

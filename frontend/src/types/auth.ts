@@ -26,7 +26,8 @@ export interface User {
   email: string;
   fullName: string;
   phone?: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | string;
   isActive: boolean;
   createdAt: string;
+  password?: string; // For form only, not stored in backend
 }

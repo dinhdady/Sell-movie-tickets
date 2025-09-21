@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Repository
 public interface MovieRepository extends JpaRepository<Movie, Long> {
@@ -19,6 +20,8 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
     @Query("SELECT m FROM Movie m WHERE m.releaseDate <= :currentDate AND m.status = :status")
     List<Movie> findByReleaseDateBeforeOrEqualAndStatus(@Param("currentDate") Date currentDate, @Param("status") String status);
     boolean existsByTitle(String title);
+    boolean existsByTitleIgnoreCase(String title);
+    Optional<Movie> findByTitleIgnoreCase(String title);
     // Thống kê doanh thu tổng
     @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b WHERE b.order.status = 'CONFIRMED'")
     Double calculateTotalRevenue();

@@ -91,6 +91,14 @@ const Header: React.FC = () => {
             
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
+                {(user?.role === 'ADMIN' || user?.role === 'admin' || user?.role?.toString().toUpperCase() === 'ADMIN') && (
+                  <Link
+                    to="/admin"
+                    className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  >
+                    Admin
+                  </Link>
+                )}
                 <Link
                   to="/profile"
                   className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors"
@@ -194,6 +202,15 @@ const Header: React.FC = () => {
               
               {isAuthenticated ? (
                 <>
+                  {(user?.role === 'ADMIN' || user?.role === 'admin' || user?.role?.toString().toUpperCase() === 'ADMIN') && (
+                    <Link
+                      to="/admin"
+                      className="block px-3 py-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-md font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
                   <Link
                     to="/profile"
                     className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-100 rounded-md"

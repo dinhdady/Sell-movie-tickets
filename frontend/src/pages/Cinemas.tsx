@@ -27,7 +27,7 @@ const Cinemas: React.FC = () => {
       try {
         setLoading(true);
         const response = await cinemaAPI.getAll();
-        setCinemas(response.object || []);
+        setCinemas(response.object as any || []);
       } catch (err) {
         setError('Không thể tải danh sách rạp chiếu');
         console.error('Error fetching cinemas:', err);

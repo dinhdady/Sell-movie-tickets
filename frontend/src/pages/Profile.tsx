@@ -13,7 +13,11 @@ import {
   PencilIcon,
   CheckIcon,
   XMarkIcon,
-  EyeIcon
+  EyeIcon,
+  QrCodeIcon,
+  BuildingOfficeIcon,
+  FilmIcon,
+  XMarkIcon as CloseIcon
 } from '@heroicons/react/24/outline';
 
 interface UserProfile {
@@ -29,17 +33,86 @@ interface UserProfile {
 
 interface Booking {
   id: number;
-  userId: string;
-  showtimeId: number;
+  userId?: string;
+  showtimeId?: number;
   totalPrice: number;
-  totalAmount: number;
+  totalAmount?: number;
   status: string;
-  bookingStatus: string;
+  bookingStatus?: string;
   customerName: string;
   customerEmail: string;
-  customerPhone: string;
-  customerAddress: string;
-  createdAt: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  createdAt?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  movie?: {
+    title: string;
+    posterUrl?: string;
+    description?: string;
+    duration?: number;
+    releaseDate?: string;
+    genre?: string;
+    director?: string;
+    cast?: string;
+    rating?: number;
+    language?: string;
+    filmRating?: string;
+    price?: number;
+  };
+  showtime?: {
+    id?: number;
+    startTime: string;
+    endTime: string;
+    room: {
+      name: string;
+      capacity?: number;
+      cinema: {
+        id?: number;
+        name: string;
+        address: string;
+        phone?: string;
+        cinemaType?: string;
+      };
+    };
+    movie?: {
+      title: string;
+      posterUrl?: string;
+    };
+  };
+  order?: {
+    tickets: Array<{
+      id: number;
+      orderId: number;
+      seatId: number;
+      price: number;
+      token: string;
+      status: string;
+      qrCodeUrl?: string;
+      seat: {
+        seatNumber: string;
+        rowNumber: string;
+        columnNumber: number;
+        roomId: number;
+        seatType: 'REGULAR' | 'VIP' | 'COUPLE';
+        price: number;
+      };
+    }>;
+    status: string;
+    customerPhone?: string;
+    customerAddress?: string;
+  };
+  tickets?: Array<{
+    id: number;
+    seat: {
+      row: string;
+      number: number;
+      type: string;
+    };
+    price: number;
+    status: string;
+    qrCodeUrl?: string;
+  }>;
 }
 
 
@@ -47,12 +120,16 @@ const Profile: React.FC = () => {
   const { user: authUser, updateUser } = useAuth();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Partial<UserProfile>>({});
   const [saveLoading, setSaveLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAllBookings, setShowAllBookings] = useState(false);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+  const [showBookingDetail, setShowBookingDetail] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -68,11 +145,12 @@ const Profile: React.FC = () => {
         try {
           const bookingsResponse = await bookingAPI.getAll();
           if (Array.isArray(bookingsResponse)) {
-            // Lọc chỉ lấy vé của user hiện tại
-            const userBookings = bookingsResponse.filter(booking => 
-              booking.userId === authUser?.id || 
-              booking.customerEmail === authUser?.email
-            );
+            // Lọc chỉ lấy vé của user hiện tại và sắp xếp theo ngày tạo (mới nhất lên đầu)
+            const userBookings = bookingsResponse
+              .filter(booking => 
+                booking.customerEmail === authUser?.email
+              )
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             setBookings(userBookings);
           } else {
             setBookings([]);
@@ -92,6 +170,40 @@ const Profile: React.FC = () => {
     if (authUser) {
       fetchUserData();
     }
+  }, [authUser]);
+
+  // Auto-refresh when page becomes visible (e.g., returning from payment)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && authUser) {
+        // Refresh bookings when page becomes visible
+        const refreshBookings = async () => {
+          try {
+            setBookingsLoading(true);
+            const bookingsResponse = await bookingAPI.getAll();
+            if (Array.isArray(bookingsResponse)) {
+              const userBookings = bookingsResponse
+                .filter(booking => 
+                  booking.customerEmail === authUser?.email
+                )
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              setBookings(userBookings);
+            }
+          } catch (err) {
+            console.log('Error refreshing bookings:', err);
+          } finally {
+            setBookingsLoading(false);
+          }
+        };
+        refreshBookings();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [authUser]);
 
   const handleEditToggle = () => {
@@ -135,12 +247,19 @@ const Profile: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'confirmed':
+        return 'bg-blue-100 text-blue-800';
       case 'paid':
+      case 'success':
         return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'cancelled':
+      case 'failed':
         return 'bg-red-100 text-red-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'expired':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -151,31 +270,84 @@ const Profile: React.FC = () => {
       case 'confirmed':
         return 'Đã xác nhận';
       case 'paid':
+      case 'success':
         return 'Đã thanh toán';
       case 'pending':
         return 'Chờ xử lý';
       case 'cancelled':
+      case 'failed':
         return 'Đã hủy';
+      case 'completed':
+        return 'Hoàn thành';
+      case 'expired':
+        return 'Hết hạn';
       default:
-        return status;
+        return status || 'Không xác định';
+    }
+  };
+
+  const handleRefreshBookings = async () => {
+    try {
+      setBookingsLoading(true);
+      const bookingsResponse = await bookingAPI.getAll();
+      if (Array.isArray(bookingsResponse)) {
+        const userBookings = bookingsResponse
+          .filter(booking => 
+            booking.customerEmail === authUser?.email
+          )
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setBookings(userBookings);
+      }
+    } catch (err) {
+      console.log('Error refreshing bookings:', err);
+      setError('Không thể tải lại danh sách vé');
+    } finally {
+      setBookingsLoading(false);
     }
   };
 
   const handleViewBookingDetail = async (booking: Booking) => {
     try {
-      // Lưu thông tin booking vào localStorage để PaymentCallback có thể sử dụng
-      localStorage.setItem('selectedBooking', JSON.stringify(booking));
+      console.log('🎯 [Profile] Fetching booking detail for ID:', booking.id);
       
-      // Tạo txnRef giả để PaymentCallback có thể hoạt động
-      const fakeTxnRef = `booking_${booking.id}_${Date.now()}`;
-      localStorage.setItem('lastTxnRef', fakeTxnRef);
+      // Try to get detailed booking information using new API endpoint
+      const response = await bookingAPI.getDetailsById(booking.id);
+      console.log('🎯 [Profile] Booking detail response:', response);
+      console.log('🎯 [Profile] Response state:', response.state);
+      console.log('🎯 [Profile] Response object:', response.object);
       
-      // Chuyển hướng đến PaymentCallback
-      navigate('/payment-callback');
+      if (response.state === 'SUCCESS' && response.object) {
+        console.log('✅ [Profile] Using detailed booking data from getDetailsById');
+        console.log('🎯 [Profile] Movie:', (response.object as any).movie);
+        console.log('🎯 [Profile] Showtime:', (response.object as any).showtime);
+        console.log('🎯 [Profile] Order:', (response.object as any).order);
+        console.log('🎯 [Profile] Tickets:', (response.object as any).order?.tickets);
+        setSelectedBooking(response.object);
+        setShowBookingDetail(true);
+      } else {
+        // Fallback to basic booking info if detailed API fails
+        console.log('⚠️ [Profile] Detailed API failed, using basic booking info');
+        console.log('🎯 [Profile] Basic booking data:', booking);
+        setSelectedBooking(booking);
+        setShowBookingDetail(true);
+      }
     } catch (error) {
-      console.error('Error preparing booking detail:', error);
-      setError('Không thể xem chi tiết vé. Vui lòng thử lại.');
+      console.error('❌ [Profile] Error fetching booking detail:', error);
+      // Fallback to basic booking info
+      console.log('⚠️ [Profile] API error, using basic booking info');
+      console.log('🎯 [Profile] Basic booking data:', booking);
+      setSelectedBooking(booking);
+      setShowBookingDetail(true);
     }
+  };
+
+  const handleCloseBookingDetail = () => {
+    setShowBookingDetail(false);
+    setSelectedBooking(null);
+  };
+
+  const handleViewMore = () => {
+    setShowAllBookings(!showAllBookings);
   };
 
 
@@ -400,18 +572,34 @@ const Profile: React.FC = () => {
               <TicketIcon className="h-5 w-5 mr-2" />
               Lịch sử đặt vé
             </h2>
-            <span className="text-sm text-gray-600">
-              {bookings.length} vé đã đặt
-            </span>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                {bookings.length} vé đã đặt
+              </span>
+              <button
+                onClick={handleRefreshBookings}
+                disabled={bookingsLoading}
+                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+              >
+                {bookingsLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    <span>Đang tải...</span>
+                  </>
+                ) : (
+                  <span>Làm mới</span>
+                )}
+              </button>
+            </div>
           </div>
 
           {bookings.length > 0 ? (
             <div className="space-y-4">
-              {bookings.slice(0, 5).map((booking) => (
+              {(showAllBookings ? bookings : bookings.slice(0, 5)).map((booking) => (
                 <div key={booking.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex items-center space-x-3 mb-3">
                         <span className="font-medium text-gray-900">
                           Mã đặt vé: #{booking.id}
                         </span>
@@ -419,29 +607,61 @@ const Profile: React.FC = () => {
                           {getStatusText(booking.status)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        Khách hàng: {booking.customerName}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-1">
-                        Email: {booking.customerEmail}
-                      </p>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Ngày đặt: {formatDate(booking.createdAt)}
-                      </p>
                       
-                      {/* View Detail Button */}
-                      <button
-                        onClick={() => handleViewBookingDetail(booking)}
-                        className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                        <span>Xem chi tiết</span>
-                      </button>
+                      {/* Movie and Showtime Info */}
+                      {booking.showtime && (
+                        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-1">
+                            {booking.showtime?.movie?.title || 'Phim đã đặt'}
+                          </h4>
+                          <p className="text-sm text-gray-600 mb-1">
+                            Rạp: {booking.showtime.room.cinema.name} - Phòng {booking.showtime.room.name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Thời gian: {new Date(booking.showtime.startTime).toLocaleString('vi-VN')}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Tickets Info */}
+                      {booking.tickets && booking.tickets.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-sm font-medium text-gray-700 mb-1">Ghế đã chọn:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {booking.tickets.map((ticket: any, index: number) => (
+                              <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                {ticket.seat.row}{ticket.seat.number} ({ticket.seat.type})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                          <p>Ngày đặt: {booking.createdAt ? formatDate(booking.createdAt) : 'N/A'}</p>
+                          <p>Khách hàng: {booking.customerName}</p>
+                        </div>
+                        
+                        {/* View Detail Button */}
+                        <button
+                          onClick={() => handleViewBookingDetail(booking)}
+                          className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium px-3 py-1 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                          <span>Xem chi tiết</span>
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right ml-4">
                       <p className="text-lg font-bold text-blue-600 mb-2">
                         {booking.totalPrice?.toLocaleString('vi-VN')}đ
                       </p>
+                      {booking.tickets && (
+                        <p className="text-sm text-gray-500">
+                          {booking.tickets.length} vé
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -449,8 +669,11 @@ const Profile: React.FC = () => {
               
               {bookings.length > 5 && (
                 <div className="text-center pt-4">
-                  <button className="text-blue-600 hover:text-blue-700 font-medium">
-                    Xem thêm ({bookings.length - 5} vé)
+                  <button 
+                    onClick={handleViewMore}
+                    className="text-blue-600 hover:text-blue-700 font-medium px-4 py-2 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    {showAllBookings ? 'Thu gọn' : `Xem thêm ${bookings.length - 5} vé`}
                   </button>
                 </div>
               )}
@@ -517,6 +740,293 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Booking Detail Modal */}
+      {showBookingDetail && selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <TicketIcon className="h-6 w-6 mr-2" />
+                  Chi tiết vé đặt
+                </h2>
+                <button
+                  onClick={handleCloseBookingDetail}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <CloseIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Booking Info - Layout giống PaymentCallback */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Movie & Showtime Info */}
+                <div className="space-y-6">
+                  {/* Movie Information */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <FilmIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      Thông tin phim
+                    </h3>
+                    <div className="flex items-center space-x-4">
+                      {selectedBooking?.movie?.posterUrl && (
+                        <img
+                          src={selectedBooking.movie.posterUrl}
+                          alt="Movie Poster"
+                          className="w-16 h-20 object-cover rounded"
+                        />
+                      )}
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {selectedBooking?.movie?.title || 'Phim đã đặt'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Mã vé: #{selectedBooking.id}
+                        </div>
+                        {selectedBooking?.movie?.genre && (
+                          <div className="text-xs text-gray-400">
+                            {selectedBooking.movie.genre}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Showtime Information */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <CalendarIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      Suất chiếu
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-600">
+                        {selectedBooking?.showtime?.startTime ? 
+                          new Date(selectedBooking.showtime.startTime).toLocaleDateString('vi-VN', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          }) : 'Ngày chiếu'
+                        }
+                      </div>
+                      <div className="font-medium text-gray-900">
+                        {selectedBooking?.showtime?.startTime ? 
+                          new Date(selectedBooking.showtime.startTime).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : '--:--'
+                        } - {selectedBooking?.showtime?.endTime ? 
+                          new Date(selectedBooking.showtime.endTime).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : '--:--'
+                        }
+                      </div>
+                      {selectedBooking?.movie?.duration && (
+                        <div className="text-xs text-gray-500">
+                          Thời lượng: {selectedBooking.movie.duration} phút
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Cinema Information */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <BuildingOfficeIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      Rạp chiếu
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="font-medium text-gray-900">
+                        {selectedBooking?.showtime?.room?.cinema?.name || 'Rạp chiếu phim'}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {selectedBooking?.showtime?.room?.cinema?.address || 'Địa chỉ rạp chiếu'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Phòng: {selectedBooking?.showtime?.room?.name || 'Phòng chiếu'}
+                      </div>
+                      {selectedBooking?.showtime?.room?.cinema?.phone && (
+                        <div className="text-xs text-gray-500">
+                          Hotline: {selectedBooking.showtime.room.cinema.phone}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Seats Information */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <TicketIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      Ghế đã đặt ({(selectedBooking?.order?.tickets?.length || selectedBooking?.tickets?.length || 0)})
+                    </h3>
+                    {selectedBooking?.order?.tickets && selectedBooking.order.tickets.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedBooking.order.tickets.map((ticket: any) => {
+                          return (
+                            <div 
+                              key={ticket.id} 
+                              className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-gray-900 bg-blue-50 px-2 py-1 rounded">
+                                  {ticket.seat.seatNumber}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                  ({ticket.seat.seatType === 'VIP' ? 'VIP' : 
+                                    ticket.seat.seatType === 'COUPLE' ? 'Ghế đôi' : 'Ghế thường'})
+                                </span>
+                                {ticket.status === 'PAID' && (
+                                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                    Đã thanh toán
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-medium text-gray-900">
+                                {ticket.price.toLocaleString('vi-VN')}đ
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        <div className="pt-2 mt-2 border-t">
+                          <div className="flex justify-between items-center font-medium">
+                            <span>Tổng cộng:</span>
+                            <span className="text-lg text-blue-600">
+                              {selectedBooking.order.tickets.reduce((sum: number, ticket: any) => {
+                                return sum + ticket.price;
+                              }, 0).toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Thông tin thêm về booking */}
+                        <div className="pt-2 mt-2 border-t bg-gray-50 p-3 rounded">
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Mã booking:</span>
+                              <span className="font-medium">#{selectedBooking.id}</span>
+                            </div>
+                            {selectedBooking.totalPrice && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Tổng thanh toán:</span>
+                                <span className="font-medium">{selectedBooking.totalPrice.toLocaleString('vi-VN')}đ</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-500 py-4">
+                        <TicketIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                        <p className="font-medium">Không tìm thấy thông tin ghế chi tiết</p>
+                        <p className="text-sm mt-1">
+                          Booking #{selectedBooking.id} - Tổng: {selectedBooking.totalPrice?.toLocaleString('vi-VN')}đ
+                        </p>
+                        <p className="text-xs mt-1 text-gray-400">
+                          Vui lòng liên hệ hỗ trợ nếu cần thông tin chi tiết
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column - QR Code & Customer Info */}
+                <div className="space-y-6">
+                  {/* QR Code */}
+                  {selectedBooking?.order?.tickets?.[0]?.qrCodeUrl && (
+                    <div className="border rounded-lg p-4 text-center">
+                      <h3 className="font-medium text-gray-900 mb-3 flex items-center justify-center">
+                        <QrCodeIcon className="h-5 w-5 mr-2 text-gray-600" />
+                        Mã QR vé
+                      </h3>
+                      <div className="bg-gray-50 p-4 rounded">
+                        <img
+                          src={selectedBooking.order.tickets[0].qrCodeUrl}
+                          alt="QR Code"
+                          className="mx-auto mb-2"
+                          style={{ width: '150px', height: '150px' }}
+                        />
+                        <p className="text-xs text-gray-600">
+                          Xuất trình mã QR này tại rạp
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Mã vé: {selectedBooking.order.tickets[0].token}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Information */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <UserIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      Thông tin khách hàng
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-sm text-gray-500">Họ tên</div>
+                        <div className="font-medium text-gray-900">
+                          {selectedBooking.customerName}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500">Email</div>
+                        <div className="font-medium text-gray-900 break-words">
+                          {selectedBooking.customerEmail}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500">Số điện thoại</div>
+                        <div className="font-medium text-gray-900">
+                          {(selectedBooking as any).customerPhone || selectedBooking.order?.customerPhone || 'Chưa cập nhật'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500">Địa chỉ</div>
+                        <div className="font-medium text-gray-900">
+                          {(selectedBooking as any).customerAddress || selectedBooking.order?.customerAddress || 'Chưa cập nhật'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500">Trạng thái</div>
+                        <div className="font-medium">
+                          <span className={`inline-block px-2 py-1 rounded text-sm ${getStatusColor(selectedBooking.status || selectedBooking.order?.status || (selectedBooking as any).paymentStatus)}`}>
+                            {getStatusText(selectedBooking.status || selectedBooking.order?.status || (selectedBooking as any).paymentStatus)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Important Notice */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Lưu ý quan trọng</h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Có mặt trước giờ chiếu 15 phút</li>
+                      <li>• Mang theo mã QR và giấy tờ tùy thân</li>
+                      <li>• Không được đổi/trả vé sau thanh toán</li>
+                      <li>• Kiểm tra kỹ thông tin trước khi vào rạp</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseBookingDetail}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

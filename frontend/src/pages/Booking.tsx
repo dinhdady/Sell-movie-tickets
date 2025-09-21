@@ -55,9 +55,9 @@ const Booking: React.FC = () => {
         try {
           const cinemasResponse = await cinemaAPI.getAll();
           if (cinemasResponse.state === 'SUCCESS' && cinemasResponse.object) {
-            setCinemas(cinemasResponse.object);
+            setCinemas(cinemasResponse.object as any);
           } else if (cinemasResponse.state === '200' && cinemasResponse.object) {
-            setCinemas(cinemasResponse.object);
+            setCinemas(cinemasResponse.object as any);
           } else {
             throw new Error('Failed to load cinemas');
           }
@@ -75,14 +75,14 @@ const Booking: React.FC = () => {
           try {
             const roomsResponse = await roomAPI.getByCinema(cinema.id);
             if (roomsResponse.state === 'SUCCESS' && roomsResponse.object) {
-              setRooms(roomsResponse.object);
+              setRooms(roomsResponse.object as any);
               // Auto-select room 1 (phòng 1)
               const room1 = roomsResponse.object.find(room => room.id === 1) || roomsResponse.object[0];
-              setSelectedRoom(room1);
+              setSelectedRoom(room1 as any);
               
               // Fetch showtimes for the movie from API
               const showtimesResponse = await showtimeAPI.getByMovieId(parseInt(id!));
-              if (showtimesResponse.state === 'SUCCESS' && showtimesResponse.object) {
+              if ((showtimesResponse.state === 'SUCCESS' || showtimesResponse.state === '200') && showtimesResponse.object) {
                 setShowtimes(showtimesResponse.object);
                 // Auto-select the preselected showtime
                 const selectedShowtime = showtimesResponse.object.find(st => st.id === parseInt(preselectedShowtimeId));
@@ -111,6 +111,33 @@ const Booking: React.FC = () => {
     fetchData();
   }, [id, preselectedShowtimeId]);
 
+  // Auto refresh seat data when component becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && selectedShowtime && selectedRoom) {
+        console.log('🔄 Page became visible, refreshing seat data...');
+        refreshSeatData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refresh when window gains focus
+    const handleFocus = () => {
+      if (selectedShowtime && selectedRoom) {
+        console.log('🔄 Window focused, refreshing seat data...');
+        refreshSeatData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [selectedShowtime, selectedRoom]);
+
   const handleCinemaSelect = async (cinema: Cinema) => {
     setSelectedCinema(cinema);
     setSelectedRoom(null);
@@ -122,7 +149,7 @@ const Booking: React.FC = () => {
     try {
       const roomsResponse = await roomAPI.getByCinema(cinema.id);
       if (roomsResponse.state === 'SUCCESS' && roomsResponse.object) {
-        setRooms(roomsResponse.object);
+        setRooms(roomsResponse.object as any);
       } else {
         setError('Không thể tải danh sách phòng chiếu');
       }
@@ -138,21 +165,15 @@ const Booking: React.FC = () => {
     setSelectedSeats([]);
     setSeats([]);
     
-    // Fetch showtimes for the movie from API
+    // Fetch showtimes for the movie and room from API
     try {
       console.log('Fetching showtimes for movieId:', id, 'roomId:', room.id);
-      const showtimesResponse = await showtimeAPI.getByMovieId(parseInt(id!));
+      const showtimesResponse = await showtimeAPI.getByMovieAndRoom(parseInt(id!), room.id);
       console.log('Showtimes response:', showtimesResponse);
       
-      if (showtimesResponse.state === 'SUCCESS' && showtimesResponse.object) {
-        console.log('All showtimes:', showtimesResponse.object);
-        // Filter showtimes for the selected room
-        const roomShowtimes = showtimesResponse.object.filter(st => {
-          console.log('Checking showtime:', st, 'roomId:', st.room?.id, 'expected:', room.id);
-          return st.room?.id === room.id;
-        });
-        console.log('Filtered showtimes for room:', roomShowtimes);
-        setShowtimes(roomShowtimes);
+      if ((showtimesResponse.state === 'SUCCESS' || showtimesResponse.state === '200') && showtimesResponse.object) {
+        console.log('Filtered showtimes for room:', showtimesResponse.object);
+        setShowtimes(showtimesResponse.object);
       } else {
         console.error('Failed to fetch showtimes:', showtimesResponse);
         setError('Không thể tải danh sách suất chiếu');
@@ -189,7 +210,7 @@ const Booking: React.FC = () => {
       const seatsResponse = await seatAPI.getSeatAvailability(showtimeId, roomId);
       console.log('Seat availability response:', seatsResponse);
       
-      if (seatsResponse.state === 'SUCCESS' && seatsResponse.object) {
+      if ((seatsResponse.state === 'SUCCESS' || seatsResponse.state === '200') && seatsResponse.object) {
         console.log('Loaded seats from database:', seatsResponse.object);
         // Ensure seats have proper status for display
         const seatsWithStatus = seatsResponse.object.map(seat => ({
@@ -198,22 +219,22 @@ const Booking: React.FC = () => {
           // Ensure seatNumber is properly formatted
           seatNumber: seat.seatNumber || `${seat.rowNumber}${seat.columnNumber}`
         }));
-        setSeats(seatsWithStatus);
+        setSeats(seatsWithStatus as any);
       } else {
         console.log('Seat availability failed, trying fallback...');
         // Fallback: fetch all seats for the room and mark as available
-        const roomSeatsResponse = await seatAPI.getByRoomId(roomId);
+        const roomSeatsResponse = await seatAPI.getByRoom(roomId);
         console.log('Room seats response:', roomSeatsResponse);
         
-        if (roomSeatsResponse.state === 'SUCCESS' && roomSeatsResponse.object) {
+        if ((roomSeatsResponse.state === 'SUCCESS' || roomSeatsResponse.state === '200') && roomSeatsResponse.object) {
           console.log('Loaded room seats from database:', roomSeatsResponse.object);
-          const seatsWithStatus = roomSeatsResponse.object.map(seat => ({
+          const seatsWithStatus = roomSeatsResponse.object.map((seat: any) => ({
             ...seat,
             status: seat.status || 'AVAILABLE' as const,
             // Ensure seatNumber is properly formatted
             seatNumber: seat.seatNumber || `${seat.rowNumber}${seat.columnNumber}`
           }));
-          setSeats(seatsWithStatus);
+          setSeats(seatsWithStatus as any);
         } else {
           console.log('Both seat APIs failed');
           throw new Error('Failed to load seats');
@@ -321,6 +342,19 @@ const Booking: React.FC = () => {
         totalPrice: calculateTotal()
       }
     });
+  };
+
+  // Function to refresh seat data
+  const refreshSeatData = async () => {
+    if (selectedShowtime && selectedRoom) {
+      try {
+        console.log('🔄 Refreshing seat data...');
+        await loadSeatsFromDatabase(selectedRoom.id, selectedShowtime.id);
+        console.log('✅ Seat data refreshed');
+      } catch (error) {
+        console.error('❌ Error refreshing seat data:', error);
+      }
+    }
   };
 
   if (loading) {
@@ -497,9 +531,20 @@ const Booking: React.FC = () => {
               {/* Seat Selection */}
               {selectedShowtime && (
                 <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">
-                    Chọn ghế
-                  </h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Chọn ghế
+                    </h2>
+                    <button
+                      onClick={refreshSeatData}
+                      className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Làm mới
+                    </button>
+                  </div>
                   
                   {/* Seat Legend */}
                   <div className="flex items-center space-x-6 mb-6 text-sm">

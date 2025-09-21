@@ -13,6 +13,7 @@ public class VNPayResponseDTO {
     private String status;
     private String message;
     private String orderId;
+    private String txnRef; // Add txnRef field
     private List<Ticket> tickets;
     private List<String> qrCodes; // Add a list of QR codes
     private String customerEmail;
@@ -27,6 +28,7 @@ public class VNPayResponseDTO {
         this.status = status;
         this.message = message;
         this.orderId = orderId;
+        this.txnRef = orderId; // Use orderId as txnRef for backward compatibility
         this.tickets = tickets;
         this.qrCodes = qrCodes;
         this.ticketCount = tickets != null ? tickets.size() : 0;
@@ -42,6 +44,7 @@ public class VNPayResponseDTO {
         this.status = status;
         this.message = message;
         this.orderId = orderId;
+        this.txnRef = orderId; // Use orderId as txnRef for backward compatibility
         this.tickets = tickets;
         this.qrCodes = qrCodes;
         this.customerEmail = customerEmail;

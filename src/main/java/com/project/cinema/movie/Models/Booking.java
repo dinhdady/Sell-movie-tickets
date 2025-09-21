@@ -1,6 +1,7 @@
 package com.project.cinema.movie.Models;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,23 +22,33 @@ public class Booking {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = true) // Allow null for guest bookings
-    @JsonBackReference
+    @JsonIgnore
     private User user;
 
     @ManyToOne
     @JoinColumn(name = "showtime_id", nullable = false)
-    @JsonBackReference // Ngăn vòng lặp khi trả về JSON
     @ToString.Exclude  // Ngăn vòng lặp khi gọi toString()
     private Showtime showtime;
+
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = true) // Cho phép order_id là null
-    @JsonBackReference  // Ngăn vòng lặp
+    @JsonIgnore
     private Order order;
 
     private double totalPrice;
     
     @Enumerated(EnumType.STRING)
     private BookingStatus status = BookingStatus.CONFIRMED;
+    
+    // Custom setter to use short value for database storage
+    public void setStatus(BookingStatus status) {
+        this.status = status;
+    }
+    
+    // Custom getter to return short value for database storage
+    public String getStatusValue() {
+        return this.status != null ? this.status.getShortValue() : "P";
+    }
     
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;

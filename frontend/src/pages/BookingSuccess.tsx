@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { bookingAPI } from '../services/api';
-import type { Booking } from '../types/booking';
+// import type { Booking } from '../types/booking';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
   CheckCircleIcon,
@@ -13,7 +13,7 @@ import {
 
 const BookingSuccess: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [booking, setBooking] = useState<Booking | null>(null);
+  const [booking, setBooking] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -162,7 +162,7 @@ const BookingSuccess: React.FC = () => {
                 Vé đã đặt
               </h4>
               <div className="space-y-2">
-                {booking.tickets?.map((ticket) => (
+                {booking.tickets?.map((ticket: any) => (
                   <div key={ticket.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <div>
                       <span className="font-medium">

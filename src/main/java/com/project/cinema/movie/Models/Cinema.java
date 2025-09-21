@@ -1,6 +1,6 @@
 package com.project.cinema.movie.Models;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,7 +36,7 @@ public class Cinema {
 
     // One cinema has many rooms
     @OneToMany(mappedBy = "cinema", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference(value = "cinema-rooms")
+    @JsonIgnore
     private List<Room> rooms;
 
     @PrePersist

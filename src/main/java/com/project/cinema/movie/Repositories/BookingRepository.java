@@ -18,6 +18,17 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByUserId(String userId);
     List<Booking> findByShowtimeId(Long showtimeId);
     
+    // Lấy tất cả booking với đầy đủ thông tin
+    @Query("SELECT DISTINCT b FROM Booking b " +
+           "LEFT JOIN FETCH b.showtime s " +
+           "LEFT JOIN FETCH s.movie m " +
+           "LEFT JOIN FETCH s.room r " +
+           "LEFT JOIN FETCH r.cinema c " +
+           "LEFT JOIN FETCH b.user u " +
+           "LEFT JOIN FETCH b.order o " +
+           "ORDER BY b.createdAt DESC")
+    List<Booking> findAllWithDetails();
+    
     // Thống kê đặt vé theo ngày
     @Query("SELECT COUNT(b) FROM Booking b WHERE b.createdAt >= :startDate")
     Long countByCreatedDateAfter(@Param("startDate") Date startDate);
@@ -64,20 +75,34 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
            "ORDER BY hour")
     List<Map<String, Object>> getBookingsByHour();
     
-    // Tìm kiếm đặt vé với filter
-    @Query("SELECT b FROM Booking b WHERE " +
+    // Tìm kiếm đặt vé với filter - JOIN để load đầy đủ thông tin
+    @Query("SELECT DISTINCT b FROM Booking b " +
+           "LEFT JOIN FETCH b.showtime s " +
+           "LEFT JOIN FETCH s.movie m " +
+           "LEFT JOIN FETCH s.room r " +
+           "LEFT JOIN FETCH r.cinema c " +
+           "LEFT JOIN FETCH b.user u " +
+           "LEFT JOIN FETCH b.order o " +
+           "WHERE " +
            "(:status IS NULL OR b.status = :status) AND " +
-           "(:movieTitle IS NULL OR b.showtime.movie.title LIKE %:movieTitle%) AND " +
-           "(:username IS NULL OR b.user.username LIKE %:username%)")
+           "(:movieTitle IS NULL OR m.title LIKE %:movieTitle%) AND " +
+           "(:username IS NULL OR u.username LIKE %:username%)")
     Page<Booking> findAllWithFilters(Pageable pageable, 
                                    @Param("status") String status,
                                    @Param("movieTitle") String movieTitle,
                                    @Param("username") String username);
     
-    // Tìm kiếm đặt vé
-    @Query("SELECT b FROM Booking b WHERE " +
-           "b.user.username LIKE %:query% OR " +
-           "b.showtime.movie.title LIKE %:query% OR " +
+    // Tìm kiếm đặt vé - JOIN để load đầy đủ thông tin
+    @Query("SELECT DISTINCT b FROM Booking b " +
+           "LEFT JOIN FETCH b.showtime s " +
+           "LEFT JOIN FETCH s.movie m " +
+           "LEFT JOIN FETCH s.room r " +
+           "LEFT JOIN FETCH r.cinema c " +
+           "LEFT JOIN FETCH b.user u " +
+           "LEFT JOIN FETCH b.order o " +
+           "WHERE " +
+           "u.username LIKE %:query% OR " +
+           "m.title LIKE %:query% OR " +
            "CAST(b.status AS string) LIKE %:query%")
     Page<Booking> searchBookings(@Param("query") String query, Pageable pageable);
     

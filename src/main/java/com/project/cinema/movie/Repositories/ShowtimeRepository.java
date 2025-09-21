@@ -11,6 +11,11 @@ import java.util.List;
 @Repository
 public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
     List<Showtime> findByMovieId(Long movieId);
+    
+    List<Showtime> findByRoomId(Long roomId);
+    
+    @Query("SELECT s FROM Showtime s JOIN FETCH s.room r WHERE r.cinema.id = :cinemaId")
+    List<Showtime> findByCinemaId(@Param("cinemaId") Long cinemaId);
 
     @Query("SELECT s FROM Showtime s JOIN FETCH s.room r JOIN FETCH r.cinema WHERE s.movie.id = :movieId")
     List<Showtime> findByMovieIdWithRoomAndCinema(@Param("movieId") Long movieId);

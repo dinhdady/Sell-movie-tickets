@@ -132,6 +132,32 @@ public class UserController {
         }
     }
 
+    // Admin endpoints - Tạo người dùng mới
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/create")
+    public ResponseEntity<ResponseObject> createUser(@RequestBody Map<String, Object> userData) {
+        try {
+            User newUser = userService.createUser(userData);
+            return ResponseEntity.ok(new ResponseObject("200", "User created successfully!", newUser));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error creating user: " + e.getMessage(), null));
+        }
+    }
+
+    // Admin endpoints - Cập nhật người dùng
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/admin/{userId}")
+    public ResponseEntity<ResponseObject> updateUser(@PathVariable String userId, @RequestBody Map<String, Object> userData) {
+        try {
+            User updatedUser = userService.updateUser(userId, userData);
+            return ResponseEntity.ok(new ResponseObject("200", "User updated successfully!", updatedUser));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error updating user: " + e.getMessage(), null));
+        }
+    }
+
     // Lấy người dùng theo ID
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin/{userId}")

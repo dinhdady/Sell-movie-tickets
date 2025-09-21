@@ -1,14 +1,17 @@
 import axios from 'axios';
 import type { Movie, Showtime } from '../types/movie';
 import type { User, AuthRequest, RegisterRequest, AuthResponse } from '../types/auth';
-import type { Seat } from '../types/booking';
+// import type { Seat } from '../types/booking';
+import { tokenService } from './tokenService';
 
 interface Cinema {
   id: number;
   name: string;
   address: string;
   phone: string;
-  cinemaType: 'STANDARD' | 'PREMIUM' | 'IMAX' | '4DX';
+  cinemaType: 'STANDARD' | 'SPECIAL' | 'VIP';
+  createdAt?: string;
+  rooms?: Room[];
 }
 
 interface Room {
@@ -16,21 +19,74 @@ interface Room {
   name: string;
   capacity: number;
   cinemaId: number;
+  cinema?: Cinema;
+  createdAt?: string;
+  seats?: Seat[];
 }
 
-interface Booking {
+interface Seat {
+  id: number;
+  seatNumber: string;
+  rowNumber: string;
+  columnNumber: number;
+  seatType: 'REGULAR' | 'VIP' | 'COUPLE';
+  roomId: number;
+  status?: string;
+}
+
+export interface ApiBooking {
   id: number;
   userId: string;
-  showtimeId: number;
-  totalPrice: number;
-  totalAmount: number;
+  createdAt: string;
   status: string;
-  bookingStatus: string;
+  movie: {
+    id: number;
+    title: string;
+    posterUrl?: string;
+    genre?: string;
+    duration?: number;
+  };
+  showtime: {
+    id: number;
+    startTime: string;
+    endTime: string;
+    room: {
+      id: number;
+      name: string;
+      capacity?: number;
+      cinema: {
+        id: number;
+        name: string;
+        address: string;
+        phone?: string;
+        cinemaType?: string;
+      };
+    };
+  };
+  order: {
+    id: number;
+    status: string;
+    tickets: Array<{
+      id: number;
+      seat: {
+        seatNumber: string;
+        rowNumber: string;
+        columnNumber: number;
+        seatType: 'REGULAR' | 'VIP' | 'COUPLE';
+        price: number;
+      };
+      price: number;
+      status: string;
+      qrCodeUrl?: string;
+    }>;
+  };
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   customerAddress: string;
-  createdAt: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  totalPrice: number;
 }
 import type { ResponseObject, VnpayRequest, VNPayResponseDTO } from '../types/api';
 
@@ -62,7 +118,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors
+// Response interceptor to handle errors and auto refresh token
 api.interceptors.response.use(
   (response) => {
     // Handle 302 redirects as successful responses
@@ -72,19 +128,43 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
     if (error.response?.status === 302) {
       console.log('API redirect (302) in error handler:', error.response.data);
       // Return the response data as if it was successful
       return Promise.resolve(error.response);
     }
     
+    // Handle 401 Unauthorized - try to refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        console.log('🔄 [API] Token expired, attempting to refresh...');
+        const newToken = await tokenService.refreshAccessToken();
+        
+        // Update the authorization header with new token
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        
+        console.log('✅ [API] Token refreshed, retrying original request...');
+        return api(originalRequest);
+      } catch (refreshError) {
+        console.error('❌ [API] Token refresh failed:', refreshError);
+        // Clear tokens and redirect to login
+        tokenService.clearTokens();
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    
     // Only redirect to login for actual authentication errors, not for other 401s
     if (error.response?.status === 401 && error.response?.data?.message?.includes('authentication')) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      tokenService.clearTokens();
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );
@@ -115,6 +195,11 @@ export const authAPI = {
 
   resetPassword: async (token: string, newPassword: string): Promise<ResponseObject> => {
     const response = await api.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  },
+
+  refreshToken: async (refreshToken: string): Promise<ResponseObject<AuthResponse>> => {
+    const response = await api.post('/auth/refresh-token', { refreshToken });
     return response.data;
   },
 };
@@ -173,6 +258,90 @@ export const movieAPI = {
     const response = await api.get('/movie/advanced-search', { params });
     return response.data;
   },
+
+  create: async (movieData: any, posterFile?: File): Promise<ResponseObject<Movie>> => {
+    const formData = new FormData();
+    
+    // Add all movie data fields
+    Object.keys(movieData).forEach(key => {
+      if (movieData[key] !== null && movieData[key] !== undefined) {
+        formData.append(key, movieData[key]);
+      }
+    });
+    
+    // Add poster file if provided
+    if (posterFile) {
+      formData.append('posterImg', posterFile);
+    }
+    
+    console.log('📤 [API] Sending movie creation request');
+    console.log('📋 [API] Form data keys:', Array.from(formData.keys()));
+    console.log('🎭 [API] Cast value:', formData.get('cast'));
+    console.log('🎬 [API] FilmRating value:', formData.get('filmRating'));
+    console.log('📁 [API] Poster file:', posterFile?.name || 'No file');
+    
+    // Log all form data values
+    console.log('📋 [API] All form data values:');
+    for (const [key, value] of formData.entries()) {
+      console.log(`  ${key}: ${value}`);
+    }
+    
+    const response = await api.post('/movie/add', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('📥 [API] Response status:', response.status);
+    console.log('📥 [API] Response data:', response.data);
+    
+    return response.data;
+  },
+
+  update: async (id: number, movieData: any, posterFile?: File): Promise<ResponseObject<Movie>> => {
+    const formData = new FormData();
+    
+    // Add all movie data fields
+    Object.keys(movieData).forEach(key => {
+      if (movieData[key] !== null && movieData[key] !== undefined) {
+        formData.append(key, movieData[key]);
+      }
+    });
+    
+    // Add poster file if provided
+    if (posterFile) {
+      formData.append('posterImg', posterFile);
+    }
+    
+    console.log('📤 [API] Sending movie update request for ID:', id);
+    console.log('📋 [API] Form data keys:', Array.from(formData.keys()));
+    console.log('🎭 [API] Cast value:', formData.get('cast'));
+    console.log('🎬 [API] FilmRating value:', formData.get('filmRating'));
+    console.log('📁 [API] Poster file:', posterFile?.name || 'No file');
+    
+    // Log all form data values
+    console.log('📋 [API] All form data values:');
+    for (const [key, value] of formData.entries()) {
+      console.log(`  ${key}: ${value}`);
+    }
+    
+    const response = await api.put(`/movie/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('📥 [API] Update response status:', response.status);
+    console.log('📥 [API] Update response data:', response.data);
+    
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<ResponseObject> => {
+    const response = await api.delete(`/movie/${id}`);
+    return response.data;
+  },
+
 };
 
 // Showtime API
@@ -191,26 +360,70 @@ export const showtimeAPI = {
     const response = await api.get(`/showtime/${id}`);
     return response.data;
   },
+
+  getByMovie: async (movieId: number): Promise<ResponseObject<Showtime[]>> => {
+    const response = await api.get(`/showtime/movie/${movieId}`);
+    return response.data;
+  },
+
+  getByRoom: async (roomId: number): Promise<ResponseObject<Showtime[]>> => {
+    const response = await api.get(`/showtime/room/${roomId}`);
+    return response.data;
+  },
+
+  getByCinema: async (cinemaId: number): Promise<ResponseObject<Showtime[]>> => {
+    const response = await api.get(`/showtime/cinema/${cinemaId}`);
+    return response.data;
+  },
+  getByMovieAndRoom: async (movieId: number, roomId: number): Promise<ResponseObject<Showtime[]>> => {
+    const response = await api.get(`/showtime/movie/${movieId}/room/${roomId}`);
+    return response.data;
+  },
+
+  create: async (showtimeData: any): Promise<ResponseObject<Showtime>> => {
+    const response = await api.post('/showtime', showtimeData);
+    return response.data;
+  },
+
+  update: async (id: number, showtimeData: any): Promise<ResponseObject<Showtime>> => {
+    const response = await api.put(`/showtime/${id}`, showtimeData);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<ResponseObject<any>> => {
+    const response = await api.delete(`/showtime/${id}`);
+    return response.data;
+  },
 };
 
 // Booking API
 export const bookingAPI = {
-  getAll: async (): Promise<Booking[]> => {
+  getAll: async (): Promise<ApiBooking[]> => {
     const response = await api.get('/booking');
     return response.data;
   },
 
-  getById: async (id: number): Promise<ResponseObject<Booking>> => {
+  getAllWithDetails: async (): Promise<ApiBooking[]> => {
+    const response = await api.get('/admin/bookings');
+    return response.data.object?.content || response.data.object || [];
+  },
+
+  getById: async (id: number): Promise<ResponseObject<ApiBooking>> => {
     const response = await api.get(`/booking/${id}`);
     return response.data;
   },
 
-  create: async (bookingData: Partial<Booking>): Promise<ResponseObject<Booking>> => {
+  getDetailsById: async (id: number): Promise<ResponseObject<ApiBooking>> => {
+    const response = await api.get(`/booking/${id}/details`);
+    return response.data;
+  },
+
+  create: async (bookingData: Partial<ApiBooking>): Promise<ResponseObject<ApiBooking>> => {
     const response = await api.post('/booking', bookingData);
     return response.data;
   },
 
-  update: async (id: number, bookingData: Partial<Booking>): Promise<ResponseObject<Booking>> => {
+  update: async (id: number, bookingData: Partial<ApiBooking>): Promise<ResponseObject<ApiBooking>> => {
     const response = await api.put(`/booking/${id}`, bookingData);
     return response.data;
   },
@@ -232,6 +445,70 @@ export const userAPI = {
     const response = await api.put('/user/profile', userData);
     return response.data;
   },
+
+  // Admin endpoints
+  getAllUsers: async (): Promise<ResponseObject<User[]>> => {
+    const response = await api.get('/user/admin/all');
+    return response.data;
+  },
+
+  createUser: async (userData: Partial<User>): Promise<ResponseObject<User>> => {
+    const response = await api.post('/user/admin/create', userData);
+    return response.data;
+  },
+
+  updateUser: async (userId: string, userData: Partial<User>): Promise<ResponseObject<User>> => {
+    const response = await api.put(`/user/admin/${userId}`, userData);
+    return response.data;
+  },
+
+  getUserById: async (userId: string): Promise<ResponseObject<User>> => {
+    const response = await api.get(`/user/admin/${userId}`);
+    return response.data;
+  },
+
+  updateUserRole: async (userId: string, role: string): Promise<ResponseObject<User>> => {
+    const response = await api.put(`/user/admin/${userId}/role`, { role });
+    return response.data;
+  },
+
+  toggleUserStatus: async (userId: string, isActive: boolean): Promise<ResponseObject<User>> => {
+    const response = await api.put(`/user/admin/${userId}/status`, { isActive });
+    return response.data;
+  },
+
+  deleteUser: async (userId: string): Promise<ResponseObject> => {
+    const response = await api.delete(`/user/admin/${userId}`);
+    return response.data;
+  },
+
+  searchUsers: async (query: string): Promise<ResponseObject<User[]>> => {
+    const response = await api.get(`/user/admin/search?q=${encodeURIComponent(query)}`);
+    return response.data;
+  },
+
+  getUsersStats: async (): Promise<ResponseObject<any>> => {
+    const response = await api.get('/user/admin/stats');
+    return response.data;
+  },
+};
+
+// Dashboard API
+export const dashboardAPI = {
+  getOverview: async (): Promise<ResponseObject<any>> => {
+    const response = await api.get('/dashboard/overview');
+    return response.data;
+  },
+
+  getRevenueStats: async (): Promise<ResponseObject<any>> => {
+    const response = await api.get('/dashboard/revenue-stats');
+    return response.data;
+  },
+
+  getBookingStats: async (): Promise<ResponseObject<any>> => {
+    const response = await api.get('/dashboard/booking-stats');
+    return response.data;
+  },
 };
 
 // Cinema API
@@ -241,9 +518,23 @@ export const cinemaAPI = {
     return response.data;
   },
 
-  getById: async (id: number): Promise<ResponseObject<Cinema>> => {
+  getById: async (id: number): Promise<Cinema> => {
     const response = await api.get(`/cinema/${id}`);
     return response.data;
+  },
+
+  create: async (cinema: Partial<Cinema>): Promise<ResponseObject<Cinema>> => {
+    const response = await api.post('/cinema', cinema);
+    return response.data;
+  },
+
+  update: async (id: number, cinema: Partial<Cinema>): Promise<ResponseObject<Cinema>> => {
+    const response = await api.put(`/cinema/${id}`, cinema);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/cinema/${id}`);
   },
 };
 
@@ -254,21 +545,65 @@ export const roomAPI = {
     return response.data;
   },
 
+  getById: async (id: number): Promise<ResponseObject<Room>> => {
+    const response = await api.get(`/room/${id}`);
+    return response.data;
+  },
+
   getByCinema: async (cinemaId: number): Promise<ResponseObject<Room[]>> => {
     const response = await api.get(`/room/cinema/${cinemaId}`);
     return response.data;
   },
 
-  getById: async (id: number): Promise<ResponseObject<any>> => {
-    const response = await api.get(`/room/${id}`);
+  create: async (room: Partial<Room>): Promise<ResponseObject<Room>> => {
+    const response = await api.post('/room', room);
     return response.data;
+  },
+
+  update: async (id: number, room: Partial<Room>): Promise<ResponseObject<Room>> => {
+    const response = await api.put(`/room/${id}`, room);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/room/${id}`);
   },
 };
 
 // Seat API
 export const seatAPI = {
-  getByRoomId: async (roomId: number): Promise<ResponseObject<Seat[]>> => {
+  getByRoom: async (roomId: number): Promise<ResponseObject<Seat[]>> => {
     const response = await api.get(`/seat/room/${roomId}`);
+    return response.data;
+  },
+
+  getById: async (seatId: number): Promise<ResponseObject<Seat>> => {
+    const response = await api.get(`/seat/${seatId}`);
+    return response.data;
+  },
+
+  getRoomInfo: async (roomId: number): Promise<ResponseObject<any>> => {
+    const response = await api.get(`/seat/room/${roomId}/info`);
+    return response.data;
+  },
+
+  generateDefault: async (roomId: number): Promise<ResponseObject<Seat[]>> => {
+    const response = await api.post(`/seat/generate-default/${roomId}`);
+    return response.data;
+  },
+
+  generateCustom: async (roomId: number, config: any): Promise<ResponseObject<Seat[]>> => {
+    const response = await api.post(`/seat/generate-custom/${roomId}`, config);
+    return response.data;
+  },
+
+  generate: async (roomId: number, config?: any): Promise<ResponseObject<Seat[]>> => {
+    const response = await api.post(`/seat/generate/${roomId}`, config || {});
+    return response.data;
+  },
+
+  deleteByRoom: async (roomId: number): Promise<ResponseObject<void>> => {
+    const response = await api.delete(`/seat/room/${roomId}`);
     return response.data;
   },
 
@@ -282,6 +617,7 @@ export const seatAPI = {
     return response.data;
   },
 };
+
 
 // Order API
 export const orderAPI = {
@@ -328,6 +664,15 @@ export const paymentAPI = {
 
   confirmPayment: async (txnRef: string): Promise<ResponseObject<any>> => {
     const response = await api.post(`/booking/confirm-payment/${txnRef}`);
+    return response.data;
+  },
+
+  sendBookingEmail: async (bookingId: number, htmlContent: string, subject: string, toEmail: string): Promise<ResponseObject> => {
+    const response = await api.post(`/booking/${bookingId}/send-email`, {
+      htmlContent,
+      subject,
+      toEmail
+    });
     return response.data;
   },
 };

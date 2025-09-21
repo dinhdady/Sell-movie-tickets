@@ -145,6 +145,9 @@ const BookingForm: React.FC = () => {
       console.log('Order ID:', createdOrder.id);
       console.log('TxnRef:', createdOrder.txnRef);
       
+      // Store txnRef in localStorage for payment callback
+      localStorage.setItem('currentTxnRef', createdOrder.txnRef);
+      
       // Step 2: Create booking with the order ID
       const bookingData = {
         userId: validUserId,
@@ -163,25 +166,51 @@ const BookingForm: React.FC = () => {
       const response = await bookingAPI.create(bookingData);
       
       if (response.state === 'SUCCESS') {
-        // Create VNPay payment with txnRef from order
+        // Chỉ truyền đúng các trường backend cần
         const paymentData = {
           bookingId: response.object.id,
           amount: totalPrice,
-          orderDescription: `Thanh toán vé xem phim ${movie.title}`,
-          txnRef: createdOrder.txnRef
+          orderDescription: `Thanh toán vé xem phim ${movie.title}`
         };
 
         console.log('Creating VNPay payment with data:', paymentData);
         const paymentUrl = await paymentAPI.createVNPayPayment(paymentData);
         
-        // Redirect to VNPay payment page
-        window.location.href = paymentUrl;
+        // Show loading state before redirect
+        setLoading(true);
+        console.log('Redirecting to VNPay payment page...');
+        console.log('Payment URL:', paymentUrl);
+        
+        // Store booking info for fallback
+        localStorage.setItem('pendingBooking', JSON.stringify({
+          bookingId: response.object.id,
+          movie: movie,
+          showtime: showtime,
+          selectedSeats: selectedSeats,
+          totalPrice: totalPrice,
+          txnRef: createdOrder.txnRef
+        }));
+        
+        // Small delay to show loading state
+        setTimeout(() => {
+          try {
+            window.location.href = paymentUrl;
+          } catch (error) {
+            console.error('Error redirecting to VNPay:', error);
+            setError('Không thể chuyển hướng đến trang thanh toán. Vui lòng thử lại.');
+            setLoading(false);
+          }
+        }, 1000);
       } else {
         setError(response.message || 'Đặt vé thất bại');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Booking error:', err);
-      setError(err.message || 'Có lỗi xảy ra khi đặt vé');
+      if (err instanceof Error) {
+        setError(err.message || 'Có lỗi xảy ra khi đặt vé');
+      } else {
+        setError('Có lỗi xảy ra khi đặt vé');
+      }
     } finally {
       setLoading(false);
     }

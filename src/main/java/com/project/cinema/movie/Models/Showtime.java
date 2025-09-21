@@ -2,6 +2,7 @@ package com.project.cinema.movie.Models;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import lombok.*;
@@ -21,13 +22,12 @@ public class Showtime {
     private Long id;
 
     @ManyToOne
-    @JsonBackReference
     @JoinColumn(name = "movie_id", nullable = false)
     private Movie movie;
 
     @ManyToOne
-    @JsonManagedReference(value = "room-showtimes")
     @JoinColumn(name = "room_id", nullable = false)
+    @JsonIgnore
     private Room room;
 
     @Temporal(TemporalType.TIMESTAMP)

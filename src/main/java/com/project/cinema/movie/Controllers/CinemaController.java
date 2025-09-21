@@ -29,8 +29,10 @@ public class CinemaController {
     }
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("")
-    public Cinema createCinema(@RequestBody Cinema cinema){
-        return cinemaService.createCinema(cinema);
+    public ResponseEntity<ResponseObject> createCinema(@RequestBody Cinema cinema){
+        Cinema newCinema = cinemaService.createCinema(cinema);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ResponseObject("201", "Cinema created successfully!", newCinema));
     }
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")

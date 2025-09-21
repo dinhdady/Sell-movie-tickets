@@ -37,6 +37,8 @@ export interface Ticket {
   seatId: number;
   price: number;
   status: 'ACTIVE' | 'USED' | 'CANCELLED';
+  token?: string;
   qrCode?: string;
+  qrCodeUrl?: string;
   seat?: Seat;
 }

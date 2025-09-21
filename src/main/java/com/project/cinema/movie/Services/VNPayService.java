@@ -149,7 +149,9 @@ public class VNPayService {
                 order.setStatus("PAYMENT_FAILED");
                 orderRepository.save(order);
             });
-            return new VNPayResponseDTO("failed", "Thanh toán thất bại", vnp_TxnRef, null, null);
+            VNPayResponseDTO response = new VNPayResponseDTO("failed", "Thanh toán thất bại", vnp_TxnRef, null, null);
+            response.setTxnRef(vnp_TxnRef);
+            return response;
         }
 
         try {
@@ -174,7 +176,9 @@ public class VNPayService {
                 
                 if (tickets != null && !tickets.isEmpty()) {
                     logger.info("[VNPAY] Đã tìm thấy {} vé cho order {}", tickets.size(), order.getId());
-                    return new VNPayResponseDTO("success", "Thanh toán thành công (đã xử lý)", order.getId().toString(), tickets, null);
+                    VNPayResponseDTO response = new VNPayResponseDTO("success", "Thanh toán thành công (đã xử lý)", order.getId().toString(), tickets, null);
+                    response.setTxnRef(vnp_TxnRef);
+                    return response;
                 }
             }
 
@@ -194,15 +198,19 @@ public class VNPayService {
                 List<Ticket> tickets = ticketRepository.findByOrderId(order.getId());
                 logger.info("[VNPAY] Đã tạo tổng cộng {} vé cho order {}", tickets.size(), order.getId());
                 
-                return new VNPayResponseDTO("success", "Thanh toán thành công", order.getId().toString(), tickets, null);
+                VNPayResponseDTO response = new VNPayResponseDTO("success", "Thanh toán thành công", order.getId().toString(), tickets, null);
+                response.setTxnRef(vnp_TxnRef);
+                return response;
             } catch (Exception e) {
                 logger.error("[VNPAY] Error confirming payment: {}", e.getMessage(), e);
                 throw new RuntimeException("Failed to confirm payment: " + e.getMessage());
             }
 
         } catch (Exception e) {
-            logger.error("[VNPAY] Lỗi xử lý đơn hàng: {}", e.getMessage(), e);
-            return new VNPayResponseDTO("failed", "Lỗi xử lý đơn hàng: " + e.getMessage(), vnp_TxnRef, null, null);
+            logger.error("[VNPAY] Error processing order: {}", e.getMessage(), e);
+            VNPayResponseDTO response = new VNPayResponseDTO("failed", "Error processing order: " + e.getMessage(), vnp_TxnRef, null, null);
+            response.setTxnRef(vnp_TxnRef);
+            return response;
         }
     }
 
@@ -218,9 +226,7 @@ public class VNPayService {
             
             List<String> qrCodes = new ArrayList<>();
             for (Ticket ticket : tickets) {
-                String qrText = generateQRCodeText(ticket);
-                String qrCode = qrCodeService.generateQRCodeImage(qrText, 300, 300);
-                qrCode = qrCode.replaceAll("\\s+", ""); // Remove whitespace and line breaks
+                String qrCode = qrCodeService.generateTicketQRCode(ticket.getId(), ticket.getToken());
                 qrCodes.add(qrCode);
             }
             
@@ -280,6 +286,7 @@ public class VNPayService {
             }
 
             VNPayResponseDTO response = new VNPayResponseDTO("success", "Lấy thông tin vé thành công", orderId, tickets, qrCodes, order.getCustomerEmail(), tickets.size(), movieTitle, cinemaName, roomName, formattedShowtime);
+            response.setTxnRef(order.getTxnRef()); // Set txnRef from order
             logger.info("[VNPAY] Thông tin phim trong response: {}", response.getMovieTitle());
             return response;
         } catch (NumberFormatException e) {
@@ -291,57 +298,4 @@ public class VNPayService {
         }
     }
 
-    private String generateQRCodeText(Ticket ticket) {
-        try {
-            // Get the booking information from the ticket's order
-            Order order = ticket.getOrder();
-            if (order == null || order.getBookings() == null || order.getBookings().isEmpty()) {
-                return "MaVe=" + ticket.getId() + "|Ghe=" + ticket.getSeat().getSeatNumber();
-            }
-            
-            // Get the first booking (assuming one booking per order for simplicity)
-            Booking booking = order.getBookings().get(0);
-            Showtime showtime = booking.getShowtime();
-            
-            if (showtime == null) {
-                return "MaVe=" + ticket.getId() + "|Ghe=" + ticket.getSeat().getSeatNumber();
-            }
-            
-            // Get movie, room, and cinema information
-            Movie movie = showtime.getMovie();
-            Room room = showtime.getRoom();
-            Cinema cinema = room != null ? room.getCinema() : null;
-            
-            // Format the showtime
-            SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm dd/MM/yyyy");
-            String formattedShowtime = dateFormat.format(showtime.getStartTime());
-            
-            // Build the QR code text in the specified format
-            StringBuilder qrText = new StringBuilder();
-            qrText.append("MaVe=").append(ticket.getId());
-            
-            if (movie != null) {
-                qrText.append("|Phim=").append(movie.getTitle());
-            }
-            
-            if (cinema != null) {
-                qrText.append("|Rap=").append(cinema.getName());
-            }
-            
-            if (room != null) {
-                qrText.append("|Phong=").append(room.getName());
-            }
-            
-            qrText.append("|Ghe=").append(ticket.getSeat().getSeatNumber());
-            qrText.append("|Suat=").append(formattedShowtime);
-            qrText.append("|Token=").append(ticket.getToken());
-            
-            return qrText.toString();
-            
-        } catch (Exception e) {
-            logger.error("[VNPAY] Lỗi khi tạo nội dung QR code: {}", e.getMessage(), e);
-            // Fallback to simple format if there's an error
-            return "MaVe=" + ticket.getId() + "|Ghe=" + ticket.getSeat().getSeatNumber();
-        }
-    }
 }

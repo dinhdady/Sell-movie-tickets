@@ -35,8 +35,8 @@ public class DashboardService {
         overview.put("totalMovies", movieRepository.count());
         overview.put("totalUsers", userRepository.count());
         overview.put("totalBookings", bookingRepository.count());
-        overview.put("totalRevenue", movieRepository.calculateTotalRevenue() != null ? 
-            movieRepository.calculateTotalRevenue() : 0.0);
+        overview.put("totalRevenue", bookingRepository.calculateTotalRevenue() != null ? 
+            bookingRepository.calculateTotalRevenue() : 0.0);
         
         // Thống kê theo trạng thái
         overview.put("nowShowingMovies", movieRepository.countByStatus("NOW_SHOWING"));
@@ -46,8 +46,8 @@ public class DashboardService {
         // Thống kê ngày hôm nay
         LocalDate today = LocalDate.now();
         Date todayStart = java.sql.Date.valueOf(today);
-        overview.put("todayBookings", bookingRepository.countByCreatedDateAfter(todayStart));
-        overview.put("todayRevenue", bookingRepository.calculateRevenueByDateAfter(todayStart));
+        overview.put("bookingsToday", bookingRepository.countByCreatedDateAfter(todayStart));
+        overview.put("revenueToday", bookingRepository.calculateRevenueByDateAfter(todayStart));
         
         return overview;
     }
@@ -56,8 +56,8 @@ public class DashboardService {
         Map<String, Object> revenueStats = new HashMap<>();
         
         // Tổng doanh thu
-        Double totalRevenue = movieRepository.calculateTotalRevenue();
-        Long totalBookings = movieRepository.countTotalBookings();
+        Double totalRevenue = bookingRepository.calculateTotalRevenue();
+        Long totalBookings = bookingRepository.count();
         
         revenueStats.put("totalRevenue", totalRevenue != null ? totalRevenue : 0.0);
         revenueStats.put("totalBookings", totalBookings != null ? totalBookings : 0L);

@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Cart: React.FC = () => {
-  const { items, removeFromCart, clearCart, debugCart } = useCart();
+  const { items, removeFromCart, clearCart } = useCart();
   const navigate = useNavigate();
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 

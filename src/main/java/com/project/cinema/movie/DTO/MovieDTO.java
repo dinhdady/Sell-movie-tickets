@@ -34,4 +34,15 @@ public class MovieDTO {
 
     /** Mức phân loại phim (enum) */
     private FilmRating filmRating;
+    
+    // Custom setter for filmRating to handle string conversion
+    public void setFilmRating(String filmRatingStr) {
+        if (filmRatingStr != null && !filmRatingStr.trim().isEmpty()) {
+            this.filmRating = FilmRating.fromValue(filmRatingStr);
+        }
+    }
+    
+    public void setFilmRating(FilmRating filmRating) {
+        this.filmRating = filmRating;
+    }
 }
