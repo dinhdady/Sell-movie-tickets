@@ -10,26 +10,21 @@ import {
   ShoppingCartIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-
 interface MovieCardProps {
   movie: Movie;
   showActions?: boolean;
 }
-
 const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
   const { addToCart } = useCart();
   const [isLoading, setIsLoading] = useState(false);
-
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -42,7 +37,6 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
         return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -55,7 +49,6 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
         return status;
     }
   };
-
   const getFilmRatingColor = (rating: string) => {
     switch (rating) {
       case 'G':
@@ -72,11 +65,9 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
         return 'bg-gray-500';
     }
   };
-
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     setIsLoading(true);
     try {
       // Tạo showtime mặc định (sẽ được chọn lại trong booking page)
@@ -87,7 +78,6 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
         startTime: new Date().toISOString(),
         endTime: new Date().toISOString(),
       };
-      
       // Tạo item để thêm vào giỏ hàng
       const cartItem = {
         movie,
@@ -96,16 +86,13 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
         quantity: 1,
         totalPrice: movie.price
       };
-
       addToCart(cartItem);
       // Thêm vào giỏ hàng thành công - không hiển thị thông báo
     } catch (error) {
-      console.error('Error adding to cart:', error);
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="movie-card card-hover group min-w-0 h-full flex flex-col">
       {/* Movie Poster */}
@@ -122,21 +109,18 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
             <FilmIcon className="h-16 w-16 text-gray-400" />
           </div>
         )}
-        
         {/* Status Badge */}
         <div className="absolute top-2 left-2">
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(movie.status)}`}>
             {getStatusText(movie.status)}
           </span>
         </div>
-
         {/* Film Rating Badge */}
         <div className="absolute top-2 right-2">
           <span className={`px-2 py-1 rounded text-xs font-bold text-white ${getFilmRatingColor(movie.filmRating)}`}>
             {movie.filmRating}
           </span>
         </div>
-
         {/* Play Button Overlay */}
         {movie.trailerUrl && (
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
@@ -146,7 +130,6 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
           </div>
         )}
       </Link>
-
       {/* Movie Info */}
       <div className="p-4 min-w-0 flex flex-col flex-1">
         {/* Movie Title - Fixed height */}
@@ -157,32 +140,27 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
             </h3>
           </Link>
         </div>
-        
         {/* Movie Description - Fixed height */}
         <div className="h-10 mb-3">
           <p className="text-gray-600 text-sm line-clamp-2 break-words leading-tight">
             {movie.description}
           </p>
         </div>
-
         {/* Movie Details - Fixed height */}
         <div className="space-y-1 mb-4 flex-shrink-0">
           <div className="flex items-center text-sm text-gray-500 min-w-0 h-5">
             <ClockIcon className="h-4 w-4 mr-2 flex-shrink-0" />
             <span className="truncate">{formatDuration(movie.duration)}</span>
           </div>
-          
           <div className="flex items-center text-sm text-gray-500 min-w-0 h-5">
             <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
             <span className="truncate">{formatDate(movie.releaseDate)}</span>
           </div>
-          
           <div className="flex items-center text-sm text-gray-500 min-w-0 h-5">
             <span className="mr-2 flex-shrink-0 text-xs">Thể loại:</span>
             <span className="font-medium truncate text-xs">{movie.genre}</span>
           </div>
         </div>
-
         {/* Rating and Price - Fixed height */}
         <div className="flex items-center justify-between mb-4 min-w-0 h-6 flex-shrink-0">
           <div className="flex items-center flex-1 min-w-0">
@@ -195,7 +173,6 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
             <span className="truncate">{movie.price.toLocaleString('vi-VN')}đ</span>
           </div>
         </div>
-
         {/* Actions - Fixed at bottom */}
         {showActions && (
           <div className="flex space-x-2 min-w-0 mt-auto">
@@ -259,5 +236,4 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, showActions = true }) => {
     </div>
   );
 };
-
 export default MovieCard;

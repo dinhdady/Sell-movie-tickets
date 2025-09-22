@@ -1,13 +1,11 @@
 import React from 'react';
 import { FilmIcon, ClockIcon, CalendarIcon, StarIcon } from '@heroicons/react/24/outline';
 import type { Movie } from '../types/movie';
-
 interface MovieInfoCardProps {
   movie: Movie;
   showPoster?: boolean;
   compact?: boolean;
 }
-
 const MovieInfoCard: React.FC<MovieInfoCardProps> = ({ 
   movie, 
   showPoster = true, 
@@ -16,7 +14,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -29,7 +26,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
         return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -42,7 +38,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
         return status;
     }
   };
-
   if (compact) {
     return (
       <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
@@ -77,7 +72,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
       </div>
     );
   }
-
   return (
     <div className="bg-gray-50 rounded-lg p-4">
       <h4 className="text-md font-semibold text-gray-900 mb-3">Thông tin phim</h4>
@@ -114,19 +108,16 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
             )}
           </div>
         </div>
-
         {/* Genre */}
         <div>
           <div className="text-sm text-gray-600">Thể loại:</div>
           <div className="text-sm font-medium text-gray-900">{movie.genre}</div>
         </div>
-
         {/* Director */}
         <div>
           <div className="text-sm text-gray-600">Đạo diễn:</div>
           <div className="text-sm font-medium text-gray-900">{movie.director}</div>
         </div>
-
         {/* Duration */}
         <div>
           <div className="text-sm text-gray-600">Thời lượng:</div>
@@ -135,7 +126,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
             {movie.duration} phút
           </div>
         </div>
-
         {/* Release Date */}
         <div>
           <div className="text-sm text-gray-600">Ngày phát hành:</div>
@@ -144,7 +134,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
             {formatDate(movie.releaseDate)}
           </div>
         </div>
-
         {/* Status */}
         <div>
           <div className="text-sm text-gray-600">Trạng thái:</div>
@@ -152,7 +141,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
             {getStatusText(movie.status)}
           </span>
         </div>
-
         {/* Price */}
         <div>
           <div className="text-sm text-gray-600">Giá vé:</div>
@@ -160,7 +148,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
             {movie.price.toLocaleString('vi-VN')} VNĐ
           </div>
         </div>
-
         {/* Film Rating */}
         <div>
           <div className="text-sm text-gray-600">Độ tuổi:</div>
@@ -168,7 +155,6 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
             {movie.filmRating}
           </div>
         </div>
-
         {/* Cast */}
         {movie.cast && (
           <div className="md:col-span-2 lg:col-span-3">
@@ -182,5 +168,4 @@ const MovieInfoCard: React.FC<MovieInfoCardProps> = ({
     </div>
   );
 };
-
 export default MovieInfoCard;

@@ -8,7 +8,6 @@ import {
   FunnelIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-
 const Movies: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -19,14 +18,12 @@ const Movies: React.FC = () => {
   const [selectedGenre, setSelectedGenre] = useState(searchParams.get('genre') || '');
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     const fetchMovies = async () => {
       try {
         setLoading(true);
         setError(null);
         let response;
-
         if (searchQuery) {
           response = await movieAPI.search(searchQuery);
         } else if (selectedGenre) {
@@ -38,7 +35,6 @@ const Movies: React.FC = () => {
         } else {
           response = await movieAPI.getAll(0, 20);
         }
-
         // Handle different response formats
         if ('state' in response && response.state === '200' && response.object) {
           // ResponseObject format
@@ -54,22 +50,18 @@ const Movies: React.FC = () => {
           // Alternative paginated response format
           setMovies(response.content);
         } else {
-          console.warn('Movies response:', response);
           setMovies([]);
           setError('Không thể tải danh sách phim');
         }
       } catch (error) {
-        console.error('Error fetching movies:', error);
         setMovies([]);
         setError('Có lỗi xảy ra khi tải danh sách phim');
       } finally {
         setLoading(false);
       }
     };
-
     fetchMovies();
   }, [searchQuery, category, selectedGenre]);
-
   useEffect(() => {
     const fetchGenres = async () => {
       try {
@@ -77,18 +69,14 @@ const Movies: React.FC = () => {
         if (response.state === '200' && response.object) {
           setGenres(response.object);
         } else {
-          console.warn('Genres response:', response);
           setGenres([]);
         }
       } catch (error) {
-        console.error('Error fetching genres:', error);
         setGenres([]);
       }
     };
-
     fetchGenres();
   }, []);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -97,7 +85,6 @@ const Movies: React.FC = () => {
       setSelectedGenre('');
     }
   };
-
   const handleCategoryChange = (newCategory: string) => {
     setCategory(newCategory);
     setSearchQuery('');
@@ -108,14 +95,12 @@ const Movies: React.FC = () => {
       setSearchParams({ category: newCategory });
     }
   };
-
   const handleGenreChange = (genre: string) => {
     setSelectedGenre(genre);
     setSearchQuery('');
     setCategory('all');
     setSearchParams({ genre });
   };
-
   const clearFilters = () => {
     setSearchQuery('');
     setCategory('all');
@@ -123,8 +108,6 @@ const Movies: React.FC = () => {
     setError(null);
     setSearchParams({});
   };
-
-
   const getCategoryTitle = () => {
     if (searchQuery) return `Kết quả tìm kiếm cho "${searchQuery}"`;
     if (selectedGenre) return `Phim thể loại ${selectedGenre}`;
@@ -134,7 +117,6 @@ const Movies: React.FC = () => {
       default: return 'Tất cả phim';
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -143,7 +125,6 @@ const Movies: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             {getCategoryTitle()}
           </h1>
-          
           {/* Search Bar */}
           <form onSubmit={handleSearch} className="mb-6">
             <div className="relative max-w-md">
@@ -157,7 +138,6 @@ const Movies: React.FC = () => {
               <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             </div>
           </form>
-
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-4 mb-6">
             <button
@@ -167,7 +147,6 @@ const Movies: React.FC = () => {
               <FunnelIcon className="h-5 w-5 mr-2" />
               Bộ lọc
             </button>
-
             {/* Category Tabs */}
             <div className="flex space-x-2">
               {[
@@ -188,7 +167,6 @@ const Movies: React.FC = () => {
                 </button>
               ))}
             </div>
-
             {(searchQuery || selectedGenre || category !== 'all') && (
               <button
                 onClick={clearFilters}
@@ -199,7 +177,6 @@ const Movies: React.FC = () => {
               </button>
             )}
           </div>
-
           {/* Genre Filters */}
           {showFilters && (
             <div className="bg-white p-4 rounded-lg shadow-sm border mb-6">
@@ -222,7 +199,6 @@ const Movies: React.FC = () => {
             </div>
           )}
         </div>
-
         {/* Movies Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -267,5 +243,4 @@ const Movies: React.FC = () => {
     </div>
   );
 };
-
 export default Movies;

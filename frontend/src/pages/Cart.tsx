@@ -10,16 +10,13 @@ import {
   TicketIcon,
   CheckIcon
 } from '@heroicons/react/24/outline';
-
 const Cart: React.FC = () => {
   const { items, removeFromCart, clearCart } = useCart();
   const navigate = useNavigate();
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-
   const formatPrice = (price: number) => {
     return price.toLocaleString('vi-VN') + 'đ';
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       weekday: 'long',
@@ -28,24 +25,20 @@ const Cart: React.FC = () => {
       day: 'numeric'
     });
   };
-
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit'
     });
   };
-
   // Handle checkbox selection - only one item can be selected at a time
   const handleItemSelect = (itemId: string) => {
     setSelectedItemId(selectedItemId === itemId ? null : itemId);
   };
-
   const handleSelectMovie = (item: any) => {
     // Chuyển đến trang booking để chọn ghế
     navigate(`/booking/${item.movie.id}?fromCart=true`);
   };
-
   const handleCheckout = (item: any) => {
     // Đã có ghế, chuyển đến booking form để thanh toán
     navigate('/booking-form', {
@@ -57,7 +50,6 @@ const Cart: React.FC = () => {
       }
     });
   };
-
   const handleContinueShopping = () => {
     if (selectedItemId) {
       const selectedItem = items.find(item => item.id === selectedItemId);
@@ -66,7 +58,6 @@ const Cart: React.FC = () => {
       }
     }
   };
-
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
@@ -91,7 +82,6 @@ const Cart: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,7 +105,6 @@ const Cart: React.FC = () => {
             </button>
           </div>
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-6">
@@ -132,7 +121,6 @@ const Cart: React.FC = () => {
                       className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                     />
                   </div>
-
                   {/* Movie Poster */}
                   <div className="flex-shrink-0">
                     <img
@@ -141,13 +129,11 @@ const Cart: React.FC = () => {
                       className="w-24 h-36 object-cover rounded-lg"
                     />
                   </div>
-
                   {/* Movie Info */}
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-gray-900 mb-2">
                       {item.movie.title}
                     </h3>
-                    
                     {/* Showtime Info */}
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center text-gray-600">
@@ -168,7 +154,6 @@ const Cart: React.FC = () => {
                         </div>
                       )}
                     </div>
-
                     {/* Seats */}
                     {item.seats && item.seats.length > 0 && (
                       <div className="mb-4">
@@ -185,13 +170,11 @@ const Cart: React.FC = () => {
                         </div>
                       </div>
                     )}
-
                     {/* Price and Action */}
                     <div className="flex items-center justify-between">
                       <div className="text-lg font-bold text-blue-600">
                         {formatPrice(item.totalPrice)}
                       </div>
-                      
                       {selectedItemId === item.id && (
                         <div className="flex gap-2">
                           {!item.seats || item.seats.length === 0 ? (
@@ -214,7 +197,6 @@ const Cart: React.FC = () => {
                       )}
                     </div>
                   </div>
-
                   {/* Remove Button */}
                   <div className="flex-shrink-0">
                     <button
@@ -229,33 +211,27 @@ const Cart: React.FC = () => {
               </div>
             ))}
           </div>
-
           {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
                 Tóm tắt đơn hàng
               </h2>
-              
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Số phim:</span>
                   <span className="font-medium">{items.length}</span>
                 </div>
-                
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Lưu ý:</span>
                   <span>Thanh toán từng phim riêng biệt</span>
                 </div>
-                
                 <hr className="border-gray-200" />
-                
                 <div className="text-center text-sm text-gray-600">
                   <p>Chọn 1 phim để tiếp tục mua vé</p>
                   <p className="mt-1">Click checkbox để chọn phim</p>
                 </div>
               </div>
-              
               <div className="mt-6 space-y-3">
                 <button
                   onClick={handleContinueShopping}
@@ -268,14 +244,12 @@ const Cart: React.FC = () => {
                 >
                   Tiếp tục mua vé
                 </button>
-                
                 <Link
                   to="/movies"
                   className="block w-full text-center py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
                 >
                   Thêm phim khác
                 </Link>
-                
                 <button
                   onClick={clearCart}
                   className="w-full text-center py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -283,7 +257,6 @@ const Cart: React.FC = () => {
                   Xóa tất cả
                 </button>
               </div>
-              
               {/* Security Info */}
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-600 text-center">
@@ -297,5 +270,4 @@ const Cart: React.FC = () => {
     </div>
   );
 };
-
 export default Cart;

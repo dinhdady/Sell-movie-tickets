@@ -9,7 +9,6 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { userAPI } from '../../services/api';
-
 interface User {
   id: string;
   username: string;
@@ -24,7 +23,6 @@ interface User {
   lastLogin?: string;
   password?: string; // For form only
 }
-
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +30,9 @@ const UserManagement: React.FC = () => {
   const [filterRole, setFilterRole] = useState('ALL');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-
   useEffect(() => {
     fetchUsers();
   }, []);
-
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -44,37 +40,30 @@ const UserManagement: React.FC = () => {
       if (response.state === '200') {
         setUsers(response.object || []);
       } else {
-        console.error('Error fetching users:', response.message);
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
     }
   };
-
   const handleDelete = async (id: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
       try {
         await userAPI.deleteUser(id);
         setUsers(users.filter(user => user.id !== id));
       } catch (error) {
-        console.error('Error deleting user:', error);
         alert('Có lỗi xảy ra khi xóa người dùng');
       }
     }
   };
-
   const handleEdit = (user: User) => {
     setEditingUser(user);
     setShowModal(true);
   };
-
   const handleAddNew = () => {
     setEditingUser(null);
     setShowModal(true);
   };
-
   const handleRoleChange = async (id: string, newRole: string) => {
     try {
       await userAPI.updateUserRole(id, newRole);
@@ -82,11 +71,9 @@ const UserManagement: React.FC = () => {
         user.id === id ? { ...user, role: newRole } : user
       ));
     } catch (error) {
-      console.error('Error updating user role:', error);
       alert('Có lỗi xảy ra khi cập nhật quyền');
     }
   };
-
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       (user.name || user.fullName).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -95,7 +82,6 @@ const UserManagement: React.FC = () => {
     const matchesRole = filterRole === 'ALL' || user.role === filterRole;
     return matchesSearch && matchesRole;
   });
-
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'ADMIN':
@@ -106,8 +92,6 @@ const UserManagement: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
-
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -115,7 +99,6 @@ const UserManagement: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -136,7 +119,6 @@ const UserManagement: React.FC = () => {
           </button>
         </div>
       </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -160,7 +142,6 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -182,7 +163,6 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -204,7 +184,6 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -227,7 +206,6 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -278,7 +256,6 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Users Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:p-6">
@@ -368,7 +345,6 @@ const UserManagement: React.FC = () => {
               </tbody>
             </table>
           </div>
-          
           {filteredUsers.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">Không tìm thấy người dùng nào</p>
@@ -376,7 +352,6 @@ const UserManagement: React.FC = () => {
           )}
         </div>
       </div>
-
       {/* User Modal */}
       {showModal && (
         <UserModal
@@ -399,14 +374,12 @@ const UserManagement: React.FC = () => {
     </div>
   );
 };
-
 // User Modal Component
 interface UserModalProps {
   user: User | null;
   onClose: () => void;
   onSave: (user: User) => void;
 }
-
 const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
   const [formData, setFormData] = useState<Partial<User>>({
     username: '',
@@ -416,13 +389,11 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
     role: 'USER',
     password: ''
   });
-
   useEffect(() => {
     if (user) {
       setFormData(user);
     }
   }, [user]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -444,23 +415,19 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
         }
       }
     } catch (error) {
-      console.error('Error saving user:', error);
       alert('Có lỗi xảy ra khi lưu người dùng');
     }
   };
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-        
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <form onSubmit={handleSubmit}>
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                 {user ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
               </h3>
-              
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tên đầy đủ</label>
@@ -472,7 +439,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
                     onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                   />
                 </div>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tên đăng nhập</label>
                   <input
@@ -484,7 +450,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
                     placeholder="Tự động tạo từ email nếu để trống"
                   />
                 </div>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>
                   <input
@@ -495,7 +460,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                   />
                 </div>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Số điện thoại</label>
                   <input
@@ -506,7 +470,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                   />
                 </div>
-                
                 {!user && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Mật khẩu</label>
@@ -519,7 +482,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
                     />
                   </div>
                 )}
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Vai trò</label>
                   <select
@@ -533,7 +495,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
                 </div>
               </div>
             </div>
-            
             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
               <button
                 type="submit"
@@ -555,5 +516,4 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
     </div>
   );
 };
-
 export default UserManagement;

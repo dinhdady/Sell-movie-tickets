@@ -9,8 +9,6 @@ import {
 import { movieAPI, showtimeAPI, cinemaAPI, roomAPI } from '../../services/api';
 import type { Movie, Showtime } from '../../types/movie';
 import MovieInfoCard from '../../components/MovieInfoCard';
-
-
 const MovieManagement: React.FC = () => {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +23,6 @@ const MovieManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
-
   const [formData, setFormData] = useState<any>({
     title: '',
     description: '',
@@ -41,22 +38,17 @@ const MovieManagement: React.FC = () => {
     price: 0,
     filmRating: 'G'
   });
-
   const [posterFile, setPosterFile] = useState<File | null>(null);
-
   const [showtimeFormData, setShowtimeFormData] = useState({
     startTime: '',
     endTime: '',
     roomId: 0,
     cinemaId: 0
   });
-
-
   useEffect(() => {
     fetchMovies();
     fetchCinemas();
   }, [currentPage]);
-
   const fetchMovies = async () => {
     try {
       setLoading(true);
@@ -66,12 +58,10 @@ const MovieManagement: React.FC = () => {
         setTotalPages(response.totalPages);
       }
     } catch (error) {
-      console.error('Error fetching movies:', error);
     } finally {
       setLoading(false);
     }
   };
-
   const fetchCinemas = async () => {
     try {
       const response = await cinemaAPI.getAll();
@@ -79,10 +69,8 @@ const MovieManagement: React.FC = () => {
         setCinemas(response.object as any[]);
       }
     } catch (error) {
-      console.error('Error fetching cinemas:', error);
     }
   };
-
   const fetchRooms = async (cinemaId: number) => {
     try {
       const response = await roomAPI.getAll();
@@ -92,30 +80,21 @@ const MovieManagement: React.FC = () => {
         setRooms(filteredRooms);
       }
     } catch (error) {
-      console.error('Error fetching rooms:', error);
     }
   };
-
   const fetchShowtimes = async (movieId: number) => {
     try {
-      console.log(`[MovieManagement] Fetching showtimes for movie ID: ${movieId}`);
       const response = await showtimeAPI.getByMovie(movieId);
-      console.log('[MovieManagement] Showtime API response:', response);
-      
       if (response.state === 'SUCCESS' || response.state === '200') {
         const showtimes = response.object as any[];
-        console.log(`[MovieManagement] Found ${showtimes.length} showtimes:`, showtimes);
         setShowtimes(showtimes);
       } else {
-        console.warn('[MovieManagement] Showtime API response not successful:', response);
         setShowtimes([]);
       }
     } catch (error) {
-      console.error('Error fetching showtimes:', error);
       setShowtimes([]);
     }
   };
-
   const handleCreateMovie = async () => {
     try {
       const response = await movieAPI.create(formData as any, posterFile || undefined);
@@ -128,12 +107,10 @@ const MovieManagement: React.FC = () => {
         alert('Lỗi khi tạo phim: ' + response.message);
       }
     } catch (error: any) {
-      console.error('Error creating movie:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo phim';
       alert(errorMessage);
     }
   };
-
   const handleUpdateMovie = async () => {
     if (!selectedMovie) return;
     try {
@@ -148,12 +125,10 @@ const MovieManagement: React.FC = () => {
         alert('Lỗi khi cập nhật phim: ' + response.message);
       }
     } catch (error: any) {
-      console.error('Error updating movie:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi cập nhật phim';
       alert(errorMessage);
     }
   };
-
   const handleDeleteMovie = async (movieId: number) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa phim này?')) {
       try {
@@ -165,12 +140,10 @@ const MovieManagement: React.FC = () => {
           alert('Lỗi khi xóa phim: ' + response.message);
         }
       } catch (error) {
-        console.error('Error deleting movie:', error);
         alert('Có lỗi xảy ra khi xóa phim');
       }
     }
   };
-
   const handleEditMovie = (movie: Movie) => {
     setSelectedMovie(movie);
     setFormData({
@@ -191,15 +164,12 @@ const MovieManagement: React.FC = () => {
     setPosterFile(null); // Reset poster file when editing
     setShowModal(true);
   };
-
   const handleViewShowtimes = (movie: Movie) => {
-    console.log(`[MovieManagement] Opening showtimes modal for movie: ${movie.title} (ID: ${movie.id})`);
     setSelectedMovie(movie);
     setShowtimes([]); // Reset showtimes first
     fetchShowtimes(movie.id);
     setShowShowtimeModal(true);
   };
-
   const handleAddShowtime = () => {
     if (!selectedMovie) return;
     setShowtimeFormData({
@@ -211,7 +181,6 @@ const MovieManagement: React.FC = () => {
     setRooms([]);
     setShowAddShowtimeModal(true);
   };
-
   const handleCreateShowtime = async () => {
     if (!selectedMovie) return;
     try {
@@ -221,7 +190,6 @@ const MovieManagement: React.FC = () => {
         startTime: showtimeFormData.startTime,
         endTime: showtimeFormData.endTime
       };
-      
       const response = await showtimeAPI.create(showtimeData);
       if (response.state === '201' || response.state === 'SUCCESS') {
         fetchShowtimes(selectedMovie.id);
@@ -231,12 +199,10 @@ const MovieManagement: React.FC = () => {
         alert('Lỗi khi thêm suất chiếu: ' + response.message);
       }
     } catch (error: any) {
-      console.error('Error creating showtime:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi thêm suất chiếu';
       alert(errorMessage);
     }
   };
-
   const handleDeleteShowtime = async (showtimeId: number) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa suất chiếu này?')) {
       try {
@@ -250,13 +216,11 @@ const MovieManagement: React.FC = () => {
           alert('Lỗi khi xóa suất chiếu: ' + response.message);
         }
       } catch (error: any) {
-        console.error('Error deleting showtime:', error);
         const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi xóa suất chiếu';
         alert(errorMessage);
       }
     }
   };
-
   const resetForm = () => {
     setFormData({
       title: '',
@@ -276,28 +240,23 @@ const MovieManagement: React.FC = () => {
     setPosterFile(null);
     setSelectedMovie(null);
   };
-
   const filteredMovies = movies.filter(movie =>
     movie.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     movie.genre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     movie.director.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
-
   const formatTime = (timeString: string) => {
     return new Date(timeString).toLocaleString('vi-VN');
   };
-
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Quản lý phim</h1>
         <p className="text-gray-600">Quản lý danh sách phim và suất chiếu</p>
       </div>
-
       {/* Search and Add Button */}
       <div className="mb-6 flex justify-between items-center">
         <div className="flex-1 max-w-md">
@@ -320,7 +279,6 @@ const MovieManagement: React.FC = () => {
           Thêm phim mới
         </button>
       </div>
-
       {/* Movies Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
@@ -441,7 +399,6 @@ const MovieManagement: React.FC = () => {
           </tbody>
         </table>
       </div>
-
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-6 flex justify-center">
@@ -476,7 +433,6 @@ const MovieManagement: React.FC = () => {
           </nav>
         </div>
       )}
-
       {/* Movie Form Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -499,7 +455,6 @@ const MovieManagement: React.FC = () => {
                   </svg>
                 </button>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên phim *</label>
@@ -511,7 +466,6 @@ const MovieManagement: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thể loại *</label>
                   <input
@@ -522,7 +476,6 @@ const MovieManagement: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Đạo diễn *</label>
                   <input
@@ -533,7 +486,6 @@ const MovieManagement: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Diễn viên</label>
                   <input
@@ -543,7 +495,6 @@ const MovieManagement: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thời lượng (phút) *</label>
                   <input
@@ -554,7 +505,6 @@ const MovieManagement: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ngày phát hành *</label>
                   <input
@@ -565,7 +515,6 @@ const MovieManagement: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ngôn ngữ</label>
                   <input
@@ -575,7 +524,6 @@ const MovieManagement: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Đánh giá</label>
                   <input
@@ -588,7 +536,6 @@ const MovieManagement: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Giá vé (VNĐ) *</label>
                   <input
@@ -599,7 +546,6 @@ const MovieManagement: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
                   <select
@@ -612,7 +558,6 @@ const MovieManagement: React.FC = () => {
                     <option value="ENDED">Kết thúc</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Độ tuổi</label>
                   <select
@@ -627,7 +572,6 @@ const MovieManagement: React.FC = () => {
                     <option value="NC17">NC17 - Chỉ người lớn</option>
                   </select>
                 </div>
-
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
                   <textarea
@@ -637,7 +581,6 @@ const MovieManagement: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Poster</label>
                   <input
@@ -652,7 +595,6 @@ const MovieManagement: React.FC = () => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">URL Trailer</label>
                   <input
@@ -663,7 +605,6 @@ const MovieManagement: React.FC = () => {
                   />
                 </div>
               </div>
-
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   onClick={() => {
@@ -685,7 +626,6 @@ const MovieManagement: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* Showtimes Modal */}
       {showShowtimeModal && selectedMovie && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -705,7 +645,6 @@ const MovieManagement: React.FC = () => {
                   </svg>
                 </button>
               </div>
-
               <div className="mb-4">
                 <button
                   onClick={handleAddShowtime}
@@ -715,7 +654,6 @@ const MovieManagement: React.FC = () => {
                   Thêm suất chiếu
                 </button>
               </div>
-
               <div className="bg-white shadow rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -790,7 +728,6 @@ const MovieManagement: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* Add Showtime Modal */}
       {showAddShowtimeModal && selectedMovie && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -810,10 +747,8 @@ const MovieManagement: React.FC = () => {
                   </svg>
                 </button>
               </div>
-
               {/* Movie Information Display */}
               <MovieInfoCard movie={selectedMovie} />
-
               {/* Current Showtimes Display */}
               <div className="mb-6">
                 <h4 className="text-md font-semibold text-gray-900 mb-3">
@@ -870,7 +805,6 @@ const MovieManagement: React.FC = () => {
                   </div>
                 )}
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rạp chiếu *</label>
@@ -892,7 +826,6 @@ const MovieManagement: React.FC = () => {
                     ))}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phòng chiếu *</label>
                   <select
@@ -910,7 +843,6 @@ const MovieManagement: React.FC = () => {
                     ))}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian bắt đầu *</label>
                   <input
@@ -921,7 +853,6 @@ const MovieManagement: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian kết thúc *</label>
                   <input
@@ -933,7 +864,6 @@ const MovieManagement: React.FC = () => {
                   />
                 </div>
               </div>
-
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   onClick={() => setShowAddShowtimeModal(false)}
@@ -956,5 +886,4 @@ const MovieManagement: React.FC = () => {
     </div>
   );
 };
-
 export default MovieManagement;

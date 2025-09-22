@@ -3,7 +3,6 @@ export interface AuthRequest {
   username: string;
   password: string;
 }
-
 export interface RegisterRequest {
   username: string;
   email: string;
@@ -11,7 +10,6 @@ export interface RegisterRequest {
   fullName: string;
   phone?: string;
 }
-
 export interface AuthResponse {
   success: boolean;
   accessToken: string;
@@ -20,7 +18,6 @@ export interface AuthResponse {
   verificationRequired?: boolean;
   email?: string;
 }
-
 // User types
 export interface User {
   id: string; // Changed to string to match backend UUID format

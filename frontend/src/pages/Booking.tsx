@@ -12,12 +12,10 @@ import {
   BuildingOfficeIcon,
   FilmIcon
 } from '@heroicons/react/24/outline';
-
 const Booking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
   // Get showtime from URL params
   const urlParams = new URLSearchParams(window.location.search);
   const preselectedShowtimeId = urlParams.get('showtime');
@@ -32,17 +30,13 @@ const Booking: React.FC = () => {
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
-
       try {
         setLoading(true);
-        
         // Fetch movie details
         const movieResponse = await movieAPI.getById(parseInt(id));
-        
         if (movieResponse.state === 'SUCCESS' && movieResponse.object) {
           setMovie(movieResponse.object);
         } else if (movieResponse.state === '200' && movieResponse.object) {
@@ -50,7 +44,6 @@ const Booking: React.FC = () => {
         } else {
           throw new Error('Failed to load movie details');
         }
-          
         // Fetch cinemas from API
         try {
           const cinemasResponse = await cinemaAPI.getAll();
@@ -62,15 +55,12 @@ const Booking: React.FC = () => {
             throw new Error('Failed to load cinemas');
           }
         } catch (error) {
-          console.error('Error fetching cinemas:', error);
           throw new Error('Failed to load cinemas');
         }
-        
         // Auto-select cinema and showtime if preselected
         if (preselectedShowtimeId && cinemas.length > 0) {
           const cinema = cinemas[0]; // Auto-select first cinema
           setSelectedCinema(cinema);
-          
           // Fetch rooms from database for selected cinema
           try {
             const roomsResponse = await roomAPI.getByCinema(cinema.id);
@@ -79,7 +69,6 @@ const Booking: React.FC = () => {
               // Auto-select room 1 (phòng 1)
               const room1 = roomsResponse.object.find(room => room.id === 1) || roomsResponse.object[0];
               setSelectedRoom(room1 as any);
-              
               // Fetch showtimes for the movie from API
               const showtimesResponse = await showtimeAPI.getByMovieId(parseInt(id!));
               if ((showtimesResponse.state === 'SUCCESS' || showtimesResponse.state === '200') && showtimesResponse.object) {
@@ -87,70 +76,53 @@ const Booking: React.FC = () => {
                 // Auto-select the preselected showtime ONLY if it exists in the API response
                 const selectedShowtime = showtimesResponse.object.find(st => st.id === parseInt(preselectedShowtimeId));
                 if (selectedShowtime) {
-                  console.log('✅ Found preselected showtime from API:', selectedShowtime);
                   setSelectedShowtime(selectedShowtime);
-                  
                   // Fetch seats from database for room 1
                   await loadSeatsFromDatabase(room1.id, selectedShowtime.id);
                 } else {
-                  console.log('❌ Preselected showtime ID', preselectedShowtimeId, 'not found in API response');
-                  console.log('Available showtime IDs:', showtimesResponse.object.map(st => st.id));
                   // Don't auto-select any showtime if the preselected one doesn't exist
                   setError('Suất chiếu đã chọn không còn tồn tại. Vui lòng chọn suất chiếu khác.');
                 }
               }
             }
           } catch (error) {
-            console.error('Error fetching rooms/showtimes:', error);
             throw new Error('Failed to load rooms and showtimes');
           }
         }
-        
       } catch (err) {
-        console.error('Error fetching data:', err);
         setError('Không thể tải thông tin đặt vé. Vui lòng kiểm tra kết nối mạng và thử lại.');
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [id, preselectedShowtimeId]);
-
   // Auto refresh seat data when component becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && selectedShowtime && selectedRoom) {
-        console.log('🔄 Page became visible, refreshing seat data...');
         refreshSeatData();
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     // Also refresh when window gains focus
     const handleFocus = () => {
       if (selectedShowtime && selectedRoom) {
-        console.log('🔄 Window focused, refreshing seat data...');
         refreshSeatData();
       }
     };
-
     window.addEventListener('focus', handleFocus);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
   }, [selectedShowtime, selectedRoom]);
-
   const handleCinemaSelect = async (cinema: Cinema) => {
     setSelectedCinema(cinema);
     setSelectedRoom(null);
     setSelectedShowtime(null);
     setSeats([]);
     setSelectedSeats([]);
-    
     // Fetch rooms for selected cinema from API
     try {
       const roomsResponse = await roomAPI.getByCinema(cinema.id);
@@ -160,64 +132,43 @@ const Booking: React.FC = () => {
         setError('Không thể tải danh sách phòng chiếu');
       }
     } catch (error) {
-      console.error('Error fetching rooms:', error);
       setError('Lỗi khi tải danh sách phòng chiếu');
     }
   };
-
   const handleRoomSelect = async (room: Room) => {
     setSelectedRoom(room);
     setSelectedShowtime(null);
     setSelectedSeats([]);
     setSeats([]);
-    
     // Fetch showtimes for the movie and room from API
     try {
-      console.log('Fetching showtimes for movieId:', id, 'roomId:', room.id);
       const showtimesResponse = await showtimeAPI.getByMovieAndRoom(parseInt(id!), room.id);
-      console.log('Showtimes response:', showtimesResponse);
-      
       if ((showtimesResponse.state === 'SUCCESS' || showtimesResponse.state === '200') && showtimesResponse.object) {
-        console.log('Filtered showtimes for room:', showtimesResponse.object);
         setShowtimes(showtimesResponse.object);
       } else {
-        console.error('Failed to fetch showtimes:', showtimesResponse);
         setError('Không thể tải danh sách suất chiếu');
       }
     } catch (error) {
-      console.error('Error fetching showtimes:', error);
       setError('Lỗi khi tải danh sách suất chiếu');
     }
   };
-
   const handleShowtimeSelect = async (showtime: Showtime) => {
-    console.log('Selected showtime:', showtime);
     setSelectedShowtime(showtime);
     setSelectedSeats([]);
-    
     // Load seats for the selected showtime and room
     if (showtime.roomId) {
-      console.log('Loading seats for showtime roomId:', showtime.roomId);
       await loadSeatsFromDatabase(showtime.roomId, showtime.id);
     } else if (showtime.room?.id) {
-      console.log('Loading seats for showtime.room.id:', showtime.room.id);
       await loadSeatsFromDatabase(showtime.room.id, showtime.id);
     } else {
-      console.log('No roomId found in showtime');
       setError('Không thể tải thông tin ghế');
     }
   };
-
   const loadSeatsFromDatabase = async (roomId: number, showtimeId: number) => {
     try {
-      console.log('Loading seats for roomId:', roomId, 'showtimeId:', showtimeId);
-      
       // Fetch seat availability for the specific showtime and room
       const seatsResponse = await seatAPI.getSeatAvailability(showtimeId, roomId);
-      console.log('Seat availability response:', seatsResponse);
-      
       if ((seatsResponse.state === 'SUCCESS' || seatsResponse.state === '200') && seatsResponse.object) {
-        console.log('Loaded seats from database:', seatsResponse.object);
         // Ensure seats have proper status for display
         const seatsWithStatus = seatsResponse.object.map(seat => ({
           ...seat,
@@ -227,13 +178,9 @@ const Booking: React.FC = () => {
         }));
         setSeats(seatsWithStatus as any);
       } else {
-        console.log('Seat availability failed, trying fallback...');
         // Fallback: fetch all seats for the room and mark as available
         const roomSeatsResponse = await seatAPI.getByRoom(roomId);
-        console.log('Room seats response:', roomSeatsResponse);
-        
         if ((roomSeatsResponse.state === 'SUCCESS' || roomSeatsResponse.state === '200') && roomSeatsResponse.object) {
-          console.log('Loaded room seats from database:', roomSeatsResponse.object);
           const seatsWithStatus = roomSeatsResponse.object.map((seat: any) => ({
             ...seat,
             status: seat.status || 'AVAILABLE' as const,
@@ -242,21 +189,16 @@ const Booking: React.FC = () => {
           }));
           setSeats(seatsWithStatus as any);
         } else {
-          console.log('Both seat APIs failed');
           throw new Error('Failed to load seats');
         }
       }
     } catch (error) {
-      console.error('Error loading seats from database:', error);
       throw new Error('Failed to load seats');
     }
   };
-
-
   const handleSeatSelect = (seat: Seat) => {
     // Don't allow selection of booked, reserved, or maintenance seats
     if (seat.status === 'BOOKED' || seat.status === 'RESERVED' || seat.status === 'MAINTENANCE') return;
-    
     const isSelected = selectedSeats.some(s => s.id === seat.id);
     if (isSelected) {
       setSelectedSeats(selectedSeats.filter(s => s.id !== seat.id));
@@ -264,13 +206,11 @@ const Booking: React.FC = () => {
       setSelectedSeats([...selectedSeats, seat]);
     }
   };
-
   const getSeatColor = (seat: Seat) => {
     // Check if seat is selected
     if (selectedSeats.some(s => s.id === seat.id)) {
       return 'bg-blue-500 text-white border-2 border-blue-600';
     }
-    
     // Check seat status first
     switch (seat.status) {
       case 'BOOKED':
@@ -293,7 +233,6 @@ const Booking: React.FC = () => {
         }
     }
   };
-
   const calculateTotal = () => {
     return selectedSeats.reduce((total, seat) => {
       // Use seat price from database, fallback to seat type pricing
@@ -301,7 +240,6 @@ const Booking: React.FC = () => {
       return total + seatPrice;
     }, 0);
   };
-
   const getSeatTypePrice = (seatType: string) => {
     const basePrice = movie?.price || 80000;
     switch (seatType) {
@@ -314,18 +252,15 @@ const Booking: React.FC = () => {
         return basePrice;
     }
   };
-
   const handleBooking = async () => {
     if (!selectedShowtime || selectedSeats.length === 0) {
       setError('Vui lòng chọn suất chiếu và ghế');
       return;
     }
-
     if (!user) {
       setError('Vui lòng đăng nhập để đặt vé');
       return;
     }
-
     // Validate selected seats have proper data
     const validatedSeats = selectedSeats.map(seat => ({
       ...seat,
@@ -338,14 +273,6 @@ const Booking: React.FC = () => {
       price: seat.price || getSeatTypePrice(seat.seatType),
       status: seat.status || 'AVAILABLE'
     }));
-
-    console.log('Booking data being passed:', {
-      movie,
-      showtime: selectedShowtime,
-      selectedSeats: validatedSeats,
-      totalPrice: calculateTotal()
-    });
-
     // Always navigate to booking form for payment
     navigate('/booking-form', {
       state: {
@@ -356,20 +283,15 @@ const Booking: React.FC = () => {
       }
     });
   };
-
   // Function to refresh seat data
   const refreshSeatData = async () => {
     if (selectedShowtime && selectedRoom) {
       try {
-        console.log('🔄 Refreshing seat data...');
         await loadSeatsFromDatabase(selectedRoom.id, selectedShowtime.id);
-        console.log('✅ Seat data refreshed');
       } catch (error) {
-        console.error('❌ Error refreshing seat data:', error);
       }
     }
   };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -377,7 +299,6 @@ const Booking: React.FC = () => {
       </div>
     );
   }
-
   if (error || !movie) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -393,7 +314,6 @@ const Booking: React.FC = () => {
       </div>
     );
   }
-
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
@@ -426,7 +346,6 @@ const Booking: React.FC = () => {
               </div>
             </div>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cinema, Room, and Showtime Selection */}
             <div className="lg:col-span-2">
@@ -436,7 +355,6 @@ const Booking: React.FC = () => {
                   <BuildingOfficeIcon className="h-6 w-6 mr-2" />
                   Chọn rạp chiếu
                 </h2>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {cinemas.map((cinema) => (
                     <button
@@ -458,7 +376,6 @@ const Booking: React.FC = () => {
                   ))}
                 </div>
               </div>
-
               {/* Room Selection */}
               {selectedCinema && (
                 <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
@@ -466,7 +383,6 @@ const Booking: React.FC = () => {
                     <FilmIcon className="h-6 w-6 mr-2" />
                     Chọn phòng chiếu
                   </h2>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {rooms.map((room) => (
                       <button
@@ -485,14 +401,12 @@ const Booking: React.FC = () => {
                   </div>
                 </div>
               )}
-
               {/* Showtime Selection */}
               {selectedRoom && (
                 <div className="bg-white rounded-lg shadow-lg p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-4">
                     Chọn suất chiếu
                   </h2>
-                
                 {showtimes.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {showtimes.map((showtime) => (
@@ -539,8 +453,6 @@ const Booking: React.FC = () => {
                 )}
                 </div>
               )}
-
-
               {/* Seat Selection */}
               {selectedShowtime && (
                 <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
@@ -558,7 +470,6 @@ const Booking: React.FC = () => {
                       Làm mới
                     </button>
                   </div>
-                  
                   {/* Seat Legend */}
                   <div className="flex items-center space-x-6 mb-6 text-sm">
                     <div className="flex items-center">
@@ -582,14 +493,12 @@ const Booking: React.FC = () => {
                       <span>Đang chọn</span>
                     </div>
                   </div>
-
                   {/* Screen */}
                   <div className="mb-8">
                     <div className="bg-gray-800 text-white text-center py-2 rounded-lg mb-4">
                       MÀN HÌNH
                     </div>
                   </div>
-
                   {/* Seat Map */}
                   <div className="space-y-2">
                     {seats.length > 0 ? (
@@ -617,7 +526,6 @@ const Booking: React.FC = () => {
                             <span>Couple</span>
                           </div>
                         </div>
-
                         {/* Group seats by row */}
                         {Array.from(new Set(seats.map(seat => seat.rowNumber))).sort().map(row => (
                           <div key={row} className="flex items-center justify-center mb-2">
@@ -642,7 +550,6 @@ const Booking: React.FC = () => {
                             </div>
                           </div>
                         ))}
-                        
                         {/* Display total seats info */}
                         <div className="text-center mt-4 text-sm text-gray-600">
                           Tổng số ghế: {seats.length} | 
@@ -662,20 +569,17 @@ const Booking: React.FC = () => {
                 </div>
               )}
             </div>
-
             {/* Booking Summary */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-lg p-6 sticky top-8">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">
                   Tóm tắt đặt vé
                 </h2>
-                
                 <div className="space-y-4">
                   <div>
                     <div className="text-sm text-gray-600">Phim</div>
                     <div className="font-medium">{movie.title}</div>
                   </div>
-                  
                   {selectedShowtime && (
                     <div>
                       <div className="text-sm text-gray-600">Suất chiếu</div>
@@ -684,7 +588,6 @@ const Booking: React.FC = () => {
                       </div>
                     </div>
                   )}
-                  
                   <div>
                     <div className="text-sm text-gray-600">Ghế đã chọn ({selectedSeats.length})</div>
                     <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -708,14 +611,12 @@ const Booking: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  
                   <div className="border-t pt-4">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Tổng cộng</span>
                       <span>{calculateTotal().toLocaleString('vi-VN')}đ</span>
                     </div>
                   </div>
-                  
                   <button
                     onClick={handleBooking}
                     disabled={!selectedShowtime || selectedSeats.length === 0}
@@ -732,5 +633,4 @@ const Booking: React.FC = () => {
     </ProtectedRoute>
   );
 };
-
 export default Booking;

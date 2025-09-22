@@ -12,47 +12,35 @@ import {
   MapPinIcon,
   CreditCardIcon
 } from '@heroicons/react/24/outline';
-
 interface BookingFormData {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   customerAddress: string;
 }
-
 const BookingForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  
   // Get booking data from location state
   const { movie, showtime, selectedSeats, totalPrice } = location.state || {};
-  
   // Add debug logging
-  console.log('BookingForm location.state:', location.state);
-  console.log('Selected seats:', selectedSeats);
-  console.log('Total price:', totalPrice);
-  
   const [formData, setFormData] = useState<BookingFormData>({
     customerName: user?.fullName || user?.username || '',
     customerEmail: user?.email || '',
     customerPhone: user?.phone || '',
     customerAddress: ''
   });
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<Partial<BookingFormData>>({});
-
   useEffect(() => {
     // Redirect if no booking data
     if (!movie || !showtime || !selectedSeats || selectedSeats.length === 0) {
-      console.log('Missing booking data, redirecting to booking page');
       navigate(`/booking/${id}`);
     }
   }, [movie, showtime, selectedSeats, id, navigate]);
-
   // Early return if no data to prevent rendering errors
   if (!movie || !showtime || !selectedSeats || selectedSeats.length === 0) {
     return (
@@ -61,34 +49,27 @@ const BookingForm: React.FC = () => {
       </div>
     );
   }
-
   const validateForm = (): boolean => {
     const errors: Partial<BookingFormData> = {};
-    
     if (!formData.customerName.trim()) {
       errors.customerName = 'Vui lòng nhập họ tên';
     }
-    
     if (!formData.customerEmail.trim()) {
       errors.customerEmail = 'Vui lòng nhập email';
     } else if (!/\S+@\S+\.\S+/.test(formData.customerEmail)) {
       errors.customerEmail = 'Email không hợp lệ';
     }
-    
     if (!formData.customerPhone.trim()) {
       errors.customerPhone = 'Vui lòng nhập số điện thoại';
     } else if (!/^[0-9]{10,11}$/.test(formData.customerPhone.replace(/\s/g, ''))) {
       errors.customerPhone = 'Số điện thoại không hợp lệ';
     }
-    
     if (!formData.customerAddress.trim()) {
       errors.customerAddress = 'Vui lòng nhập địa chỉ';
     }
-    
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
   const handleInputChange = (field: keyof BookingFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear validation error when user starts typing
@@ -96,32 +77,22 @@ const BookingForm: React.FC = () => {
       setValidationErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     if (!user) {
       setError('Vui lòng đăng nhập để đặt vé');
       return;
     }
-
     try {
       setLoading(true);
       setError('');
-      
       // Force refresh user from localStorage to get latest ID
       const storedUser = localStorage.getItem('user');
       const currentUser = storedUser ? JSON.parse(storedUser) : user;
       const validUserId = currentUser?.id || Math.random().toString(36).substring(2, 10);
-      
-      console.log('User object:', user);
-      console.log('User ID:', validUserId);
-      console.log('Showtime ID:', showtime.id);
-      
       // Step 1: Create Order first to get txnRef
       const orderData = {
         userId: validUserId,
@@ -132,22 +103,13 @@ const BookingForm: React.FC = () => {
         customerPhone: formData.customerPhone,
         customerAddress: formData.customerAddress
       };
-      
-      console.log('Creating order with data:', orderData);
       const orderResponse = await orderAPI.create(orderData);
-      
       if (orderResponse.state !== 'SUCCESS') {
         throw new Error(orderResponse.message || 'Failed to create order');
       }
-      
       const createdOrder = orderResponse.object;
-      console.log('Order created successfully:', createdOrder);
-      console.log('Order ID:', createdOrder.id);
-      console.log('TxnRef:', createdOrder.txnRef);
-      
       // Store txnRef in localStorage for payment callback
       localStorage.setItem('currentTxnRef', createdOrder.txnRef);
-      
       // Step 2: Create booking with the order ID
       const bookingData = {
         userId: validUserId,
@@ -160,11 +122,7 @@ const BookingForm: React.FC = () => {
         customerAddress: formData.customerAddress,
         seatIds: selectedSeats.map((seat: Seat) => seat.id)
       };
-
-      console.log('Submitting booking data:', bookingData);
-      
       const response = await bookingAPI.create(bookingData);
-      
       if (response.state === 'SUCCESS') {
         // Chỉ truyền đúng các trường backend cần
         const paymentData = {
@@ -172,15 +130,9 @@ const BookingForm: React.FC = () => {
           amount: totalPrice,
           orderDescription: `Thanh toán vé xem phim ${movie.title}`
         };
-
-        console.log('Creating VNPay payment with data:', paymentData);
         const paymentUrl = await paymentAPI.createVNPayPayment(paymentData);
-        
         // Show loading state before redirect
         setLoading(true);
-        console.log('Redirecting to VNPay payment page...');
-        console.log('Payment URL:', paymentUrl);
-        
         // Store booking info for fallback
         localStorage.setItem('pendingBooking', JSON.stringify({
           bookingId: response.object.id,
@@ -190,13 +142,11 @@ const BookingForm: React.FC = () => {
           totalPrice: totalPrice,
           txnRef: createdOrder.txnRef
         }));
-        
         // Small delay to show loading state
         setTimeout(() => {
           try {
             window.location.href = paymentUrl;
           } catch (error) {
-            console.error('Error redirecting to VNPay:', error);
             setError('Không thể chuyển hướng đến trang thanh toán. Vui lòng thử lại.');
             setLoading(false);
           }
@@ -205,7 +155,6 @@ const BookingForm: React.FC = () => {
         setError(response.message || 'Đặt vé thất bại');
       }
     } catch (err: unknown) {
-      console.error('Booking error:', err);
       if (err instanceof Error) {
         setError(err.message || 'Có lỗi xảy ra khi đặt vé');
       } else {
@@ -215,7 +164,6 @@ const BookingForm: React.FC = () => {
       setLoading(false);
     }
   };
-
   if (!movie || !showtime || !selectedSeats) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -223,7 +171,6 @@ const BookingForm: React.FC = () => {
       </div>
     );
   }
-
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
@@ -234,14 +181,12 @@ const BookingForm: React.FC = () => {
               <h1 className="text-2xl font-bold">Thông tin đặt vé</h1>
               <p className="text-blue-100">Vui lòng điền đầy đủ thông tin để hoàn tất đặt vé</p>
             </div>
-
             <div className="p-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Booking Summary */}
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin đặt vé</h2>
-                    
                     {/* Movie Info */}
                     <div className="bg-gray-50 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-4">
@@ -261,7 +206,6 @@ const BookingForm: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
                     {/* Showtime Info */}
                     <div className="bg-gray-50 rounded-lg p-4 mb-4">
                       <h4 className="font-medium text-gray-900 mb-2">Suất chiếu</h4>
@@ -279,7 +223,6 @@ const BookingForm: React.FC = () => {
                       </p>
                       <p className="text-sm text-gray-600">{showtime.room?.name}</p>
                     </div>
-
                     {/* Seats Info */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-medium text-gray-900 mb-2">Ghế đã chọn</h4>
@@ -300,17 +243,14 @@ const BookingForm: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
                 {/* Booking Form */}
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin khách hàng</h2>
-                  
                   {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
                       {error}
                     </div>
                   )}
-
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Customer Name */}
                     <div>
@@ -331,7 +271,6 @@ const BookingForm: React.FC = () => {
                         <p className="text-red-500 text-sm mt-1">{validationErrors.customerName}</p>
                       )}
                     </div>
-
                     {/* Email */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -351,7 +290,6 @@ const BookingForm: React.FC = () => {
                         <p className="text-red-500 text-sm mt-1">{validationErrors.customerEmail}</p>
                       )}
                     </div>
-
                     {/* Phone */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -371,7 +309,6 @@ const BookingForm: React.FC = () => {
                         <p className="text-red-500 text-sm mt-1">{validationErrors.customerPhone}</p>
                       )}
                     </div>
-
                     {/* Address */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -391,7 +328,6 @@ const BookingForm: React.FC = () => {
                         <p className="text-red-500 text-sm mt-1">{validationErrors.customerAddress}</p>
                       )}
                     </div>
-
                     {/* Submit Button */}
                     <div className="pt-4">
                       <button
@@ -409,7 +345,6 @@ const BookingForm: React.FC = () => {
                         )}
                       </button>
                     </div>
-
                     <div className="text-center">
                       <button
                         type="button"
@@ -429,5 +364,4 @@ const BookingForm: React.FC = () => {
     </ProtectedRoute>
   );
 };
-
 export default BookingForm;

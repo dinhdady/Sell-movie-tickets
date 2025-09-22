@@ -11,29 +11,22 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-
 const Home: React.FC = () => {
   const [nowShowingMovies, setNowShowingMovies] = useState<Movie[]>([]);
   const [comingSoonMovies, setComingSoonMovies] = useState<Movie[]>([]);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     const fetchMovies = async () => {
       try {
         setLoading(true);
         setError(null);
-        
         // Fetch from API
         const [nowShowingResponse, comingSoonResponse] = await Promise.all([
           movieAPI.getNowShowing(),
           movieAPI.getComingSoon()
         ]);
-
-        console.log('Now showing response:', nowShowingResponse);
-        console.log('Coming soon response:', comingSoonResponse);
-
         if (nowShowingResponse.state === '200' && nowShowingResponse.object) {
           setNowShowingMovies(nowShowingResponse.object);
           // Set first movie as featured
@@ -41,18 +34,14 @@ const Home: React.FC = () => {
             setFeaturedMovie(nowShowingResponse.object[0]);
           }
         } else {
-          console.warn('Now showing movies response:', nowShowingResponse);
           setNowShowingMovies([]);
         }
-
         if (comingSoonResponse.state === '200' && comingSoonResponse.object) {
           setComingSoonMovies(comingSoonResponse.object);
         } else {
-          console.warn('Coming soon movies response:', comingSoonResponse);
           setComingSoonMovies([]);
         }
       } catch (error) {
-        console.error('Error fetching movies:', error);
         setError('Không thể tải danh sách phim. Vui lòng kiểm tra kết nối mạng và thử lại.');
         setNowShowingMovies([]);
         setComingSoonMovies([]);
@@ -61,10 +50,8 @@ const Home: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchMovies();
   }, []);
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -72,7 +59,6 @@ const Home: React.FC = () => {
       day: 'numeric'
     });
   };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -80,7 +66,6 @@ const Home: React.FC = () => {
       </div>
     );
   }
-
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -99,7 +84,6 @@ const Home: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -117,7 +101,6 @@ const Home: React.FC = () => {
             )}
             <div className="absolute inset-0 bg-black bg-opacity-50" />
           </div>
-          
           <div className="relative z-10 h-full flex items-center">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
               <div className="max-w-2xl">
@@ -127,7 +110,6 @@ const Home: React.FC = () => {
                 <p className="text-lg md:text-xl text-gray-200 mb-6 line-clamp-3">
                   {featuredMovie.description}
                 </p>
-                
                 <div className="flex flex-wrap items-center gap-6 mb-8">
                   <div className="flex items-center text-white">
                     <StarSolidIcon className="h-5 w-5 text-yellow-400 mr-2" />
@@ -142,7 +124,6 @@ const Home: React.FC = () => {
                     <span>{Math.floor(featuredMovie.duration / 60)}h {featuredMovie.duration % 60}m</span>
                   </div>
                 </div>
-
                 <div className="flex flex-col sm:flex-row gap-4">
                   {featuredMovie.status === 'NOW_SHOWING' ? (
                     <Link
@@ -173,7 +154,6 @@ const Home: React.FC = () => {
           </div>
         </section>
       )}
-
       {/* Now Showing Section */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -187,7 +167,6 @@ const Home: React.FC = () => {
               <ChevronRightIcon className="h-5 w-5 ml-1" />
             </Link>
           </div>
-          
           {nowShowingMovies.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {nowShowingMovies.slice(0, 8).map((movie) => (
@@ -209,7 +188,6 @@ const Home: React.FC = () => {
           )}
         </div>
       </section>
-
       {/* Coming Soon Section */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -223,7 +201,6 @@ const Home: React.FC = () => {
               <ChevronRightIcon className="h-5 w-5 ml-1" />
             </Link>
           </div>
-          
           {comingSoonMovies.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {comingSoonMovies.slice(0, 8).map((movie) => (
@@ -245,7 +222,6 @@ const Home: React.FC = () => {
           )}
         </div>
       </section>
-
       {/* Features Section */}
       <section className="py-16 bg-blue-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -257,7 +233,6 @@ const Home: React.FC = () => {
               Trải nghiệm xem phim tuyệt vời với công nghệ hiện đại
             </p>
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center text-white">
               <div className="bg-white bg-opacity-20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
@@ -268,7 +243,6 @@ const Home: React.FC = () => {
                 Hệ thống âm thanh và hình ảnh 4K, IMAX mang đến trải nghiệm sống động
               </p>
             </div>
-            
             <div className="text-center text-white">
               <div className="bg-white bg-opacity-20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <StarIcon className="h-8 w-8" />
@@ -278,7 +252,6 @@ const Home: React.FC = () => {
                 Ghế VIP với chức năng massage, điều chỉnh độ nghiêng tối ưu
               </p>
             </div>
-            
             <div className="text-center text-white">
               <div className="bg-white bg-opacity-20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <CalendarIcon className="h-8 w-8" />
@@ -294,5 +267,4 @@ const Home: React.FC = () => {
     </div>
   );
 };
-
 export default Home;

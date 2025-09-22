@@ -32,7 +32,6 @@ import RoomManagement from './pages/admin/RoomManagement';
 import SeatManagement from './pages/admin/SeatManagement';
 import Statistics from './pages/admin/Statistics';
 import Settings from './pages/admin/Settings';
-
 function App() {
   return (
     <ErrorBoundary>
@@ -59,7 +58,6 @@ function App() {
                   <Route path="/booking-form" element={<BookingForm />} />
                   <Route path="/booking-success/:id" element={<BookingSuccess />} />
                   <Route path="/payment-callback" element={<PaymentCallback />} />
-                  
                   {/* Admin routes */}
                   <Route path="/admin" element={
                     <ProtectedAdminRoute>
@@ -77,7 +75,6 @@ function App() {
                     <Route path="statistics" element={<Statistics />} />
                     <Route path="settings" element={<Settings />} />
                   </Route>
-                  
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
@@ -89,5 +86,4 @@ function App() {
     </ErrorBoundary>
   );
 }
-
 export default App;

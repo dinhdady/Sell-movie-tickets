@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { HomeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
-
 const NotFound: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -15,7 +14,6 @@ const NotFound: React.FC = () => {
             Xin lỗi, trang bạn đang tìm kiếm không tồn tại hoặc đã bị di chuyển.
           </p>
         </div>
-        
         <div className="space-y-4">
           <Link
             to="/"
@@ -24,7 +22,6 @@ const NotFound: React.FC = () => {
             <HomeIcon className="h-5 w-5 mr-2" />
             Về trang chủ
           </Link>
-          
           <div>
             <button
               onClick={() => window.history.back()}
@@ -39,5 +36,4 @@ const NotFound: React.FC = () => {
     </div>
   );
 };
-
 export default NotFound;

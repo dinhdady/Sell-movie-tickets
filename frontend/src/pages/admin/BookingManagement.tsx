@@ -53,59 +53,73 @@ const BookingManagement: React.FC = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      console.log('🎯 [Admin] Fetching all bookings...');
+
       
-      // Sử dụng test API làm primary source (vì database chưa có dữ liệu)
+      // Primary: Sử dụng TicketController getAllTickets endpoint
       try {
-        console.log('🎯 [Admin] Trying test bookings API...');
-        const testResponse = await bookingAPI.testAdminBookings();
-        console.log('🎯 [Admin] Test bookings response:', testResponse);
+
+        const ticketsResponse = await bookingAPI.getAllTicketsNoAuth();
+
         
-        if (testResponse && Array.isArray(testResponse) && testResponse.length > 0) {
-          console.log('🎯 [Admin] Test bookings count:', testResponse.length);
-          setBookings(testResponse as BookingWithExtras[]);
+        if (ticketsResponse && Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
+
+          setBookings(ticketsResponse as BookingWithExtras[]);
           return;
         }
-      } catch (testError: any) {
-        console.log('🎯 [Admin] Test API failed:', testError);
+      } catch (ticketsError: any) {
+
       }
       
-      // Fallback to admin API (cần authentication)
+      // Secondary: Sử dụng BookingManagementController chính thức (cần auth)
       try {
-        console.log('🎯 [Admin] Trying admin bookings API...');
-        const response = await bookingAPI.getAllWithDetails();
-        console.log('🎯 [Admin] Admin bookings response:', response);
+
+        const adminResponse = await bookingAPI.getAdminBookings();
+
         
-        if (response && Array.isArray(response) && response.length > 0) {
-          console.log('🎯 [Admin] Admin bookings count:', response.length);
-          setBookings(response as BookingWithExtras[]);
+        if (adminResponse && Array.isArray(adminResponse) && adminResponse.length > 0) {
+
+          setBookings(adminResponse as BookingWithExtras[]);
           return;
         }
       } catch (adminError: any) {
-        console.log('🎯 [Admin] Admin API failed:', adminError);
+
       }
       
-      // Fallback to main booking API (cần authentication)
+      // Tertiary: Sử dụng BookingController
       try {
-        console.log('🎯 [Admin] Trying main booking API...');
+
         const mainResponse = await bookingAPI.getAll();
-        console.log('🎯 [Admin] Main API response:', mainResponse);
+
         
         if (mainResponse && Array.isArray(mainResponse) && mainResponse.length > 0) {
-          console.log('🎯 [Admin] Main API count:', mainResponse.length);
-          setBookings((mainResponse || []) as BookingWithExtras[]);
+
+          setBookings(mainResponse as BookingWithExtras[]);
           return;
         }
       } catch (mainError: any) {
-        console.log('🎯 [Admin] Main API failed:', mainError);
+
+      }
+      
+      // Fallback: Test tickets API
+      try {
+
+        const testTicketsResponse = await bookingAPI.testTickets();
+
+        
+        if (testTicketsResponse && Array.isArray(testTicketsResponse) && testTicketsResponse.length > 0) {
+
+          setBookings(testTicketsResponse as BookingWithExtras[]);
+          return;
+        }
+      } catch (testTicketsError: any) {
+
       }
       
       // No data found from any source
-      console.log('🎯 [Admin] No data found from any API');
+
       setBookings([]);
       
     } catch (error) {
-      console.error('🎯 [Admin] Error fetching data:', error);
       setBookings([]);
     } finally {
       setLoading(false);
@@ -114,26 +128,25 @@ const BookingManagement: React.FC = () => {
 
   const handleViewDetails = async (booking: any) => {
     try {
-      console.log('🎯 [Admin] Fetching booking detail for ID:', booking.id);
+
+
       
-      // Fetch detailed booking information using the same API as Profile
-      const response = await bookingAPI.getDetailsById(booking.id);
-      console.log('🎯 [Admin] Booking detail response:', response);
+      // Fetch detailed ticket information using TicketController.getTicketDetailsById()
+      const response = await bookingAPI.getTicketDetailsById(booking.id);
       
-      if (response.state === 'SUCCESS' && response.object) {
-        console.log('✅ [Admin] Using detailed booking data');
-        setSelectedBooking(response.object as BookingWithExtras);
+      if (response) {
+
+        setSelectedBooking(response as BookingWithExtras);
         setShowModal(true);
       } else {
         // Fallback to basic booking info if detailed API fails
-        console.log('⚠️ [Admin] Detailed API failed, using basic booking info');
+
         setSelectedBooking(booking);
         setShowModal(true);
       }
     } catch (error) {
-      console.error('❌ [Admin] Error fetching booking detail:', error);
       // Fallback to basic booking info
-      console.log('⚠️ [Admin] API error, using basic booking info');
+
       setSelectedBooking(booking);
       setShowModal(true);
     }
@@ -147,7 +160,6 @@ const BookingManagement: React.FC = () => {
         booking.id === id ? { ...booking, status: newStatus } : booking
       ));
     } catch (error) {
-      console.error('Error updating booking status:', error);
       alert('Có lỗi xảy ra khi cập nhật trạng thái');
     }
   };
@@ -342,10 +354,10 @@ const BookingManagement: React.FC = () => {
                         })
                         .reduce((sum, b) => {
                           const price = b.totalPrice || b.order?.totalPrice || 0;
-                          console.log('🎯 [Admin] Revenue - Booking:', b.id, 'Price:', price, 'Status:', b.paymentStatus || b.status);
+
                           return sum + price;
                         }, 0);
-                      console.log('🎯 [Admin] Total revenue:', totalRevenue);
+
                       return totalRevenue.toLocaleString();
                     })()} VNĐ
                   </dd>
@@ -426,7 +438,7 @@ const BookingManagement: React.FC = () => {
                     Rạp & Phòng
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ghế
+                    Ghế & Token
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tổng tiền
@@ -471,8 +483,20 @@ const BookingManagement: React.FC = () => {
                         Phòng {booking.showtime?.room?.name || 'Chưa cập nhật'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {booking.seat?.seatNumber || booking.order?.tickets?.map((t: any) => t.seat?.seatNumber).join(', ') || 'Chưa cập nhật'}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        <div className="font-medium">
+                          Ghế: {booking.seat?.seatNumber || booking.order?.tickets?.map((t: any) => t.seat?.seatNumber).join(', ') || 'N/A'}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Loại: {booking.seat?.seatType || booking.order?.tickets?.[0]?.seat?.seatType || 'N/A'}
+                        </div>
+                        {booking.order?.tickets?.[0]?.token && (
+                          <div className="text-xs text-blue-600 mt-1 font-mono">
+                            Token: {booking.order.tickets[0].token.substring(0, 8)}...
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(booking.totalPrice || booking.order?.totalPrice || 0).toLocaleString()} VNĐ
@@ -700,7 +724,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({ booking, onCl
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Movie & Showtime Info */}
             <div className="space-y-6">
-              {/* Movie Information */}
+              {/* Movie Information - Giống Profile */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 mb-3 flex items-center">
                   <FilmIcon className="h-5 w-5 mr-2 text-gray-600" />
@@ -711,19 +735,29 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({ booking, onCl
                     <img
                       src={booking.movie.posterUrl}
                       alt="Movie Poster"
-                      className="w-16 h-20 object-cover rounded"
+                      className="w-20 h-28 object-cover rounded-lg"
                     />
                   )}
-                  <div>
-                    <div className="font-medium text-gray-900">
+                  <div className="flex-1">
+                    <div className="font-bold text-lg text-gray-900 mb-1">
                       {booking?.movie?.title || 'Phim đã đặt'}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-500 mb-2">
                       Mã vé: #{booking.id}
                     </div>
                     {booking?.movie?.genre && (
-                      <div className="text-xs text-gray-400">
-                        {booking.movie.genre}
+                      <div className="text-sm text-gray-600 mb-1">
+                        Thể loại: {booking.movie.genre}
+                      </div>
+                    )}
+                    {booking?.movie?.duration && (
+                      <div className="text-sm text-gray-600 mb-1">
+                        Thời lượng: {booking.movie.duration} phút
+                      </div>
+                    )}
+                    {booking?.movie?.rating && (
+                      <div className="text-sm text-gray-600">
+                        Đánh giá: {booking.movie.rating}/10
                       </div>
                     )}
                   </div>
@@ -768,151 +802,291 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({ booking, onCl
                 </div>
               </div>
 
-              {/* Cinema Information */}
+              {/* Cinema Information - Giống Profile */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 mb-3 flex items-center">
                   <BuildingOfficeIcon className="h-5 w-5 mr-2 text-gray-600" />
                   Rạp chiếu
                 </h3>
-                <div className="space-y-2">
-                  <div className="font-medium text-gray-900">
-                    {booking?.showtime?.room?.cinema?.name || 'Rạp chiếu phim'}
+                <div className="space-y-3">
+                  <div>
+                    <div className="font-bold text-lg text-gray-900">
+                      {booking?.showtime?.room?.cinema?.name || 'Rạp chiếu phim'}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {booking?.showtime?.room?.cinema?.address || 'Địa chỉ rạp chiếu'}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {booking?.showtime?.room?.cinema?.address || 'Địa chỉ rạp chiếu'}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Phòng: {booking?.showtime?.room?.name || 'Phòng chiếu'}
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-sm text-gray-600 mb-1">Phòng chiếu</div>
+                    <div className="font-medium text-gray-900">
+                      {booking?.showtime?.room?.name || 'Phòng chiếu'}
+                    </div>
+                    {booking?.showtime?.room?.capacity && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Sức chứa: {booking.showtime.room.capacity} ghế
+                      </div>
+                    )}
                   </div>
                   {booking?.showtime?.room?.cinema?.phone && (
-                    <div className="text-xs text-gray-500">
-                      Hotline: {booking.showtime.room.cinema.phone}
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Hotline:</span> {booking.showtime.room.cinema.phone}
+                    </div>
+                  )}
+                  {booking?.showtime?.room?.cinema?.email && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Email:</span> {booking.showtime.room.cinema.email}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Seats Information */}
+              {/* Ticket Information - Giống Profile */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 mb-3 flex items-center">
                   <TicketIcon className="h-5 w-5 mr-2 text-gray-600" />
-                  Ghế đã đặt ({(booking?.order?.tickets?.length || 0)})
+                  Thông tin vé đã đặt ({(() => {
+                    let tickets = [];
+                    if (booking?.order?.tickets && booking.order.tickets.length > 0) {
+                      tickets = booking.order.tickets;
+                    } else if (booking?.tickets && booking.tickets.length > 0) {
+                      tickets = booking.tickets;
+                    } else if (booking?.ticketDetails && booking.ticketDetails.length > 0) {
+                      tickets = booking.ticketDetails;
+                    } else if (booking?.seat && booking.seat) {
+                      tickets = [booking];
+                    }
+                    return tickets.length;
+                  })()})
                 </h3>
-                {booking?.order?.tickets && booking.order.tickets.length > 0 ? (
-                  <div className="space-y-2">
-                    {booking.order.tickets.map((ticket: any) => {
+                {/* Debug: Log booking structure */}
+                {(() => {
+
+
+
+                  return null;
+                })()}
+                
+                {/* Try different data structures */}
+                {(() => {
+                  // Try to get tickets from different possible structures
+                  let tickets = [];
+                  if (booking?.order?.tickets && booking.order.tickets.length > 0) {
+                    tickets = booking.order.tickets;
+                  } else if (booking?.tickets && booking.tickets.length > 0) {
+                    tickets = booking.tickets;
+                  } else if (booking?.ticketDetails && booking.ticketDetails.length > 0) {
+                    tickets = booking.ticketDetails;
+                  } else if (booking?.seat && booking.seat) {
+                    // Single seat booking
+                    tickets = [{
+                      id: booking.id,
+                      seat: booking.seat,
+                      price: booking.totalPrice || 0,
+                      status: booking.paymentStatus || booking.status || 'UNKNOWN',
+                      token: booking.token || 'N/A',
+                      createdAt: booking.createdAt
+                    }];
+                  }
+                  
+
+                  
+                  return tickets.length > 0 ? (
+                    <div className="space-y-2">
+                      {tickets.map((ticket: any) => {
+                      const getStatusColor = (status: string) => {
+                        switch (status?.toLowerCase()) {
+                          case 'paid':
+                            return 'bg-green-100 text-green-800';
+                          case 'pending':
+                            return 'bg-yellow-100 text-yellow-800';
+                          case 'used':
+                            return 'bg-blue-100 text-blue-800';
+                          default:
+                            return 'bg-gray-100 text-gray-800';
+                        }
+                      };
+
+                      const getStatusText = (status: string) => {
+                        switch (status?.toLowerCase()) {
+                          case 'paid':
+                            return 'Đã thanh toán';
+                          case 'pending':
+                            return 'Chờ thanh toán';
+                          case 'used':
+                            return 'Đã sử dụng';
+                          default:
+                            return 'Không xác định';
+                        }
+                      };
+
                       return (
                         <div 
                           key={ticket.id} 
-                          className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+                          className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0 bg-gray-50 rounded-lg p-3 mb-2"
                         >
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900 bg-blue-50 px-2 py-1 rounded">
-                              {ticket.seat.seatNumber}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              ({ticket.seat.seatType === 'VIP' ? 'VIP' : 
-                                ticket.seat.seatType === 'COUPLE' ? 'Ghế đôi' : 'Ghế thường'})
-                            </span>
-                            {ticket.status === 'PAID' && (
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                Đã thanh toán
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <span className="font-bold text-gray-900 bg-blue-100 px-3 py-1 rounded-lg text-lg">
+                                {ticket.seat?.seatNumber || 'N/A'}
                               </span>
-                            )}
-                          </div>
-                          <div className="font-medium text-gray-900">
-                            {ticket.price.toLocaleString('vi-VN')}đ
+                              <span className="text-sm text-gray-600 font-medium">
+                                {ticket.seat?.seatType === 'VIP' ? 'VIP' : 
+                                 ticket.seat?.seatType === 'COUPLE' ? 'Ghế đôi' : 
+                                 ticket.seat?.seatType === 'REGULAR' ? 'Ghế thường' : 'Ghế'}
+                              </span>
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(ticket.status)}`}>
+                                {getStatusText(ticket.status)}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-2 text-xs text-gray-600">
+                              <div>
+                                <span className="font-medium">Token:</span>
+                                <div className="font-mono text-xs bg-white p-1 rounded border mt-1 break-all">
+                                  {ticket.token || 'N/A'}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium">Giá vé:</span>
+                                <div className="font-bold text-green-600">
+                                  {ticket.price ? ticket.price.toLocaleString('vi-VN') + 'đ' : 'N/A'}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium">Trạng thái sử dụng:</span>
+                                <div className={ticket.isUsed ? 'text-red-600' : 'text-green-600'}>
+                                  {ticket.isUsed ? 'Đã sử dụng' : 'Chưa sử dụng'}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium">Ngày tạo:</span>
+                                <div>
+                                  {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                     
-                    <div className="pt-2 mt-2 border-t">
-                      <div className="flex justify-between items-center font-medium">
-                        <span>Tổng cộng:</span>
-                        <span className="text-lg text-blue-600">
-                          {booking.order.tickets.reduce((sum: number, ticket: any) => {
-                            return sum + ticket.price;
-                          }, 0).toLocaleString('vi-VN')}đ
-                        </span>
+                      <div className="pt-2 mt-2 border-t">
+                        <div className="flex justify-between items-center font-medium">
+                          <span>Tổng cộng:</span>
+                          <span className="text-lg text-blue-600">
+                            {tickets.reduce((sum: number, ticket: any) => {
+                              return sum + (ticket.price || 0);
+                            }, 0).toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-4">
-                    <TicketIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                    <p className="font-medium">Không tìm thấy thông tin ghế chi tiết</p>
-                    <p className="text-sm mt-1">
-                      Booking #{booking.id} - Tổng: {booking.totalPrice?.toLocaleString('vi-VN')}đ
-                    </p>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <TicketIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p className="font-medium">Không tìm thấy thông tin vé chi tiết</p>
+                      <p className="text-sm mt-1">
+                        Booking #{booking.id} - Tổng: {booking.totalPrice?.toLocaleString('vi-VN')}đ
+                      </p>
+                      <div className="mt-2 text-xs text-gray-400">
+                        <p>Debug: Kiểm tra console để xem cấu trúc dữ liệu</p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
             {/* Right Column - QR Code & Customer Info */}
             <div className="space-y-6">
               {/* QR Code */}
-              {booking?.order?.tickets?.[0]?.qrCodeUrl && (
-                <div className="border rounded-lg p-4 text-center">
-                  <h3 className="font-medium text-gray-900 mb-3 flex items-center justify-center">
-                    <QrCodeIcon className="h-5 w-5 mr-2 text-gray-600" />
-                    Mã QR vé
-                  </h3>
-                  <div className="bg-gray-50 p-4 rounded">
-                    <img
-                      src={booking.order.tickets[0].qrCodeUrl}
-                      alt="QR Code"
-                      className="mx-auto mb-2"
-                      style={{ width: '150px', height: '150px' }}
-                    />
-                    <p className="text-xs text-gray-600">
-                      Xuất trình mã QR này tại rạp
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Mã vé: {booking.order.tickets[0].token}
-                    </p>
-                  </div>
+              <div className="border rounded-lg p-6 text-center">
+                <h3 className="font-medium text-gray-900 mb-4 flex items-center justify-center">
+                  <QrCodeIcon className="h-6 w-6 mr-2 text-gray-600" />
+                  Mã QR vé
+                </h3>
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <img
+                    src={booking?.order?.tickets?.[0]?.qrCodeUrl || 
+                          `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`TICKET_${booking?.order?.tickets?.[0]?.token || booking.id}`)}`}
+                    alt="QR Code"
+                    className="mx-auto mb-4"
+                    style={{ width: '200px', height: '200px' }}
+                  />
+                  {/* Display token information */}
+                  {booking?.order?.tickets && booking.order.tickets.length > 0 && (
+                    <div className="mt-4 p-4 bg-white rounded-lg border">
+                      <div className="text-sm text-gray-600 mb-2">Token vé:</div>
+                      <div className="font-mono text-sm bg-gray-100 p-3 rounded break-all">
+                        {booking.order.tickets[0].token || 'N/A'}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-sm text-gray-600 mt-4">
+                    Xuất trình mã QR này tại rạp để vào xem phim
+                  </p>
                 </div>
-              )}
+              </div>
 
-              {/* Customer Information */}
+              {/* Customer Information - Giống Profile */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 mb-3 flex items-center">
                   <UserIcon className="h-5 w-5 mr-2 text-gray-600" />
                   Thông tin khách hàng
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
                     <div className="text-sm text-gray-500">Họ tên</div>
-                    <div className="font-medium text-gray-900">
-                      {booking.customerName}
+                    <div className="font-bold text-lg text-gray-900">
+                      {booking.customerName || booking.order?.customerName || 'Chưa cập nhật'}
                     </div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Email</div>
                     <div className="font-medium text-gray-900 break-words">
-                      {booking.customerEmail}
+                      {booking.customerEmail || booking.order?.customerEmail || 'Chưa cập nhật'}
                     </div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Số điện thoại</div>
                     <div className="font-medium text-gray-900">
-                      {(booking as any).customerPhone || booking.order?.customerPhone || 'Chưa cập nhật'}
+                      {booking.customerPhone || booking.order?.customerPhone || 'Chưa cập nhật'}
                     </div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Địa chỉ</div>
                     <div className="font-medium text-gray-900">
-                      {(booking as any).customerAddress || booking.order?.customerAddress || 'Chưa cập nhật'}
+                      {booking.customerAddress || booking.order?.customerAddress || 'Chưa cập nhật'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Mã vé</div>
+                    <div className="font-bold text-lg text-blue-600">
+                      #{booking.id}
                     </div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Trạng thái</div>
                     <div className="font-medium">
-                      <span className={`inline-block px-2 py-1 rounded text-sm ${getStatusColor(booking.status || booking.order?.status || (booking as any).paymentStatus)}`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status || booking.order?.status || (booking as any).paymentStatus)}`}>
                         {getStatusText(booking.status || booking.order?.status || (booking as any).paymentStatus)}
                       </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Tổng thanh toán</div>
+                    <div className="font-bold text-lg text-green-600">
+                      {(() => {
+                        // Lấy giá vé từ ticket thay vì từ order
+                        if (booking?.order?.tickets && booking.order.tickets.length > 0) {
+                          return (booking.order.tickets[0].price || 0).toLocaleString('vi-VN') + 'đ';
+                        }
+                        if (booking?.tickets && booking.tickets.length > 0) {
+                          return (booking.tickets[0].price || 0).toLocaleString('vi-VN') + 'đ';
+                        }
+                        return (booking.totalPrice || booking.order?.totalPrice || 0).toLocaleString('vi-VN') + 'đ';
+                      })()}
                     </div>
                   </div>
                 </div>

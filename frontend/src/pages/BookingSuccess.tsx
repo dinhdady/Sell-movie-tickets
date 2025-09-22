@@ -10,37 +10,30 @@ import {
   TicketIcon,
   CreditCardIcon
 } from '@heroicons/react/24/outline';
-
 const BookingSuccess: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [booking, setBooking] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
   useEffect(() => {
     const fetchBooking = async () => {
       if (!id) return;
-
       try {
         setLoading(true);
         const response = await bookingAPI.getById(parseInt(id));
-        
         if (response.state === 'SUCCESS') {
           setBooking(response.object);
         } else {
           setError('Không tìm thấy thông tin đặt vé');
         }
       } catch (err) {
-        console.error('Error fetching booking:', err);
         setError('Có lỗi xảy ra khi tải thông tin đặt vé');
       } finally {
         setLoading(false);
       }
     };
-
     fetchBooking();
   }, [id]);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -48,7 +41,6 @@ const BookingSuccess: React.FC = () => {
       </div>
     );
   }
-
   if (error || !booking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -64,7 +56,6 @@ const BookingSuccess: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -78,7 +69,6 @@ const BookingSuccess: React.FC = () => {
             Cảm ơn bạn đã đặt vé. Thông tin chi tiết được hiển thị bên dưới.
           </p>
         </div>
-
         {/* Booking Details */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Header */}
@@ -99,7 +89,6 @@ const BookingSuccess: React.FC = () => {
               </div>
             </div>
           </div>
-
           {/* Content */}
           <div className="p-6 space-y-6">
             {/* Movie Info */}
@@ -129,7 +118,6 @@ const BookingSuccess: React.FC = () => {
                 </div>
               </div>
             </div>
-
             {/* Customer Info */}
             <div className="border-t pt-6">
               <h4 className="font-semibold text-gray-900 mb-3">Thông tin khách hàng</h4>
@@ -154,7 +142,6 @@ const BookingSuccess: React.FC = () => {
                 </div>
               </div>
             </div>
-
             {/* Tickets */}
             <div className="border-t pt-6">
               <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
@@ -186,7 +173,6 @@ const BookingSuccess: React.FC = () => {
                 ))}
               </div>
             </div>
-
             {/* Total */}
             <div className="border-t pt-6">
               <div className="flex items-center justify-between text-lg font-bold">
@@ -199,7 +185,6 @@ const BookingSuccess: React.FC = () => {
                 </span>
               </div>
             </div>
-
             {/* Actions */}
             <div className="border-t pt-6 flex flex-col sm:flex-row gap-4">
               <Link
@@ -217,7 +202,6 @@ const BookingSuccess: React.FC = () => {
             </div>
           </div>
         </div>
-
         {/* Instructions */}
         <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h4 className="font-semibold text-yellow-800 mb-2">Lưu ý quan trọng:</h4>
@@ -232,5 +216,4 @@ const BookingSuccess: React.FC = () => {
     </div>
   );
 };
-
 export default BookingSuccess;

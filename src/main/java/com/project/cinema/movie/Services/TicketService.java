@@ -5,8 +5,10 @@ import com.project.cinema.movie.DTO.CinemaDTO;
 import com.project.cinema.movie.DTO.MovieDTO;
 import com.project.cinema.movie.DTO.OrderDTO;
 import com.project.cinema.movie.DTO.RoomDTO;
+import com.project.cinema.movie.DTO.SeatDTO;
 import com.project.cinema.movie.DTO.ShowtimeDTO;
 import com.project.cinema.movie.DTO.TicketDetailsResponse;
+import com.project.cinema.movie.DTO.TicketDTO;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.*;
 import org.slf4j.Logger;
@@ -91,6 +93,21 @@ public class TicketService {
         }
     }
     
+    // Lấy chi tiết ticket theo ID
+    public BookingDetailsResponse getTicketDetailsById(Long ticketId) {
+        try {
+            Ticket ticket = ticketRepository.findById(ticketId).orElse(null);
+            if (ticket == null) {
+                throw new RuntimeException("Ticket not found with id: " + ticketId);
+            }
+            logger.info("Found ticket with ID: {}", ticketId);
+            return buildBookingDetailsFromTicket(ticket);
+        } catch (Exception e) {
+            logger.error("Error fetching ticket details for ID {}", ticketId, e);
+            throw e;
+        }
+    }
+    
     // Xây dựng BookingDetailsResponse từ Ticket
     private BookingDetailsResponse buildBookingDetailsFromTicket(Ticket ticket) {
         try {
@@ -100,10 +117,10 @@ public class TicketService {
             // Lấy thông tin Order
             Order order = ticket.getOrder();
             if (order != null) {
-                // Lấy thông tin từ User thay vì Order
+                // Lấy thông tin khách hàng - từ User vì Order chỉ có customerEmail
                 String customerName = order.getUser() != null ? order.getUser().getFullName() : "N/A";
-                String customerPhone = "N/A"; // User entity không có phone field
-                String customerAddress = "N/A"; // User entity không có address field
+                String customerPhone = order.getUser() != null ? order.getUser().getPhoneNumber() : "N/A";
+                String customerAddress = order.getUser() != null ? order.getUser().getAddress() : "N/A";
                 
                 response.setCustomerName(customerName);
                 response.setCustomerEmail(order.getCustomerEmail());
@@ -125,27 +142,31 @@ public class TicketService {
                 // OrderDTO không có setCreatedAt method
                 
                 // Thêm ticket vào order
-                List<TicketDetailsResponse> ticketDetails = new ArrayList<>();
-                TicketDetailsResponse ticketDetail = new TicketDetailsResponse();
+                List<TicketDTO> ticketDetails = new ArrayList<>();
+                TicketDTO ticketDetail = new TicketDTO();
                 ticketDetail.setId(ticket.getId());
                 ticketDetail.setOrderId(order.getId());
-                // TicketDetailsResponse không có setSeatId method
+                ticketDetail.setSeatId(ticket.getSeat() != null ? ticket.getSeat().getId() : null);
                 ticketDetail.setPrice(ticket.getPrice());
                 ticketDetail.setToken(ticket.getToken());
                 ticketDetail.setStatus(ticket.getStatus() != null ? ticket.getStatus().toString() : "UNKNOWN");
                 ticketDetail.setQrCodeUrl(ticket.getQrCodeUrl());
-                ticketDetail.setCreatedAt(ticket.getCreatedAt() != null ? ticket.getCreatedAt().toString() : "");
                 
                 // Thêm thông tin seat
                 if (ticket.getSeat() != null) {
-                    ticketDetail.setSeatNumber(ticket.getSeat().getSeatNumber());
-                    ticketDetail.setSeatType(ticket.getSeat().getSeatType() != null ? ticket.getSeat().getSeatType().toString() : "REGULAR");
-                    ticketDetail.setRowNumber(ticket.getSeat().getRowNumber());
-                    ticketDetail.setColumnNumber(ticket.getSeat().getColumnNumber());
+                    SeatDTO seatDTO = new SeatDTO();
+                    seatDTO.setSeatNumber(ticket.getSeat().getSeatNumber());
+                    seatDTO.setSeatType(ticket.getSeat().getSeatType() != null ? ticket.getSeat().getSeatType() : SeatType.REGULAR);
+                    seatDTO.setRowNumber(ticket.getSeat().getRowNumber());
+                    seatDTO.setColumnNumber(ticket.getSeat().getColumnNumber());
+                    seatDTO.setPrice(ticket.getSeat().getPrice());
+                    ticketDetail.setSeat(seatDTO);
                 }
                 
                 ticketDetails.add(ticketDetail);
-                // OrderDTO không có setTickets method với TicketDetailsResponse
+                
+                // Set tickets vào order
+                orderDTO.setTickets(ticketDetails);
                 response.setOrder(orderDTO);
             }
             

@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-
 const Register: React.FC = () => {
   const { register, isLoading } = useAuth();
   const navigate = useNavigate();
-  
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -20,7 +18,6 @@ const Register: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [verificationEmail, setVerificationEmail] = useState('');
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -28,46 +25,36 @@ const Register: React.FC = () => {
     });
     setError('');
   };
-
   const validateForm = () => {
     if (!formData.username || !formData.email || !formData.password || !formData.fullName) {
       setError('Vui lòng điền đầy đủ thông tin bắt buộc');
       return false;
     }
-
     if (formData.password !== formData.confirmPassword) {
       setError('Mật khẩu xác nhận không khớp');
       return false;
     }
-
     if (formData.password.length < 6) {
       setError('Mật khẩu phải có ít nhất 6 ký tự');
       return false;
     }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Email không hợp lệ');
       return false;
     }
-
     return true;
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-
     if (!validateForm()) {
       return;
     }
-
     try {
       const { confirmPassword, ...registerData } = formData;
-      console.log('Register form submitting with data:', registerData);
       const response = await register(registerData);
-      
       // Kiểm tra nếu có thông tin verification
       if (response?.verificationRequired) {
         setVerificationEmail(response.email || formData.email);
@@ -77,11 +64,9 @@ const Register: React.FC = () => {
         navigate('/login');
       }
     } catch (err: any) {
-      console.error('Register form error:', err);
       setError(err.message || 'Đăng ký thất bại');
     }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -99,7 +84,6 @@ const Register: React.FC = () => {
             </Link>
           </p>
         </div>
-        
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -117,7 +101,6 @@ const Register: React.FC = () => {
                 placeholder="Nhập họ và tên"
               />
             </div>
-
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                 Tên đăng nhập *
@@ -133,7 +116,6 @@ const Register: React.FC = () => {
                 placeholder="Nhập tên đăng nhập"
               />
             </div>
-
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email *
@@ -149,7 +131,6 @@ const Register: React.FC = () => {
                 placeholder="Nhập email"
               />
             </div>
-
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
                 Số điện thoại
@@ -164,7 +145,6 @@ const Register: React.FC = () => {
                 placeholder="Nhập số điện thoại"
               />
             </div>
-            
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Mật khẩu *
@@ -193,7 +173,6 @@ const Register: React.FC = () => {
                 </button>
               </div>
             </div>
-
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 Xác nhận mật khẩu *
@@ -223,13 +202,11 @@ const Register: React.FC = () => {
               </div>
             </div>
           </div>
-
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
-
           {success && (
             <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm">
               <div className="flex">
@@ -265,7 +242,6 @@ const Register: React.FC = () => {
               </div>
             </div>
           )}
-
           <div className="flex items-center">
             <input
               id="agree-terms"
@@ -285,7 +261,6 @@ const Register: React.FC = () => {
               </Link>
             </label>
           </div>
-
           <div>
             <button
               type="submit"
@@ -304,5 +279,4 @@ const Register: React.FC = () => {
     </div>
   );
 };
-
 export default Register;

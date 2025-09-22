@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { cinemaAPI } from '../../services/api';
-
 interface Cinema {
   id: number;
   name: string;
@@ -11,20 +10,17 @@ interface Cinema {
   createdAt: string;
   rooms?: Room[];
 }
-
 interface Room {
   id: number;
   name: string;
   capacity: number;
   cinemaId: number;
 }
-
 interface CinemaModalProps {
   cinema: Cinema | null;
   onClose: () => void;
   onSave: (cinema: Partial<Cinema>) => void;
 }
-
 const CinemaModal: React.FC<CinemaModalProps> = ({ cinema, onClose, onSave }) => {
   const [formData, setFormData] = useState<Partial<Cinema>>({
     name: '',
@@ -32,7 +28,6 @@ const CinemaModal: React.FC<CinemaModalProps> = ({ cinema, onClose, onSave }) =>
     phone: '',
     cinemaType: 'STANDARD'
   });
-
   useEffect(() => {
     if (cinema) {
       setFormData({
@@ -50,12 +45,10 @@ const CinemaModal: React.FC<CinemaModalProps> = ({ cinema, onClose, onSave }) =>
       });
     }
   }, [cinema]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
-
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -130,18 +123,15 @@ const CinemaModal: React.FC<CinemaModalProps> = ({ cinema, onClose, onSave }) =>
     </div>
   );
 };
-
 const CinemaManagement: React.FC = () => {
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCinema, setSelectedCinema] = useState<Cinema | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
   useEffect(() => {
     fetchCinemas();
   }, []);
-
   const fetchCinemas = async () => {
     try {
       const response = await cinemaAPI.getAll();
@@ -149,12 +139,10 @@ const CinemaManagement: React.FC = () => {
         setCinemas(response.object as Cinema[]);
       }
     } catch (error) {
-      console.error('Error fetching cinemas:', error);
     } finally {
       setLoading(false);
     }
   };
-
   const handleCreateCinema = async (cinemaData: Partial<Cinema>) => {
     try {
       const response = await cinemaAPI.create(cinemaData as any);
@@ -166,14 +154,11 @@ const CinemaManagement: React.FC = () => {
         alert('Lỗi khi tạo rạp chiếu: ' + response.message);
       }
     } catch (error) {
-      console.error('Error creating cinema:', error);
       alert('Có lỗi xảy ra khi tạo rạp chiếu');
     }
   };
-
   const handleUpdateCinema = async (cinemaData: Partial<Cinema>) => {
     if (!selectedCinema) return;
-    
     try {
       const response = await cinemaAPI.update(selectedCinema.id, cinemaData as any);
       if (response.state === '201' || response.state === 'SUCCESS') {
@@ -185,29 +170,23 @@ const CinemaManagement: React.FC = () => {
         alert('Lỗi khi cập nhật rạp chiếu: ' + response.message);
       }
     } catch (error) {
-      console.error('Error updating cinema:', error);
       alert('Có lỗi xảy ra khi cập nhật rạp chiếu');
     }
   };
-
   const handleDeleteCinema = async (id: number) => {
     if (!confirm('Bạn có chắc chắn muốn xóa rạp chiếu này?')) return;
-    
     try {
       await cinemaAPI.delete(id);
       fetchCinemas();
       alert('Xóa rạp chiếu thành công!');
     } catch (error) {
-      console.error('Error deleting cinema:', error);
       alert('Có lỗi xảy ra khi xóa rạp chiếu');
     }
   };
-
   const filteredCinemas = cinemas.filter(cinema =>
     cinema.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cinema.address.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -215,7 +194,6 @@ const CinemaManagement: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -241,7 +219,6 @@ const CinemaManagement: React.FC = () => {
           </button>
         </div>
       </div>
-
       {/* Search */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="max-w-md">
@@ -261,7 +238,6 @@ const CinemaManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Cinemas Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:p-6">
@@ -338,7 +314,6 @@ const CinemaManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Modal */}
       {showModal && (
         <CinemaModal
@@ -353,5 +328,4 @@ const CinemaManagement: React.FC = () => {
     </div>
   );
 };
-
 export default CinemaManagement;

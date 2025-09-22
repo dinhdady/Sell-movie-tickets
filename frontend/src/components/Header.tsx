@@ -10,19 +10,16 @@ import {
   XMarkIcon,
   ShoppingCartIcon
 } from '@heroicons/react/24/outline';
-
 const Header: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
   const handleLogout = () => {
     logout();
     navigate('/');
   };
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -30,7 +27,6 @@ const Header: React.FC = () => {
       setSearchQuery('');
     }
   };
-
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,7 +36,6 @@ const Header: React.FC = () => {
             <FilmIcon className="h-8 w-8 text-blue-600" />
             <span className="text-xl font-bold text-gray-900">CinemaHub</span>
           </Link>
-
           {/* Search Bar - Desktop */}
           <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg mx-8">
             <div className="relative w-full">
@@ -54,7 +49,6 @@ const Header: React.FC = () => {
               <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             </div>
           </form>
-
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link 
@@ -75,7 +69,6 @@ const Header: React.FC = () => {
             >
               Rạp chiếu
             </Link>
-
             {/* Shopping Cart */}
             <Link 
               to="/cart" 
@@ -88,7 +81,6 @@ const Header: React.FC = () => {
                 </span>
               )}
             </Link>
-            
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 {(user?.role === 'ADMIN' || user?.role === 'admin' || user?.role?.toString().toUpperCase() === 'ADMIN') && (
@@ -130,7 +122,6 @@ const Header: React.FC = () => {
               </div>
             )}
           </nav>
-
           {/* Mobile menu button */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -143,7 +134,6 @@ const Header: React.FC = () => {
             )}
           </button>
         </div>
-
         {/* Mobile menu */}
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
@@ -160,7 +150,6 @@ const Header: React.FC = () => {
                 <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
               </div>
             </form>
-
             {/* Mobile Navigation */}
             <nav className="space-y-2">
               <Link 
@@ -184,7 +173,6 @@ const Header: React.FC = () => {
               >
                 Rạp chiếu
               </Link>
-
               {/* Mobile Cart */}
               <Link 
                 to="/cart" 
@@ -199,7 +187,6 @@ const Header: React.FC = () => {
                   </span>
                 )}
               </Link>
-              
               {isAuthenticated ? (
                 <>
                   {(user?.role === 'ADMIN' || user?.role === 'admin' || user?.role?.toString().toUpperCase() === 'ADMIN') && (
@@ -254,5 +241,4 @@ const Header: React.FC = () => {
     </header>
   );
 };
-
 export default Header;

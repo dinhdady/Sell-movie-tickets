@@ -15,15 +15,10 @@ import {
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-
 const AdminLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
-
-  console.log('🏠 [ADMIN_LAYOUT] Current path:', location.pathname);
-  console.log('🏠 [ADMIN_LAYOUT] User role:', user?.role);
-
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: HomeIcon },
     { name: 'Phim', href: '/admin/movies', icon: FilmIcon },
@@ -35,14 +30,12 @@ const AdminLayout: React.FC = () => {
     { name: 'Thống kê', href: '/admin/statistics', icon: ChartBarIcon },
     { name: 'Cài đặt', href: '/admin/settings', icon: Cog6ToothIcon },
   ];
-
   const isCurrentPath = (path: string) => {
     if (path === '/admin') {
       return location.pathname === '/admin';
     }
     return location.pathname.startsWith(path);
   };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar */}
@@ -101,7 +94,6 @@ const AdminLayout: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
@@ -151,7 +143,6 @@ const AdminLayout: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
@@ -173,7 +164,6 @@ const AdminLayout: React.FC = () => {
             </div>
           </div>
         </div>
-
         {/* Page content */}
         <main className="py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -184,5 +174,4 @@ const AdminLayout: React.FC = () => {
     </div>
   );
 };
-
 export default AdminLayout;

@@ -4,7 +4,6 @@ export interface ResponseObject<T = any> {
   message: string;
   object: T;
 }
-
 // Pagination types
 export interface PaginatedResponse<T> {
   content: T[];
@@ -12,14 +11,12 @@ export interface PaginatedResponse<T> {
   totalItems: number;
   totalPages: number;
 }
-
 // Payment types
 export interface VnpayRequest {
   bookingId: number;
   amount: number;
   orderDescription: string;
 }
-
 export interface VNPayResponseDTO {
   status: string;
   message: string;

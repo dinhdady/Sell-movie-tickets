@@ -1,13 +1,11 @@
 import React from 'react';
 import { PlayIcon, XMarkIcon } from '@heroicons/react/24/outline';
-
 interface TrailerPlayerProps {
   trailerUrl: string;
   movieTitle: string;
   onClose?: () => void;
   showCloseButton?: boolean;
 }
-
 const TrailerPlayer: React.FC<TrailerPlayerProps> = ({ 
   trailerUrl, 
   movieTitle, 
@@ -20,10 +18,8 @@ const TrailerPlayer: React.FC<TrailerPlayerProps> = ({
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
   };
-
   const videoId = getYouTubeVideoId(trailerUrl);
   const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1` : null;
-
   if (!embedUrl) {
     return (
       <div className="bg-gray-100 rounded-lg p-8 text-center">
@@ -40,7 +36,6 @@ const TrailerPlayer: React.FC<TrailerPlayerProps> = ({
       </div>
     );
   }
-
   return (
     <div className="relative bg-black rounded-lg overflow-hidden shadow-lg">
       {/* Close button */}
@@ -52,7 +47,6 @@ const TrailerPlayer: React.FC<TrailerPlayerProps> = ({
           <XMarkIcon className="h-5 w-5 text-gray-600" />
         </button>
       )}
-
       {/* Video container */}
       <div className="aspect-video w-full">
         <iframe
@@ -64,7 +58,6 @@ const TrailerPlayer: React.FC<TrailerPlayerProps> = ({
           allowFullScreen
         />
       </div>
-      
       {/* Video info overlay */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
         <h3 className="text-white text-lg font-semibold">
@@ -74,5 +67,4 @@ const TrailerPlayer: React.FC<TrailerPlayerProps> = ({
     </div>
   );
 };
-
 export default TrailerPlayer;

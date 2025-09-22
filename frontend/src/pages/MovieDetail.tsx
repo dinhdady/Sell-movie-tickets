@@ -15,7 +15,6 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
-
 const MovieDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -26,7 +25,6 @@ const MovieDetail: React.FC = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
   const [showTrailerInline, setShowTrailerInline] = useState(false);
-
   useEffect(() => {
     const fetchMovieDetails = async () => {
       if (!id || isNaN(parseInt(id))) {
@@ -34,30 +32,19 @@ const MovieDetail: React.FC = () => {
         setLoading(false);
         return;
       }
-
       try {
         setLoading(true);
         setError('');
-        
-        console.log(`Fetching movie details for ID: ${id}`);
-        
         const [movieResponse, showtimesResponse] = await Promise.all([
           movieAPI.getById(parseInt(id)),
           movieAPI.getShowtimes(parseInt(id))
         ]);
-
-        console.log('Movie API response:', movieResponse);
-        console.log('Showtimes API response:', showtimesResponse);
-
         // Handle movie response
         if (movieResponse && movieResponse.state === 'SUCCESS' && movieResponse.object) {
           setMovie(movieResponse.object);
-          console.log('Movie loaded successfully:', movieResponse.object);
         } else if (movieResponse && movieResponse.state === '200' && movieResponse.object) {
           setMovie(movieResponse.object);
-          console.log('Movie loaded successfully (200 state):', movieResponse.object);
         } else {
-          console.warn('Movie API response not successful, using mock data');
           // Generate mock movie data if API fails
           const mockMovie: Movie = {
             id: parseInt(id!),
@@ -76,33 +63,25 @@ const MovieDetail: React.FC = () => {
           };
           setMovie(mockMovie);
         }
-
         // Handle showtimes response
         if (showtimesResponse && showtimesResponse.state === 'SUCCESS' && showtimesResponse.object) {
           setShowtimes(showtimesResponse.object);
-          console.log('Showtimes loaded successfully:', showtimesResponse.object);
         } else if (showtimesResponse && showtimesResponse.state === '200' && showtimesResponse.object) {
           setShowtimes(showtimesResponse.object);
-          console.log('Showtimes loaded successfully (200 state):', showtimesResponse.object);
         } else {
-          console.warn('Showtimes API response not successful, using mock data');
           // Generate mock showtimes if API fails
           const mockShowtimes: Showtime[] = [];
           const today = new Date();
-          
           for (let i = 0; i < 7; i++) {
             const date = new Date(today);
             date.setDate(today.getDate() + i);
-            
             const times = ['10:00', '14:00', '18:00', '20:30'];
             times.forEach((time, index) => {
               const [hours, minutes] = time.split(':').map(Number);
               const startTime = new Date(date);
               startTime.setHours(hours, minutes, 0, 0);
-              
               const endTime = new Date(startTime);
               endTime.setHours(startTime.getHours() + 2);
-              
               mockShowtimes.push({
                 id: i * 10 + index + 1,
                 movieId: parseInt(id!),
@@ -118,26 +97,21 @@ const MovieDetail: React.FC = () => {
               });
             });
           }
-          
           setShowtimes(mockShowtimes);
         }
       } catch (err) {
-        console.error('Error fetching movie details:', err);
         setError('Có lỗi xảy ra khi tải thông tin phim');
       } finally {
         setLoading(false);
       }
     };
-
     fetchMovieDetails();
   }, [id]);
-
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -145,14 +119,12 @@ const MovieDetail: React.FC = () => {
       day: 'numeric'
     });
   };
-
   const formatTime = (timeString: string) => {
     return new Date(timeString).toLocaleTimeString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit'
     });
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -165,7 +137,6 @@ const MovieDetail: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -178,7 +149,6 @@ const MovieDetail: React.FC = () => {
         return status;
     }
   };
-
   const handleBookTicket = (movieId: number, showtimeId?: number) => {
     if (showtimeId) {
       navigate(`/booking/${movieId}?showtime=${showtimeId}`);
@@ -186,12 +156,10 @@ const MovieDetail: React.FC = () => {
       setIsBookingOpen(true);
     }
   };
-
   const handleBookingSuccess = (bookingId: number) => {
     setIsBookingOpen(false);
     navigate(`/booking-success/${bookingId}`);
   };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -199,7 +167,6 @@ const MovieDetail: React.FC = () => {
       </div>
     );
   }
-
   if (error || !movie) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -215,7 +182,6 @@ const MovieDetail: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Back Button */}
@@ -230,7 +196,6 @@ const MovieDetail: React.FC = () => {
           </Link>
         </div>
       </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="md:flex">
@@ -250,7 +215,6 @@ const MovieDetail: React.FC = () => {
                 )}
               </div>
             </div>
-
             {/* Movie Info */}
             <div className="md:w-2/3 p-6 md:p-8">
               <div className="flex items-start justify-between mb-4">
@@ -273,7 +237,6 @@ const MovieDetail: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               {/* Rating */}
               <div className="flex items-center mb-6">
                 <StarSolidIcon className="h-6 w-6 text-yellow-400 mr-2" />
@@ -282,7 +245,6 @@ const MovieDetail: React.FC = () => {
                 </span>
                 <span className="text-gray-600">/ 10</span>
               </div>
-
               {/* Movie Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="flex items-center text-gray-600">
@@ -302,19 +264,16 @@ const MovieDetail: React.FC = () => {
                   <span className="font-medium">{movie.director}</span>
                 </div>
               </div>
-
               {/* Description */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Nội dung</h3>
                 <p className="text-gray-600 leading-relaxed">{movie.description}</p>
               </div>
-
               {/* Cast */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Diễn viên</h3>
                 <p className="text-gray-600 text-wrap break-words">{movie.cast}</p>
               </div>
-
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 {movie.trailerUrl && (
@@ -326,7 +285,6 @@ const MovieDetail: React.FC = () => {
                       <PlayIcon className="h-5 w-5 mr-2 flex-shrink-0" />
                       <span className="text-ellipsis">Xem trailer</span>
                     </button>
-                
                   </div>
                 )}
                 {movie.status === 'NOW_SHOWING' && (
@@ -341,7 +299,6 @@ const MovieDetail: React.FC = () => {
             </div>
           </div>
         </div>
-
         {/* Inline Trailer */}
         {movie?.trailerUrl && showTrailerInline && (
           <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
@@ -360,7 +317,6 @@ const MovieDetail: React.FC = () => {
             />
           </div>
         )}
-
         {/* Showtimes */}
         {showtimes.length > 0 && (
           <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
@@ -407,7 +363,6 @@ const MovieDetail: React.FC = () => {
             </div>
           </div>
         )}
-
         {/* Booking Sidebar */}
         <BookingSidebar
           movieId={movie?.id || null}
@@ -415,7 +370,6 @@ const MovieDetail: React.FC = () => {
           onClose={() => setIsBookingOpen(false)}
           onBookingSuccess={handleBookingSuccess}
         />
-
         {/* Trailer Modal */}
         {movie?.trailerUrl && (
           <TrailerModal
@@ -429,5 +383,4 @@ const MovieDetail: React.FC = () => {
     </div>
   );
 };
-
 export default MovieDetail;

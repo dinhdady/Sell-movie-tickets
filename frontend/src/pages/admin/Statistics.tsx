@@ -7,7 +7,6 @@ import {
   ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 import { dashboardAPI, bookingAPI, movieAPI, userAPI } from '../../services/api';
-
 interface StatData {
   period: string;
   bookings: number;
@@ -15,20 +14,16 @@ interface StatData {
   users: number;
   movies: number;
 }
-
 const Statistics: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('7days');
   const [statData, setStatData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetchStatistics();
   }, [selectedPeriod]);
-
   const fetchStatistics = async () => {
     try {
       setLoading(true);
-      
       // Try to get dashboard overview first
       try {
         const overviewResponse = await dashboardAPI.getOverview();
@@ -49,37 +44,29 @@ const Statistics: React.FC = () => {
           return;
         }
       } catch (error) {
-        console.log('Dashboard API not available, using fallback');
       }
-
       // Fallback to individual API calls
       const [bookingsResponse, moviesResponse, usersResponse] = await Promise.all([
         bookingAPI.getAll(),
         movieAPI.getAll(),
         userAPI.getAllUsers()
       ]);
-
       const bookings = bookingsResponse || [];
       const movies = moviesResponse.movies || [];
       const users = usersResponse.object || [];
-
       // Generate mock data based on real data
       const today = new Date();
       const mockData: StatData[] = [];
-      
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dateString = date.toISOString().split('T')[0];
-        
         // Filter bookings for this date
         const dayBookings = bookings.filter((booking: any) => {
           const bookingDate = new Date(booking.createdAt || booking.bookingDate);
           return bookingDate.toDateString() === date.toDateString();
         });
-        
         const dayRevenue = dayBookings.reduce((sum: number, booking: any) => sum + (booking.totalPrice || 0), 0);
-        
         mockData.push({
           period: dateString,
           bookings: dayBookings.length,
@@ -88,15 +75,12 @@ const Statistics: React.FC = () => {
           movies: movies.length
         });
       }
-      
       setStatData(mockData);
     } catch (error) {
-      console.error('Error fetching statistics:', error);
     } finally {
       setLoading(false);
     }
   };
-
   const getTotalStats = () => {
     return statData.reduce((totals, data) => ({
       bookings: totals.bookings + data.bookings,
@@ -105,16 +89,13 @@ const Statistics: React.FC = () => {
       movies: Math.max(totals.movies, data.movies)
     }), { bookings: 0, revenue: 0, users: 0, movies: 0 });
   };
-
   // const getGrowthRate = (current: number, previous: number) => {
   //   if (previous === 0) return 0;
   //   return ((current - previous) / previous) * 100;
   // };
-
   const totalStats = getTotalStats();
   const avgBookingsPerDay = statData.length > 0 ? totalStats.bookings / statData.length : 0;
   const avgRevenuePerDay = statData.length > 0 ? totalStats.revenue / statData.length : 0;
-
   const topMovies = [
     { name: 'Vua trở lại', bookings: 156, revenue: 7800000 },
     { name: 'Fast & Furious 10', bookings: 134, revenue: 6700000 },
@@ -122,14 +103,12 @@ const Statistics: React.FC = () => {
     { name: 'Avatar: The Way of Water', bookings: 87, revenue: 4350000 },
     { name: 'Black Panther: Wakanda Forever', bookings: 76, revenue: 3800000 }
   ];
-
   const topCinemas = [
     { name: 'CGV Vincom Center', bookings: 234, revenue: 11700000 },
     { name: 'Lotte Cinema', bookings: 198, revenue: 9900000 },
     { name: 'Galaxy Cinema', bookings: 156, revenue: 7800000 },
     { name: 'Mega GS', bookings: 134, revenue: 6700000 }
   ];
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -137,7 +116,6 @@ const Statistics: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -161,7 +139,6 @@ const Statistics: React.FC = () => {
           </select>
         </div>
       </div>
-
       {/* Key Metrics */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -192,7 +169,6 @@ const Statistics: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -221,7 +197,6 @@ const Statistics: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -250,7 +225,6 @@ const Statistics: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -280,7 +254,6 @@ const Statistics: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Daily Averages */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -310,7 +283,6 @@ const Statistics: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -339,7 +311,6 @@ const Statistics: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Top Movies */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:p-6">
@@ -405,7 +376,6 @@ const Statistics: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Top Cinemas */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:p-6">
@@ -474,5 +444,4 @@ const Statistics: React.FC = () => {
     </div>
   );
 };
-
 export default Statistics;

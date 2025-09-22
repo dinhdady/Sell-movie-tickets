@@ -9,14 +9,12 @@ import {
   XMarkIcon,
   StarIcon as StarSolidIcon
 } from '@heroicons/react/24/outline';
-
 interface BookingSidebarProps {
   movieId: number | null;
   isOpen: boolean;
   onClose: () => void;
   onBookingSuccess: (bookingId: number) => void;
 }
-
 const BookingSidebar: React.FC<BookingSidebarProps> = ({ 
   movieId, 
   isOpen, 
@@ -31,59 +29,47 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
   useEffect(() => {
     const fetchData = async () => {
       if (!movieId || !isOpen) return;
-
       try {
         setLoading(true);
         setError('');
         const movieResponse = await movieAPI.getById(movieId);
-        
         if (movieResponse.state === '200') {
           setMovie(movieResponse.object);
         } else {
           setError('Không tìm thấy phim');
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
         setError('Có lỗi xảy ra khi tải dữ liệu');
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [movieId, isOpen]);
-
   useEffect(() => {
     const fetchShowtimes = async () => {
       if (!movieId || !isOpen) return;
-
       try {
         const response = await movieAPI.getShowtimes(movieId);
         if (response.state === '200') {
           setShowtimes(response.object);
         }
       } catch (err) {
-        console.error('Error fetching showtimes:', err);
       }
     };
-
     fetchShowtimes();
   }, [movieId, isOpen]);
-
   const handleShowtimeSelect = (showtime: Showtime) => {
     setSelectedShowtime(showtime);
     // TODO: Fetch seats for the selected showtime
     // This would require a new API endpoint
   };
-
   const handleSeatSelect = (seat: Seat) => {
     // Don't allow selection of booked, reserved, or maintenance seats
     if (seat.status === 'BOOKED' || seat.status === 'RESERVED' || seat.status === 'MAINTENANCE') return;
-
     setSelectedSeats(prev => {
       const isSelected = prev.find(s => s.id === seat.id);
       if (isSelected) {
@@ -93,11 +79,9 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
       }
     });
   };
-
   const getSeatColor = (seat: Seat) => {
     // Check if seat is selected
     if (selectedSeats.find(s => s.id === seat.id)) return 'bg-blue-600 text-white';
-    
     // Check seat status first
     switch (seat.status) {
       case 'BOOKED':
@@ -114,7 +98,6 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
         return 'bg-green-500 hover:bg-green-600';
     }
   };
-
   const calculateTotal = () => {
     return selectedSeats.reduce((total, seat) => {
       // Use seat price from database, fallback to seat type pricing
@@ -122,7 +105,6 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
       return total + seatPrice;
     }, 0);
   };
-
   const getSeatTypePrice = (seatType: string) => {
     const basePrice = 80000; // Default base price
     switch (seatType) {
@@ -135,10 +117,8 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
         return basePrice;
     }
   };
-
   const handleBooking = async () => {
     if (!selectedShowtime || selectedSeats.length === 0 || !user) return;
-
     try {
       const bookingData = {
         userId: user.id,
@@ -149,32 +129,26 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
         customerPhone: user.phone || '',
         bookingStatus: 'PENDING' as const
       };
-
       const response = await bookingAPI.create(bookingData);
       if (response.state === '200') {
         onBookingSuccess(response.object.id);
       }
     } catch (err) {
-      console.error('Booking error:', err);
       setError('Có lỗi xảy ra khi đặt vé');
     }
   };
-
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
-
   const formatTime = (timeString: string) => {
     return new Date(timeString).toLocaleTimeString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit'
     });
   };
-
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-50 overflow-hidden sidebar-backdrop">
       {/* Backdrop */}
@@ -182,7 +156,6 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
-      
       {/* Sidebar */}
       <div className="fixed right-0 top-0 h-full w-full max-w-sm sm:max-w-md bg-white shadow-xl transform transition-transform sidebar-content flex flex-col">
         {/* Header */}
@@ -195,7 +168,6 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
             <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
         </div>
-
         {/* Content */}
         <div className="overflow-y-auto flex-1 pb-24 sm:pb-20 min-h-0">
           {loading ? (
@@ -249,13 +221,11 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
                   </div>
                 </div>
               </div>
-
               {/* Showtime Selection */}
               <div>
                 <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 text-responsive-base">
                   Chọn suất chiếu
                 </h4>
-                
                 {showtimes.length > 0 ? (
                   <div className="space-y-2">
                     {showtimes.map((showtime) => (
@@ -295,14 +265,12 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
                   </p>
                 )}
               </div>
-
               {/* Seat Selection */}
               {selectedShowtime && (
                 <div>
                   <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 text-responsive-base">
                     Chọn ghế
                   </h4>
-                  
                   {/* Seat Legend */}
                   <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
                     <div className="flex items-center">
@@ -322,7 +290,6 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
                       <span>Đã đặt</span>
                     </div>
                   </div>
-
                   {/* Seat Map */}
                   <div className="space-y-2">
                     {seats.length > 0 ? (
@@ -346,7 +313,6 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
                   </div>
                 </div>
               )}
-
               {/* Selected Seats Summary */}
               {selectedSeats.length > 0 && (
                 <div className="border-t pt-4">
@@ -372,7 +338,6 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
             </div>
           ) : null}
         </div>
-
         {/* Footer - Fixed at bottom */}
         <div className="flex-shrink-0 p-3 sm:p-4 bg-white border-t border-gray-200 fixed-form-container">
           <button
@@ -387,5 +352,4 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
     </div>
   );
 };
-
 export default BookingSidebar;

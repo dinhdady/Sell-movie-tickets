@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon, CogIcon } from '@heroicons/react/24/outline';
 import { roomAPI, cinemaAPI, seatAPI } from '../../services/api';
-
 interface Cinema {
   id: number;
   name: string;
@@ -9,7 +8,6 @@ interface Cinema {
   phone: string;
   cinemaType: string;
 }
-
 interface Room {
   id: number;
   name: string;
@@ -18,21 +16,18 @@ interface Room {
   cinema?: Cinema;
   createdAt: string;
 }
-
 interface RoomModalProps {
   room: Room | null;
   cinemas: Cinema[];
   onClose: () => void;
   onSave: (room: Partial<Room>) => void;
 }
-
 const RoomModal: React.FC<RoomModalProps> = ({ room, cinemas, onClose, onSave }) => {
   const [formData, setFormData] = useState<Partial<Room>>({
     name: '',
     capacity: 80,
     cinemaId: 0
   });
-
   useEffect(() => {
     if (room) {
       setFormData({
@@ -48,12 +43,10 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, cinemas, onClose, onSave })
       });
     }
   }, [room, cinemas]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
-
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -125,7 +118,6 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, cinemas, onClose, onSave })
     </div>
   );
 };
-
 const RoomManagement: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
@@ -134,38 +126,30 @@ const RoomManagement: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCinema, setSelectedCinema] = useState<number>(0);
-
   useEffect(() => {
     fetchRooms();
     fetchCinemas();
   }, []);
-
   const fetchRooms = async () => {
     try {
       const response = await roomAPI.getAll();
       if (response.state === 'SUCCESS') {
-        console.log('Rooms data:', response.object);
         setRooms(response.object as Room[]);
       }
     } catch (error) {
-      console.error('Error fetching rooms:', error);
     } finally {
       setLoading(false);
     }
   };
-
   const fetchCinemas = async () => {
     try {
       const response = await cinemaAPI.getAll();
       if (response.state === 'SUCCESS') {
-        console.log('Cinemas data:', response.object);
         setCinemas(response.object as Cinema[]);
       }
     } catch (error) {
-      console.error('Error fetching cinemas:', error);
     }
   };
-
   const handleCreateRoom = async (roomData: Partial<Room>) => {
     try {
       const response = await roomAPI.create(roomData as any);
@@ -177,14 +161,11 @@ const RoomManagement: React.FC = () => {
         alert(response.message || 'Lỗi khi tạo phòng chiếu');
       }
     } catch (error) {
-      console.error('Error creating room:', error);
       alert('Có lỗi xảy ra khi tạo phòng chiếu');
     }
   };
-
   const handleUpdateRoom = async (roomData: Partial<Room>) => {
     if (!selectedRoom) return;
-    
     try {
       const response = await roomAPI.update(selectedRoom.id, roomData as any);
       if (response.state === '200' || response.state === 'SUCCESS') {
@@ -196,27 +177,21 @@ const RoomManagement: React.FC = () => {
         alert('Lỗi khi cập nhật phòng chiếu: ' + response.message);
       }
     } catch (error) {
-      console.error('Error updating room:', error);
       alert('Có lỗi xảy ra khi cập nhật phòng chiếu');
     }
   };
-
   const handleDeleteRoom = async (id: number) => {
     if (!confirm('Bạn có chắc chắn muốn xóa phòng chiếu này? Tất cả ghế trong phòng cũng sẽ bị xóa.')) return;
-    
     try {
       await roomAPI.delete(id);
       fetchRooms();
       alert('Xóa phòng chiếu thành công!');
     } catch (error) {
-      console.error('Error deleting room:', error);
       alert('Có lỗi xảy ra khi xóa phòng chiếu');
     }
   };
-
   const handleRegenerateSeats = async (roomId: number) => {
     if (!confirm('Bạn có chắc chắn muốn tạo lại ghế cho phòng này? Tất cả ghế cũ sẽ bị xóa.')) return;
-    
     try {
       const response = await seatAPI.generateDefault(roomId);
       if (response.state === '200') {
@@ -226,17 +201,14 @@ const RoomManagement: React.FC = () => {
         alert(response.message || 'Lỗi khi tạo lại ghế');
       }
     } catch (error) {
-      console.error('Error regenerating seats:', error);
       alert('Có lỗi xảy ra khi tạo lại ghế');
     }
   };
-
   const filteredRooms = rooms.filter(room => {
     const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCinema = selectedCinema === 0 || room.cinemaId === selectedCinema;
     return matchesSearch && matchesCinema;
   });
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -244,7 +216,6 @@ const RoomManagement: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -270,7 +241,6 @@ const RoomManagement: React.FC = () => {
           </button>
         </div>
       </div>
-
       {/* Filters */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -312,7 +282,6 @@ const RoomManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Rooms Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:p-6">
@@ -347,11 +316,9 @@ const RoomManagement: React.FC = () => {
                       <div className="text-sm text-gray-900">
                         {(() => {
                           if (!room.cinemaId) {
-                            console.log(`Room ${room.id} has no cinemaId`);
                             return 'N/A';
                           }
                           const cinema = cinemas.find(c => c.id === room.cinemaId);
-                          console.log(`Room ${room.id} (cinemaId: ${room.cinemaId}) -> Cinema:`, cinema);
                           return cinema?.name || 'N/A';
                         })()}
                       </div>
@@ -397,7 +364,6 @@ const RoomManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Modal */}
       {showModal && (
         <RoomModal
@@ -413,5 +379,4 @@ const RoomManagement: React.FC = () => {
     </div>
   );
 };
-
 export default RoomManagement;

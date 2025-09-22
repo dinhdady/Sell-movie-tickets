@@ -17,7 +17,6 @@ export interface Movie {
   createdAt?: string;
   updatedAt?: string;
 }
-
 // Showtime types
 export interface Showtime {
   id: number;
@@ -28,7 +27,6 @@ export interface Showtime {
   movie?: Movie;
   room?: Room;
 }
-
 // Room types
 export interface Room {
   id: number;
@@ -37,7 +35,6 @@ export interface Room {
   cinemaId: number;
   cinema?: Cinema;
 }
-
 // Cinema types
 export interface Cinema {
   id: number;

@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-
 const Login: React.FC = () => {
   const { login, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -16,16 +14,13 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-
   const from = location.state?.from?.pathname || '/';
-
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, from]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -33,30 +28,24 @@ const Login: React.FC = () => {
     });
     setError('');
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-
     if (!formData.username || !formData.password) {
       setError('Vui lòng điền đầy đủ thông tin');
       return;
     }
-
     try {
       const result = await login(formData);
-      
       // Save remember me preference
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true');
       } else {
         localStorage.removeItem('rememberMe');
       }
-      
       if (result.success) {
         setSuccess(result.message + ' Đang chuyển hướng...');
-        
         // Immediate redirect after success
         navigate(from, { replace: true });
       }
@@ -64,7 +53,6 @@ const Login: React.FC = () => {
       setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
     }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -82,7 +70,6 @@ const Login: React.FC = () => {
             </Link>
           </p>
         </div>
-        
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -100,7 +87,6 @@ const Login: React.FC = () => {
                 placeholder="Nhập tên đăng nhập"
               />
             </div>
-            
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Mật khẩu
@@ -130,19 +116,16 @@ const Login: React.FC = () => {
               </div>
             </div>
           </div>
-
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
-
           {success && (
             <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm">
               {success}
             </div>
           )}
-
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <input
@@ -157,7 +140,6 @@ const Login: React.FC = () => {
                 Ghi nhớ đăng nhập
               </label>
             </div>
-
             <div className="text-sm">
               <Link
                 to="/forgot-password"
@@ -167,7 +149,6 @@ const Login: React.FC = () => {
               </Link>
             </div>
           </div>
-
           <div>
             <button
               type="submit"
@@ -189,5 +170,4 @@ const Login: React.FC = () => {
     </div>
   );
 };
-
 export default Login;

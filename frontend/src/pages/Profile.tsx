@@ -19,7 +19,6 @@ import {
   FilmIcon,
   XMarkIcon as CloseIcon
 } from '@heroicons/react/24/outline';
-
 interface UserProfile {
   id: string;
   username: string;
@@ -30,7 +29,6 @@ interface UserProfile {
   isActive: boolean;
   createdAt: string;
 }
-
 interface Booking {
   id: number;
   userId?: string;
@@ -112,10 +110,9 @@ interface Booking {
     price: number;
     status: string;
     qrCodeUrl?: string;
+    token?: string;
   }>;
 }
-
-
 const Profile: React.FC = () => {
   const { user: authUser, updateUser } = useAuth();
   const navigate = useNavigate();
@@ -131,368 +128,161 @@ const Profile: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [showBookingDetail, setShowBookingDetail] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-
   // Load user profile
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
-        console.log('🎯 [Profile] Loading user profile...');
-        
         const profileResponse = await userAPI.getProfile();
-        console.log('🎯 [Profile] Profile loaded:', profileResponse.object?.email);
         setUserProfile(profileResponse.object);
         setEditedProfile(profileResponse.object);
-      } catch (err) {
+      } catch {
         setError('Không thể tải thông tin người dùng');
-        console.error('Error fetching user profile:', err);
       } finally {
         setLoading(false);
       }
     };
-
     if (authUser) {
       fetchUserProfile();
     }
   }, [authUser]);
-
   // Load bookings separately - this will run after profile is loaded
   useEffect(() => {
     const loadBookings = async () => {
-      if (!authUser?.email) {
-        console.log('🎯 [Profile] No auth user email, skipping bookings load');
+      if (!authUser?.id) {
         return;
       }
-
       try {
-        console.log('🎯 [Profile] Loading bookings for:', authUser.email);
         setBookingsLoading(true);
-        
-        // Primary: Use tickets-with-tokens API to get real ticket data
+        // Primary: Use official user bookings API
         try {
-          console.log('🎯 [Profile] Trying tickets-with-tokens API...');
-          const ticketsResponse = await bookingAPI.testTicketsWithTokens();
-          console.log('🎯 [Profile] Tickets with tokens API response:', ticketsResponse);
-          
-          if (Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
-            // Filter tickets by user email and convert to booking format
-            const userTickets = ticketsResponse.filter(ticket => 
-              ticket.order?.customerEmail === authUser.email
-            );
-            
-            if (userTickets.length > 0) {
-              const userBookings = userTickets.map((ticket: any) => ({
-                id: ticket.id,
-                customerName: ticket.order?.customerEmail?.split('@')[0] || 'Customer',
-                customerEmail: ticket.order?.customerEmail || authUser.email,
-                totalPrice: ticket.order?.totalPrice || ticket.price,
-                paymentStatus: ticket.status,
-                status: ticket.status,
-                createdAt: ticket.createdAt,
-                movie: {
-                  title: 'Movie Title', // Will be filled from ticket data
-                  posterUrl: ''
-                },
-                showtime: {
-                  startTime: '00:00',
-                  endTime: '00:00',
-                  room: {
-                    name: 'Room',
-                    cinema: {
-                      name: 'Cinema',
-                      address: 'Address'
-                    }
-                  }
-                },
-                // Include real ticket data with token
-                order: {
-                  id: ticket.order?.id || ticket.id,
-                  status: ticket.status,
-                  totalPrice: ticket.order?.totalPrice || ticket.price,
-                  customerEmail: ticket.order?.customerEmail || authUser.email,
-                  customerName: ticket.order?.customerEmail?.split('@')[0] || 'Customer',
-                  customerPhone: 'Chưa cập nhật',
-                  customerAddress: 'Chưa cập nhật',
-                  tickets: [{
-                    id: ticket.id,
-                    token: ticket.token,
-                    price: ticket.price,
-                    status: ticket.status,
-                    qrCodeUrl: ticket.qrCodeUrl,
-                    seat: ticket.seat
-                  }]
-                },
-                tickets: [{
-                  id: ticket.id,
-                  token: ticket.token,
-                  price: ticket.price,
-                  status: ticket.status,
-                  qrCodeUrl: ticket.qrCodeUrl,
-                  seat: ticket.seat
-                }]
-              }))
+          const bookingsResponse = await bookingAPI.getUserBookings(authUser.id);
+          if (Array.isArray(bookingsResponse) && bookingsResponse.length > 0) {
+            const sortedBookings = bookingsResponse
               .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-              
-              console.log('🎯 [Profile] Found user tickets with real tokens:', userBookings.length);
-              console.log('🎯 [Profile] Sample ticket with token:', userBookings[0]);
-              console.log('🎯 [Profile] Token from ticket:', userBookings[0]?.tickets?.[0]?.token);
-              setBookings(userBookings);
-              return;
-            }
+            setBookings(sortedBookings);
+            return;
           }
-        } catch (ticketsError) {
-          console.log('🎯 [Profile] Tickets with tokens API failed, trying fallback APIs:', ticketsError);
+        } catch {
+          // Ignore error, try next API
         }
-        
-        // Secondary: Try test tickets API
+        // Secondary: Try tickets API
         try {
-          console.log('🎯 [Profile] Trying test tickets API...');
-          const testTicketsResponse = await bookingAPI.testAdminTickets();
-          console.log('🎯 [Profile] Test tickets response:', testTicketsResponse);
-          
-          if (Array.isArray(testTicketsResponse) && testTicketsResponse.length > 0) {
-            const userBookings = testTicketsResponse
-              .filter(ticket => ticket.customerEmail === authUser.email)
-              .map(ticket => ({
-                id: ticket.id,
-                customerName: ticket.customerName || 'Customer',
-                customerEmail: ticket.customerEmail,
-                totalPrice: ticket.totalPrice || ticket.price,
-                paymentStatus: ticket.status,
-                status: ticket.status,
-                createdAt: ticket.createdAt,
-                movie: {
-                  title: ticket.movieTitle || 'Unknown Movie',
-                  posterUrl: ticket.moviePosterUrl
-                },
-                showtime: {
-                  startTime: ticket.startTime,
-                  endTime: ticket.endTime,
-                  room: {
-                    name: ticket.roomName || 'Room',
-                    cinema: {
-                      name: ticket.cinemaName || 'Cinema',
-                      address: ticket.cinemaAddress || 'Address'
-                    }
-                  }
-                },
-                // Include token data if available
-                order: {
-                  id: ticket.id,
-                  status: ticket.status,
-                  totalPrice: ticket.totalPrice || ticket.price,
-                  customerEmail: ticket.customerEmail,
-                  customerName: ticket.customerName || 'Customer',
-                  customerPhone: 'Chưa cập nhật',
-                  customerAddress: 'Chưa cập nhật',
-                  tickets: [{
-                    id: ticket.id,
-                    token: ticket.token || `TKT${ticket.id}`,
-                    price: ticket.price,
-                    status: ticket.status,
-                    qrCodeUrl: ticket.qrCodeUrl,
-                    seat: ticket.seat
-                  }]
-                },
-                tickets: [{
-                  id: ticket.id,
-                  token: ticket.token || `TKT${ticket.id}`,
-                  price: ticket.price,
-                  status: ticket.status,
-                  qrCodeUrl: ticket.qrCodeUrl,
-                  seat: ticket.seat
-                }]
-              }))
+          const ticketsResponse = await bookingAPI.getMyTickets(authUser.id);
+          if (Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
+            const sortedBookings = ticketsResponse
               .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-            
-            console.log('🎯 [Profile] Found bookings from test tickets:', userBookings.length);
+            setBookings(sortedBookings);
+            return;
+          }
+        } catch {
+          // Ignore error, try next API
+        }
+        // Tertiary: Fallback to test APIs (for development)
+        try {
+          const testResponse = await bookingAPI.testAdminBookings();
+          if (Array.isArray(testResponse) && testResponse.length > 0) {
+            const userBookings = testResponse
+              .filter(booking => booking.customerEmail === authUser.email)
+              .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
             setBookings(userBookings);
             return;
           }
-        } catch (testTicketsError) {
-          console.log('🎯 [Profile] Test tickets API failed, trying test bookings API:', testTicketsError);
+        } catch {
+          // Ignore error
         }
-        
-        // Tertiary: Fallback to test bookings API
-        const testResponse = await bookingAPI.testAdminBookings();
-        console.log('🎯 [Profile] Test bookings API response:', testResponse);
-        
-        if (Array.isArray(testResponse) && testResponse.length > 0) {
-          const userBookings = testResponse
-            .filter(booking => booking.customerEmail === authUser.email)
-            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          
-          console.log('🎯 [Profile] Found bookings for user:', userBookings.length);
-          console.log('🎯 [Profile] Bookings data:', userBookings);
-            setBookings(userBookings);
-          } else {
-          console.log('🎯 [Profile] No bookings found');
-            setBookings([]);
-          }
-        } catch (err) {
-        console.error('🎯 [Profile] Error loading bookings:', err);
-          setBookings([]);
+        // No bookings found
+        setBookings([]);
+      } catch {
+        setBookings([]);
       } finally {
         setBookingsLoading(false);
       }
     };
-
     // Add a small delay to ensure profile is loaded first
     const timer = setTimeout(() => {
       loadBookings();
     }, 100);
-
     return () => clearTimeout(timer);
-  }, [authUser?.email]);
-
+  }, [authUser?.id]);
   // Force load bookings on component mount
   useEffect(() => {
     const forceLoadBookings = async () => {
-      console.log('🎯 [Profile] Force loading bookings on mount...');
-      
+      if (!authUser?.id) {
+        return;
+      }
       try {
-        // Try tickets API first
+        // Try official user bookings API first
         try {
-          const tokensResponse = await bookingAPI.testTicketsWithTokens();
-          console.log('🎯 [Profile] Force load - tokens API response:', tokensResponse);
-          
-          if (Array.isArray(tokensResponse) && tokensResponse.length > 0) {
-            if (authUser?.email) {
-              const userBookings = tokensResponse
-                .filter(ticket => ticket.order?.customerEmail === authUser.email)
-                .map(ticket => ({
-                  id: ticket.order?.id || ticket.id,
-                  customerName: ticket.order?.customerEmail?.split('@')[0] || 'Customer',
-                  customerEmail: ticket.order?.customerEmail || authUser.email,
-                  totalPrice: ticket.order?.totalPrice || ticket.price,
-                  paymentStatus: ticket.order?.status || ticket.status,
-                  status: ticket.order?.status || ticket.status,
-                  createdAt: ticket.createdAt,
-                  movie: {
-                    title: ticket.movieTitle || 'Unknown Movie',
-                    posterUrl: ticket.moviePosterUrl
-                  },
-                  showtime: {
-                    startTime: ticket.startTime,
-                    endTime: ticket.endTime,
-                    room: {
-                      name: ticket.roomName || 'Room',
-                      cinema: {
-                        name: ticket.cinemaName || 'Cinema',
-                        address: ticket.cinemaAddress || 'Address'
-                      }
-                    }
-                  },
-                  order: {
-                    id: ticket.order?.id || ticket.id,
-                    status: ticket.order?.status || ticket.status,
-                    totalPrice: ticket.order?.totalPrice || ticket.price,
-                    customerEmail: ticket.order?.customerEmail || authUser.email,
-                    customerName: ticket.order?.customerEmail?.split('@')[0] || 'Customer',
-                    customerPhone: 'Chưa cập nhật',
-                    customerAddress: 'Chưa cập nhật',
-                    tickets: [{
-                      id: ticket.id,
-                      token: ticket.token,
-                      price: ticket.price,
-                      status: ticket.status,
-                      qrCodeUrl: ticket.qrCodeUrl,
-                      seat: ticket.seat
-                    }]
-                  },
-                  tickets: [{
-                    id: ticket.id,
-                    token: ticket.token,
-                    price: ticket.price,
-                    status: ticket.status,
-                    qrCodeUrl: ticket.qrCodeUrl,
-                    seat: ticket.seat
-                  }]
-                }))
-                .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-              console.log('🎯 [Profile] Force load - filtered bookings:', userBookings.length);
-              setBookings(userBookings);
-            } else {
-              console.log('🎯 [Profile] Force load - no auth user, skipping');
-            }
+          const bookingsResponse = await bookingAPI.getUserBookings(authUser.id);
+          if (Array.isArray(bookingsResponse) && bookingsResponse.length > 0) {
+            const sortedBookings = bookingsResponse
+              .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+            setBookings(sortedBookings);
             return;
           }
-        } catch (tokenError) {
-          console.log('🎯 [Profile] Force load - tokens API failed:', tokenError);
+        } catch (bookingsError) {
         }
-        
-        // Fallback to test bookings API
-        const testResponse = await bookingAPI.testAdminBookings();
-        console.log('🎯 [Profile] Force load - test API response:', testResponse);
-        
-        if (Array.isArray(testResponse) && testResponse.length > 0) {
-          if (authUser?.email) {
-            const userBookings = testResponse
-              .filter(booking => booking.customerEmail === authUser.email)
+        // Fallback to tickets API
+        try {
+          const ticketsResponse = await bookingAPI.getMyTickets(authUser.id);
+          if (Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
+            const sortedBookings = ticketsResponse
               .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-            console.log('🎯 [Profile] Force load - filtered bookings:', userBookings.length);
-            setBookings(userBookings);
-          } else {
-            console.log('🎯 [Profile] Force load - showing all bookings:', testResponse.length);
-            setBookings(testResponse);
+            setBookings(sortedBookings);
+            return;
           }
+        } catch (ticketsError) {
+        }
+        // Final fallback to test API
+        const testResponse = await bookingAPI.testAdminBookings();
+        if (Array.isArray(testResponse) && testResponse.length > 0) {
+          const userBookings = testResponse
+            .filter(booking => booking.customerEmail === authUser.email)
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setBookings(userBookings);
         } else {
-          console.log('🎯 [Profile] Force load - no bookings found');
           setBookings([]);
         }
       } catch (err) {
-        console.error('🎯 [Profile] Force load error:', err);
         setBookings([]);
       }
     };
-
     // Run after a short delay to ensure everything is loaded
     const timer = setTimeout(forceLoadBookings, 500);
     return () => clearTimeout(timer);
-  }, []); // Empty dependency array - runs only on mount
-
+  }, [authUser?.id]); // Depend on authUser.id
   // Auto-refresh when page becomes visible (e.g., returning from payment)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && authUser) {
+      if (!document.hidden && authUser?.id) {
         // Refresh bookings when page becomes visible
         const refreshBookings = async () => {
           try {
             setBookingsLoading(true);
-            console.log('🎯 [Profile] Visibility change - refreshing bookings...');
-            
-            // Sử dụng cùng strategy như handleRefreshBookings
-            if (authUser?.email) {
-              try {
-                const testResponse = await bookingAPI.testAdminBookings();
-                if (Array.isArray(testResponse) && testResponse.length > 0) {
-                  const userBookings = testResponse
-                    .filter(booking => booking.customerEmail === authUser.email)
-                    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-              setBookings(userBookings);
-                  return;
-                }
-              } catch (testError) {
-                console.log('🎯 [Profile] Test API failed on visibility change:', testError);
+            // Use the same strategy as handleRefreshBookings
+            try {
+              const bookingsResponse = await bookingAPI.getUserBookings(authUser.id);
+              if (Array.isArray(bookingsResponse) && bookingsResponse.length > 0) {
+                const sortedBookings = bookingsResponse
+                  .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+                setBookings(sortedBookings);
+                return;
               }
-              
-              // Fallback to tickets API
-              if (authUser?.id) {
-                try {
-                  const ticketsResponse = await bookingAPI.getMyTickets(authUser.id);
-                  if (Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
-                    const sortedBookings = ticketsResponse
-                      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-                    setBookings(sortedBookings);
-                    return;
-                  }
-                } catch (ticketsError) {
-                  console.log('🎯 [Profile] Tickets API failed on visibility change:', ticketsError);
-                }
+            } catch (bookingsError) {
+            }
+            // Fallback to tickets API
+            try {
+              const ticketsResponse = await bookingAPI.getMyTickets(authUser.id);
+              if (Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
+                const sortedBookings = ticketsResponse
+                  .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+                setBookings(sortedBookings);
+                return;
               }
+            } catch (ticketsError) {
             }
           } catch (err) {
-            console.log('Error refreshing bookings on visibility change:', err);
           } finally {
             setBookingsLoading(false);
           }
@@ -500,24 +290,19 @@ const Profile: React.FC = () => {
         refreshBookings();
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [authUser]);
-
+  }, [authUser?.id]);
   const handleEditToggle = () => {
     setEditMode(!editMode);
     if (!editMode) {
       setEditedProfile(userProfile || {});
     }
   };
-
   const handleSave = async () => {
     if (!editedProfile) return;
-    
     try {
       setSaveLoading(true);
       // Cast role to proper type
@@ -532,12 +317,10 @@ const Profile: React.FC = () => {
       setError(null);
     } catch (err) {
       setError('Không thể cập nhật thông tin');
-      console.error('Error updating profile:', err);
     } finally {
       setSaveLoading(false);
     }
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -545,8 +328,7 @@ const Profile: React.FC = () => {
       day: 'numeric'
     });
   };
-
-  const getStatusColor = (booking: any) => {
+  const getStatusColor = (booking: Booking) => {
     const status = booking.paymentStatus || booking.status;
     switch (status?.toLowerCase()) {
       case 'confirmed':
@@ -571,17 +353,9 @@ const Profile: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
-
-  const getStatusText = (booking: any) => {
+  const getStatusText = (booking: Booking) => {
     // Ưu tiên paymentStatus, sau đó là status
     const status = booking.paymentStatus || booking.status;
-    console.log('🎯 [Profile] Booking status mapping:', {
-      id: booking.id,
-      paymentStatus: booking.paymentStatus,
-      status: booking.status,
-      finalStatus: status
-    });
-    
     switch (status?.toLowerCase()) {
       case 'confirmed':
         return 'Đã xác nhận';
@@ -605,203 +379,74 @@ const Profile: React.FC = () => {
         return status || 'Chờ thanh toán';
     }
   };
-
   const handleRefreshBookings = async () => {
     try {
       setBookingsLoading(true);
-      console.log('🎯 [Profile] Refreshing bookings for user:', authUser?.email);
-      
-      // Primary: Sử dụng tickets-with-tokens API để lấy ticket data thực
+      if (!authUser?.id) {
+        setBookings([]);
+        return;
+      }
+      // Primary: Use official user bookings API
       try {
-        console.log('🎯 [Profile] Trying tickets-with-tokens API...');
-        const ticketsResponse = await bookingAPI.testTicketsWithTokens();
-        console.log('🎯 [Profile] Tickets with tokens API response:', ticketsResponse);
-        
+        const bookingsResponse = await bookingAPI.getUserBookings(authUser.id);
+        if (Array.isArray(bookingsResponse) && bookingsResponse.length > 0) {
+          const sortedBookings = bookingsResponse
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setBookings(sortedBookings);
+          return;
+        }
+      } catch (bookingsError) {
+      }
+      // Secondary: Try tickets API
+      try {
+        const ticketsResponse = await bookingAPI.getMyTickets(authUser.id);
         if (Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
-          // Filter tickets by user email
-          const userTickets = ticketsResponse.filter(ticket => 
-            ticket.order?.customerEmail === authUser?.email
-          );
-          
-          if (userTickets.length > 0) {
-            const userBookings = userTickets.map((ticket: any) => ({
-                id: ticket.id,
-                customerName: ticket.order?.customerEmail?.split('@')[0] || 'Customer',
-                customerEmail: ticket.order?.customerEmail || authUser?.email,
-                totalPrice: ticket.order?.totalPrice || ticket.price,
-                paymentStatus: ticket.status,
-                status: ticket.status,
-                createdAt: ticket.createdAt,
-                movie: {
-                  title: 'Movie Title',
-                  posterUrl: ''
-                },
-                showtime: {
-                  startTime: '00:00',
-                  endTime: '00:00',
-                  room: {
-                    name: 'Room',
-                    cinema: {
-                      name: 'Cinema',
-                      address: 'Address'
-                    }
-                  }
-                },
-                // Include real ticket data with token
-                order: {
-                  id: ticket.order?.id || ticket.id,
-                  status: ticket.status,
-                  totalPrice: ticket.order?.totalPrice || ticket.price,
-                  customerEmail: ticket.order?.customerEmail || authUser?.email,
-                  customerName: ticket.order?.customerEmail?.split('@')[0] || 'Customer',
-                  customerPhone: 'Chưa cập nhật',
-                  customerAddress: 'Chưa cập nhật',
-                  tickets: [{
-                    id: ticket.id,
-                    token: ticket.token,
-                    price: ticket.price,
-                    status: ticket.status,
-                    qrCodeUrl: ticket.qrCodeUrl,
-                    seat: ticket.seat
-                  }]
-                },
-                tickets: [{
-                  id: ticket.id,
-                  token: ticket.token,
-                  price: ticket.price,
-                  status: ticket.status,
-                  qrCodeUrl: ticket.qrCodeUrl,
-                  seat: ticket.seat
-                }]
-              }))
-              .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-            
-            console.log('🎯 [Profile] Found user tickets with real tokens:', userBookings.length);
-            console.log('🎯 [Profile] Sample ticket with token:', userBookings[0]);
-            setBookings(userBookings);
-            return;
-          }
+          const sortedBookings = ticketsResponse
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setBookings(sortedBookings);
+          return;
         }
       } catch (ticketsError) {
-        console.log('🎯 [Profile] Tickets with tokens API failed, trying fallback APIs:', ticketsError);
       }
-        
-      // Secondary: Fallback to test API
+      // Tertiary: Fallback to test API (for development)
       try {
-        console.log('🎯 [Profile] Trying test API for email:', authUser?.email);
         const testResponse = await bookingAPI.testAdminBookings();
-        console.log('🎯 [Profile] Test API response:', testResponse);
-        
         if (Array.isArray(testResponse) && testResponse.length > 0) {
           const userBookings = testResponse.filter(booking => 
-              booking.customerEmail === authUser?.email
+            booking.customerEmail === authUser.email
           );
           const sortedBookings = userBookings
             .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          console.log('🎯 [Profile] Filtered user bookings:', sortedBookings);
           setBookings(sortedBookings);
           return;
         }
       } catch (testError) {
-        console.log('🎯 [Profile] Test API failed:', testError);
       }
-      
-      // Secondary: Fallback to tickets API (requires auth)
-      if (authUser?.id) {
-        try {
-          console.log('🎯 [Profile] Fallback - trying tickets API for user ID:', authUser.id);
-          const ticketsResponse = await bookingAPI.getMyTickets(authUser.id);
-          console.log('🎯 [Profile] User tickets response:', ticketsResponse);
-          
-          if (Array.isArray(ticketsResponse) && ticketsResponse.length > 0) {
-            const sortedBookings = ticketsResponse
-              .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-            console.log('🎯 [Profile] Sorted user tickets:', sortedBookings);
-            setBookings(sortedBookings);
-            return;
-          }
-        } catch (ticketsError) {
-          console.log('🎯 [Profile] Tickets API failed:', ticketsError);
-        }
-      }
-      
-      // Tertiary: Fallback to user bookings API (requires auth)
-      if (authUser?.id) {
-        try {
-          console.log('🎯 [Profile] Fallback - trying user bookings API for user ID:', authUser.id);
-        const bookingsResponse = await bookingAPI.getUserBookings(authUser.id);
-        console.log('🎯 [Profile] User bookings response:', bookingsResponse);
-        
-        if (Array.isArray(bookingsResponse) && bookingsResponse.length > 0) {
-          const sortedBookings = bookingsResponse
-            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          console.log('🎯 [Profile] Sorted user bookings:', sortedBookings);
-          setBookings(sortedBookings);
-            return;
-          }
-        } catch (bookingsError) {
-          console.log('🎯 [Profile] User bookings API failed:', bookingsError);
-        }
-      }
-      
-      // Final fallback: Try all bookings and filter
-      try {
-        console.log('🎯 [Profile] Final fallback - trying all bookings API...');
-        const allBookingsResponse = await bookingAPI.getAll();
-        console.log('🎯 [Profile] All bookings response:', allBookingsResponse);
-        
-        if (Array.isArray(allBookingsResponse) && allBookingsResponse.length > 0) {
-          const userBookings = allBookingsResponse.filter(booking => 
-            booking.customerEmail === authUser?.email
-          );
-          const sortedBookings = userBookings
-            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          console.log('🎯 [Profile] Filtered from all bookings:', sortedBookings);
-          setBookings(sortedBookings);
-          return;
-        }
-      } catch (allBookingsError) {
-        console.log('🎯 [Profile] All bookings API failed:', allBookingsError);
-      }
-      
       // No data found
-      console.log('🎯 [Profile] No bookings found from any API');
       setBookings([]);
-      
     } catch (err) {
-      console.error('❌ [Profile] Error refreshing bookings:', err);
       setError('Không thể tải lại danh sách vé');
     } finally {
       setBookingsLoading(false);
     }
   };
-
   // Function to generate QR code data - only token from database
   const generateQRCodeData = (booking: Booking, token?: string) => {
     // Use real token from database if available, otherwise use booking ID as fallback
     const bookingToken = token || `TKT${booking.id}`;
-    
-    // QR code chỉ chứa token đơn giản
-    return bookingToken;
+    // QR code chứa token với prefix TICKET_
+    return `TICKET_${bookingToken}`;
   };
-
   // Function to create QR code URL
   const createQRCodeUrl = (data: string) => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}`;
   };
-
   const handleViewBookingDetail = async (booking: Booking) => {
     try {
-      console.log('🎯 [Profile] Fetching booking detail for ID:', booking.id);
-      
       // Try to get detailed booking information using new API endpoint
       try {
       const response = await bookingAPI.getDetailsById(booking.id);
-      console.log('🎯 [Profile] Booking detail response:', response);
-      
       if (response.state === 'SUCCESS' && response.object) {
-        console.log('✅ [Profile] Using detailed booking data from getDetailsById');
-          
           // Check if we need to enhance QR code data
           const enhancedObject = { ...response.object };
           if (enhancedObject.order?.tickets && enhancedObject.order.tickets.length > 0) {
@@ -814,57 +459,53 @@ const Profile: React.FC = () => {
               return ticket;
             });
           }
-          
           setSelectedBooking(enhancedObject);
         setShowBookingDetail(true);
           return;
         }
       } catch (detailError) {
-        console.log('🎯 [Profile] Detailed API failed:', detailError);
       }
-      
       // Fallback: Enhance basic booking data with real token from API
-      console.log('⚠️ [Profile] Using enhanced basic booking info');
-      
-      // Try to get real token from tickets API
+      // Try to get real token from booking data
       let realToken = null;
-      try {
-        console.log('🎯 [Profile] Fetching real tokens from API...');
-        const tokensResponse = await bookingAPI.testTicketsWithTokens();
-        console.log('🎯 [Profile] Tokens response:', tokensResponse);
-        
-        if (tokensResponse && Array.isArray(tokensResponse) && tokensResponse.length > 0) {
-          // Find token for this booking
-          const matchingTicket = tokensResponse.find(ticket => 
-            ticket.order?.customerEmail === booking.customerEmail || 
-            ticket.order?.id === booking.id
-          );
-          if (matchingTicket && matchingTicket.token) {
-            realToken = matchingTicket.token;
-            console.log('✅ [Profile] Found real token:', realToken);
-          }
-        }
-      } catch (tokenError) {
-        console.log('🎯 [Profile] Could not fetch real tokens:', tokenError);
+      // First try to get token from booking.order.tickets
+      if (booking.order?.tickets && booking.order.tickets.length > 0) {
+        realToken = booking.order.tickets[0].token;
       }
-      
+      // Then try to get token from booking.tickets
+      else if (booking.tickets && booking.tickets.length > 0) {
+        realToken = booking.tickets[0].token;
+      }
+      // Fallback: try to get from API
+      else {
+        try {
+          const tokensResponse = await bookingAPI.testTicketsWithTokens();
+          if (tokensResponse && Array.isArray(tokensResponse) && tokensResponse.length > 0) {
+            // Find token for this booking
+            const matchingTicket = tokensResponse.find(ticket => 
+              ticket.order?.customerEmail === booking.customerEmail || 
+              ticket.order?.id === booking.id
+            );
+            if (matchingTicket && matchingTicket.token) {
+              realToken = matchingTicket.token;
+            }
+          }
+        } catch (tokenError) {
+        }
+      }
       // Generate QR code with real token (similar to PaymentCallback)
       let qrCodeUrl = '';
       if (realToken) {
         // Use real token like PaymentCallback
         const qrData = `TICKET_${realToken}`;
         qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
-        console.log('✅ [Profile] Generated QR with real token:', qrCodeUrl);
       } else {
         // Fallback to booking ID
-        const qrData = `BOOKING_${booking.id}`;
+        const qrData = `TICKET_${booking.id}`;
         qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
-        console.log('⚠️ [Profile] Generated QR with booking ID:', qrCodeUrl);
       }
-      
       // Set QR code URL for display
       setQrCodeUrl(qrCodeUrl);
-      
       const enhancedBooking = {
         ...booking,
         // Add mock order data if missing
@@ -899,31 +540,22 @@ const Profile: React.FC = () => {
           }
         ]
       };
-      
-      console.log('🎯 [Profile] Enhanced booking data:', enhancedBooking);
       setSelectedBooking(enhancedBooking);
       setShowBookingDetail(true);
-      
     } catch (error) {
-      console.error('❌ [Profile] Error fetching booking detail:', error);
       // Final fallback with basic data
       setSelectedBooking(booking);
       setShowBookingDetail(true);
     }
   };
-
   const handleCloseBookingDetail = () => {
     setShowBookingDetail(false);
     setSelectedBooking(null);
   };
-
   const handleViewMore = () => {
     setShowAllBookings(!showAllBookings);
   };
-
-
   if (loading) return <LoadingSpinner />;
-
   if (!userProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -939,18 +571,15 @@ const Profile: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
             {error}
           </div>
         )}
-
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Profile Information */}
@@ -978,7 +607,6 @@ const Profile: React.FC = () => {
               <span>{editMode ? 'Lưu' : 'Chỉnh sửa'}</span>
             </button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Full Name */}
             <div>
@@ -997,7 +625,6 @@ const Profile: React.FC = () => {
                 <p className="p-3 bg-gray-50 rounded-lg">{userProfile.fullName}</p>
               )}
             </div>
-
             {/* Username */}
             <div>
               <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -1006,7 +633,6 @@ const Profile: React.FC = () => {
               </label>
               <p className="p-3 bg-gray-50 rounded-lg text-gray-600">{userProfile.username}</p>
             </div>
-
             {/* Email */}
             <div>
               <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -1015,7 +641,6 @@ const Profile: React.FC = () => {
               </label>
               <p className="p-3 bg-gray-50 rounded-lg text-gray-600">{userProfile.email}</p>
             </div>
-
             {/* Phone */}
             <div>
               <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -1034,7 +659,6 @@ const Profile: React.FC = () => {
                 <p className="p-3 bg-gray-50 rounded-lg">{userProfile.phone || 'Chưa cập nhật'}</p>
               )}
             </div>
-
             {/* Join Date */}
             <div>
               <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -1043,7 +667,6 @@ const Profile: React.FC = () => {
               </label>
               <p className="p-3 bg-gray-50 rounded-lg">{formatDate(userProfile.createdAt)}</p>
             </div>
-
             {/* Role */}
             <div>
               <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -1059,7 +682,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
           </div>
-
           {editMode && (
             <div className="mt-6 flex justify-end space-x-3">
               <button
@@ -1072,7 +694,6 @@ const Profile: React.FC = () => {
             </div>
           )}
             </div>
-
             {/* User Stats Card */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -1093,7 +714,6 @@ const Profile: React.FC = () => {
                 </div>
               </div>
             </div>
-
             {/* Security Settings Card */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -1109,7 +729,6 @@ const Profile: React.FC = () => {
                     Đổi mật khẩu
                   </button>
                 </div>
-                
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">Xác thực hai bước</p>
@@ -1119,7 +738,6 @@ const Profile: React.FC = () => {
                     Kích hoạt
                   </button>
                 </div>
-
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">Thông báo email</p>
@@ -1133,7 +751,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
           </div>
-
           {/* Right Column - Booking History */}
           <div className="space-y-6">
             {/* Booking History */}
@@ -1163,9 +780,6 @@ const Profile: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  console.log('🎯 [Profile] Manual test button clicked');
-                  console.log('🎯 [Profile] Current bookings state:', bookings);
-                  console.log('🎯 [Profile] Auth user:', authUser);
                   handleRefreshBookings();
                 }}
                 className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
@@ -1174,8 +788,6 @@ const Profile: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {(() => { console.log('🎯 [Profile] Rendering bookings section, bookings.length:', bookings.length); return null; })()}
           {bookings.length > 0 ? (
             <div className="space-y-4">
               {(showAllBookings ? bookings : bookings.slice(0, 5)).map((booking) => (
@@ -1190,7 +802,6 @@ const Profile: React.FC = () => {
                           {getStatusText(booking)}
                         </span>
                       </div>
-                      
                       {/* Movie and Showtime Info */}
                       {booking.showtime && (
                         <div className="mb-3 p-3 bg-gray-50 rounded-lg">
@@ -1205,7 +816,6 @@ const Profile: React.FC = () => {
                           </p>
                         </div>
                       )}
-                      
                       {/* Tickets Info */}
                       {booking.tickets && booking.tickets.length > 0 && (
                         <div className="mb-3">
@@ -1219,13 +829,11 @@ const Profile: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-600">
                           <p>Ngày đặt: {booking.createdAt ? formatDate(booking.createdAt) : 'N/A'}</p>
                           <p>Khách hàng: {booking.customerName}</p>
                         </div>
-                        
                         {/* View Detail Button */}
                         <button
                           onClick={() => handleViewBookingDetail(booking)}
@@ -1249,7 +857,6 @@ const Profile: React.FC = () => {
                   </div>
                 </div>
               ))}
-              
               {bookings.length > 5 && (
                 <div className="text-center pt-4">
                   <button 
@@ -1279,7 +886,6 @@ const Profile: React.FC = () => {
             </div>
           )}
             </div>
-
             {/* Quick Actions Card */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -1296,7 +902,6 @@ const Profile: React.FC = () => {
                   </div>
                   <span className="text-gray-400">→</span>
                 </button>
-                
                 <button 
                   onClick={() => navigate('/cinemas')}
                   className="w-full flex items-center justify-between p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1307,7 +912,6 @@ const Profile: React.FC = () => {
                   </div>
                   <span className="text-gray-400">→</span>
                 </button>
-                
                 <button 
                   onClick={() => window.location.reload()}
                   className="w-full flex items-center justify-between p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1323,7 +927,6 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Booking Detail Modal */}
       {showBookingDetail && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1342,7 +945,6 @@ const Profile: React.FC = () => {
                   <CloseIcon className="h-6 w-6" />
                 </button>
               </div>
-
               {/* Booking Info - Layout giống PaymentCallback */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column - Movie & Showtime Info */}
@@ -1376,7 +978,6 @@ const Profile: React.FC = () => {
                       </div>
                     </div>
                   </div>
-
                   {/* Showtime Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -1414,7 +1015,6 @@ const Profile: React.FC = () => {
                       )}
                     </div>
                   </div>
-
                   {/* Cinema Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -1438,7 +1038,6 @@ const Profile: React.FC = () => {
                       )}
                     </div>
                   </div>
-
                   {/* Ticket Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -1461,7 +1060,6 @@ const Profile: React.FC = () => {
                                 return 'bg-gray-100 text-gray-800';
                             }
                           };
-
                           const getStatusText = (status: string) => {
                             switch (status?.toLowerCase()) {
                               case 'paid':
@@ -1474,7 +1072,6 @@ const Profile: React.FC = () => {
                                 return 'Không xác định';
                             }
                           };
-
                           return (
                             <div 
                               key={ticket.id} 
@@ -1494,14 +1091,7 @@ const Profile: React.FC = () => {
                                     {getStatusText(ticket.status)}
                                   </span>
                               </div>
-                                
-                                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                  <div>
-                                    <span className="font-medium">Token:</span>
-                                    <div className="font-mono text-xs bg-white p-1 rounded border mt-1 break-all">
-                                      {ticket.token || 'N/A'}
-                                    </div>
-                                  </div>
+                                <div className="grid grid-cols-1 gap-2 text-xs text-gray-600">
                                   <div>
                                     <span className="font-medium">Giá vé:</span>
                                     <div className="font-bold text-green-600">
@@ -1525,7 +1115,6 @@ const Profile: React.FC = () => {
                             </div>
                           );
                         })}
-                        
                         <div className="pt-2 mt-2 border-t">
                           <div className="flex justify-between items-center font-medium">
                             <span>Tổng cộng:</span>
@@ -1536,29 +1125,6 @@ const Profile: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                        
-                        {/* Thông tin vé theo TicketStatus */}
-                        <div className="pt-2 mt-2 border-t bg-blue-50 p-3 rounded">
-                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                            <TicketIcon className="h-4 w-4 mr-1" />
-                            Trạng thái vé theo TicketStatus
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                            <div className="bg-white p-2 rounded border">
-                              <div className="font-medium text-gray-700">PENDING</div>
-                              <div className="text-yellow-600">Chờ thanh toán</div>
-                            </div>
-                            <div className="bg-white p-2 rounded border">
-                              <div className="font-medium text-gray-700">PAID</div>
-                              <div className="text-green-600">Đã thanh toán</div>
-                            </div>
-                            <div className="bg-white p-2 rounded border">
-                              <div className="font-medium text-gray-700">USED</div>
-                              <div className="text-blue-600">Đã sử dụng</div>
-                            </div>
-                          </div>
-                        </div>
-                        
                         {/* Thông tin thêm về booking */}
                         <div className="pt-2 mt-2 border-t bg-gray-50 p-3 rounded">
                           <div className="text-sm space-y-1">
@@ -1589,31 +1155,27 @@ const Profile: React.FC = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Right Column - QR Code & Customer Info */}
+                {/* Right Column - QR Code & User Info (Similar to PaymentCallback) */}
                 <div className="space-y-6">
                   {/* QR Code - Similar to PaymentCallback */}
-                  {qrCodeUrl && (
-                    <div className="border rounded-lg p-4 text-center">
-                      <h3 className="font-medium text-gray-900 mb-3 flex items-center justify-center">
-                        <QrCodeIcon className="h-5 w-5 mr-2 text-gray-600" />
-                        Mã QR vé
-                      </h3>
-                      <div className="bg-gray-50 p-4 rounded">
-                        <img
-                          src={qrCodeUrl}
-                          alt="QR Code"
-                          className="mx-auto mb-2"
-                          style={{ width: '150px', height: '150px' }}
-                        />
-                        <p className="text-xs text-gray-600">
-                          Xuất trình mã QR này tại rạp
-                        </p>
-                      </div>
+                  <div className="border rounded-lg p-6 text-center">
+                    <h3 className="font-medium text-gray-900 mb-4 flex items-center justify-center">
+                      <QrCodeIcon className="h-6 w-6 mr-2 text-gray-600" />
+                      Mã QR vé
+                    </h3>
+                    <div className="bg-gray-50 p-6 rounded-lg">
+                      <img
+                        src={qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`TICKET_${selectedBooking.id}`)}`}
+                        alt="QR Code"
+                        className="mx-auto mb-4"
+                        style={{ width: '200px', height: '200px' }}
+                      />
+                      <p className="text-sm text-gray-600 mt-4">
+                        Xuất trình mã QR này tại rạp để vào xem phim
+                      </p>
                     </div>
-                  )}
-
-                  {/* Customer Information */}
+                  </div>
+                  {/* User Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
                       <UserIcon className="h-5 w-5 mr-2 text-gray-600" />
@@ -1639,9 +1201,9 @@ const Profile: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-500">Địa chỉ</div>
-                        <div className="font-medium text-gray-900">
-                          {(selectedBooking as any).customerAddress || selectedBooking.order?.customerAddress || 'Chưa cập nhật'}
+                        <div className="text-sm text-gray-500">Mã vé</div>
+                        <div className="font-bold text-lg text-blue-600">
+                          #{selectedBooking.id}
                         </div>
                       </div>
                       <div>
@@ -1652,13 +1214,18 @@ const Profile: React.FC = () => {
                           </span>
                         </div>
                       </div>
+                      <div>
+                        <div className="text-sm text-gray-500">Tổng thanh toán</div>
+                        <div className="font-bold text-lg text-green-600">
+                          {selectedBooking.totalPrice?.toLocaleString('vi-VN')}đ
+                        </div>
+                      </div>
                     </div>
                   </div>
-
                   {/* Important Notice */}
                   <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Lưu ý quan trọng</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
+                    <h4 className="font-medium text-gray-900 mb-3">Lưu ý quan trọng</h4>
+                    <ul className="text-sm text-gray-600 space-y-2">
                       <li>• Có mặt trước giờ chiếu 15 phút</li>
                       <li>• Mang theo mã QR và giấy tờ tùy thân</li>
                       <li>• Không được đổi/trả vé sau thanh toán</li>
@@ -1667,7 +1234,6 @@ const Profile: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               {/* Footer */}
               <div className="mt-6 flex justify-end space-x-3">
                 <button
@@ -1681,9 +1247,7 @@ const Profile: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };
-
 export default Profile;

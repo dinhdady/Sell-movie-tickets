@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeftIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authAPI } from '../services/api';
-
 const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  
   const [formData, setFormData] = useState({
     newPassword: '',
     confirmPassword: ''
@@ -18,7 +16,6 @@ const ResetPassword: React.FC = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
-
   useEffect(() => {
     const validateToken = async () => {
       if (!token) {
@@ -26,7 +23,6 @@ const ResetPassword: React.FC = () => {
         setValidating(false);
         return;
       }
-
       try {
         const response = await authAPI.validateResetToken(token);
         if (response.state === 'SUCCESS') {
@@ -35,45 +31,36 @@ const ResetPassword: React.FC = () => {
           setError(response.message || 'Token không hợp lệ hoặc đã hết hạn');
         }
       } catch (error: any) {
-        console.error('Token validation error:', error);
         setError(error.response?.data?.message || 'Token không hợp lệ hoặc đã hết hạn');
       } finally {
         setValidating(false);
       }
     };
-
     validateToken();
   }, [token]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!formData.newPassword.trim()) {
       setError('Vui lòng nhập mật khẩu mới');
       return;
     }
-
     if (formData.newPassword.length < 6) {
       setError('Mật khẩu phải có ít nhất 6 ký tự');
       return;
     }
-
     if (formData.newPassword !== formData.confirmPassword) {
       setError('Mật khẩu xác nhận không khớp');
       return;
     }
-
     try {
       setLoading(true);
       setError('');
       setMessage('');
-
       const response = await authAPI.resetPassword({
         token: token!,
         newPassword: formData.newPassword,
         confirmPassword: formData.confirmPassword
       });
-      
       if (response.state === 'SUCCESS') {
         setIsSuccess(true);
         setMessage('Mật khẩu đã được đặt lại thành công. Bạn có thể đăng nhập với mật khẩu mới.');
@@ -81,13 +68,11 @@ const ResetPassword: React.FC = () => {
         setError(response.message || 'Có lỗi xảy ra khi đặt lại mật khẩu');
       }
     } catch (error: any) {
-      console.error('Reset password error:', error);
       setError(error.response?.data?.message || 'Có lỗi xảy ra khi đặt lại mật khẩu');
     } finally {
       setLoading(false);
     }
   };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -95,7 +80,6 @@ const ResetPassword: React.FC = () => {
       [name]: value
     }));
   };
-
   if (validating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -110,7 +94,6 @@ const ResetPassword: React.FC = () => {
       </div>
     );
   }
-
   if (isSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -139,7 +122,6 @@ const ResetPassword: React.FC = () => {
       </div>
     );
   }
-
   if (error && !token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -168,7 +150,6 @@ const ResetPassword: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -180,7 +161,6 @@ const ResetPassword: React.FC = () => {
             Nhập mật khẩu mới của bạn
           </p>
         </div>
-        
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -215,7 +195,6 @@ const ResetPassword: React.FC = () => {
                 </button>
               </div>
             </div>
-
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 Xác nhận mật khẩu
@@ -249,19 +228,16 @@ const ResetPassword: React.FC = () => {
               </div>
             </div>
           </div>
-
           {error && (
             <div className="rounded-md bg-red-50 p-4">
               <div className="text-sm text-red-700">{error}</div>
             </div>
           )}
-
           {message && !error && (
             <div className="rounded-md bg-green-50 p-4">
               <div className="text-sm text-green-700">{message}</div>
             </div>
           )}
-
           <div>
             <button
               type="submit"
@@ -278,7 +254,6 @@ const ResetPassword: React.FC = () => {
               )}
             </button>
           </div>
-
           <div className="text-center">
             <Link
               to="/login"
@@ -293,5 +268,4 @@ const ResetPassword: React.FC = () => {
     </div>
   );
 };
-
 export default ResetPassword;

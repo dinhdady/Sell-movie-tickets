@@ -11,7 +11,6 @@ import {
   XMarkIcon,
   StarIcon as StarSolidIcon
 } from '@heroicons/react/24/outline';
-
 interface MovieDetailModalProps {
   movieId: number | null;
   isOpen: boolean;
@@ -19,7 +18,6 @@ interface MovieDetailModalProps {
   onBookTicket: (movieId: number, showtimeId?: number) => void;
   onBookingSuccess?: (bookingId: number) => void;
 }
-
 const MovieDetailModal: React.FC<MovieDetailModalProps> = ({ 
   movieId, 
   isOpen, 
@@ -32,11 +30,9 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isBookingOpen, setIsBookingOpen] = useState(false);
-
   useEffect(() => {
     const fetchMovieDetails = async () => {
       if (!movieId || !isOpen) return;
-
       try {
         setLoading(true);
         setError('');
@@ -44,33 +40,27 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
           movieAPI.getById(movieId),
           movieAPI.getShowtimes(movieId)
         ]);
-
         if (movieResponse.state === 'SUCCESS') {
           setMovie(movieResponse.object);
         } else {
           setError('Không tìm thấy phim');
         }
-
         if (showtimesResponse.state === 'SUCCESS') {
           setShowtimes(showtimesResponse.object);
         }
       } catch (err) {
-        console.error('Error fetching movie details:', err);
         setError('Có lỗi xảy ra khi tải thông tin phim');
       } finally {
         setLoading(false);
       }
     };
-
     fetchMovieDetails();
   }, [movieId, isOpen]);
-
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -78,14 +68,12 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       day: 'numeric'
     });
   };
-
   const formatTime = (timeString: string) => {
     return new Date(timeString).toLocaleTimeString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit'
     });
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -98,7 +86,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'NOW_SHOWING':
@@ -111,7 +98,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         return status;
     }
   };
-
   const handleBookTicket = (movieId: number, showtimeId?: number) => {
     if (showtimeId) {
       onBookTicket(movieId, showtimeId);
@@ -119,7 +105,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       setIsBookingOpen(true);
     }
   };
-
   const handleBookingSuccess = (bookingId: number) => {
     setIsBookingOpen(false);
     onClose();
@@ -127,9 +112,7 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
       onBookingSuccess(bookingId);
     }
   };
-
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto modal-backdrop">
       {/* Backdrop */}
@@ -137,7 +120,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
-      
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
         <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden modal-content">
@@ -151,7 +133,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
               <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
           </div>
-
           {/* Content */}
           <div className="overflow-y-auto max-h-[calc(95vh-80px)] sm:max-h-[calc(90vh-80px)]">
             {loading ? (
@@ -186,7 +167,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                       )}
                     </div>
                   </div>
-
                   {/* Movie Info */}
                   <div className="lg:w-2/3">
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 gap-4">
@@ -209,7 +189,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                         </div>
                       </div>
                     </div>
-
                     {/* Rating */}
                     <div className="flex items-center mb-6">
                       <StarSolidIcon className="h-6 w-6 text-yellow-400 mr-2" />
@@ -218,7 +197,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                       </span>
                       <span className="text-gray-600">/ 10</span>
                     </div>
-
                     {/* Movie Details */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                       <div className="flex items-center text-gray-600">
@@ -238,19 +216,16 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                         <span className="font-medium">{movie.director}</span>
                       </div>
                     </div>
-
                     {/* Description */}
                     <div className="mb-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">Nội dung</h3>
                       <p className="text-gray-600 leading-relaxed text-wrap break-words">{movie.description}</p>
                     </div>
-
                     {/* Cast */}
                     <div className="mb-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">Diễn viên</h3>
                       <p className="text-gray-600 text-wrap break-words">{movie.cast}</p>
                     </div>
-
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4">
                       {movie.trailerUrl && (
@@ -270,7 +245,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
                     </div>
                   </div>
                 </div>
-
                 {/* Showtimes */}
                 {showtimes.length > 0 && (
                   <div className="mt-8 border-t border-gray-200 pt-6">
@@ -322,7 +296,6 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
           </div>
         </div>
       </div>
-
       {/* Booking Sidebar */}
       <BookingSidebar
         movieId={movieId}
@@ -333,5 +306,4 @@ const MovieDetailModal: React.FC<MovieDetailModalProps> = ({
     </div>
   );
 };
-
 export default MovieDetailModal;

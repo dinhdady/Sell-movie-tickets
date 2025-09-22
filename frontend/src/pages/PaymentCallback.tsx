@@ -15,7 +15,6 @@ import {
 import LoadingSpinner from '../components/LoadingSpinner';
 import { paymentAPI, bookingAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-
 interface VNPayResponse {
   vnp_Amount: string;
   vnp_BankCode: string;
@@ -30,7 +29,6 @@ interface VNPayResponse {
   vnp_TxnRef: string;
   vnp_SecureHash: string;
 }
-
 interface Ticket {
   id: number;
   orderId: number;
@@ -63,7 +61,6 @@ interface Ticket {
     };
   };
 }
-
 interface BookingDetails {
   id: number;
   movie: {
@@ -89,7 +86,6 @@ interface BookingDetails {
   customerEmail: string;
   totalPrice: number;
 }
-
 const PaymentCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -104,125 +100,85 @@ const PaymentCallback: React.FC = () => {
   const processedRef = useRef<boolean>(false);
   const emailProcessingRef = useRef<boolean>(false);
   const globalEmailSentRef = useRef<boolean>(false);
-
   // Function to process payment with txnRef from localStorage
   const processPaymentWithTxnRef = useCallback(async (txnRef: string) => {
     try {
-      console.log('🎯 [PaymentCallback] Processing payment with txnRef:', txnRef);
-      
       // First confirm the payment and generate tickets
-      console.log('🎯 [PaymentCallback] Confirming payment for txnRef:', txnRef);
       const confirmResponse = await paymentAPI.confirmPayment(txnRef);
-      console.log('🎯 [PaymentCallback] Confirm payment response:', confirmResponse);
-
       if (confirmResponse.state === 'SUCCESS') {
         // Then fetch the updated booking details with tickets
-        console.log('Fetching booking details for txnRef:', txnRef);
         const response = await paymentAPI.getBookingByTxnRef(txnRef);
-        console.log('Booking details response:', response);
-
         if (response.state === 'SUCCESS') {
           setBookingDetails(response.object);
           setStatus('success');
-
           // Generate QR code and send email
           await generateQRAndSendEmail(response.object);
-
           // Clear txnRef from localStorage
           localStorage.removeItem('currentTxnRef');
         } else {
-          console.error('Failed to get booking details:', response.message);
           setErrorMessage('Không thể lấy thông tin đặt vé: ' + (response.message || 'Không xác định'));
           setStatus('failed');
         }
       } else {
-        console.error('Failed to confirm payment:', confirmResponse.message);
         setErrorMessage('Không thể xác nhận thanh toán: ' + confirmResponse.message);
         setStatus('failed');
       }
     } catch (error) {
-      console.error('Error processing payment with txnRef:', error);
       setErrorMessage('Có lỗi xảy ra khi xử lý thanh toán: ' + (error instanceof Error ? error.message : 'Không xác định'));
       setStatus('failed');
     } finally {
       setLoading(false);
     }
   }, [emailSent]);
-
   // Function to create HTML email and send to user
   const sendQREmailToUser = useCallback(async (bookingId: number, qrCodeDataUrl: string, currentBookingDetails?: BookingDetails, qrData?: string) => {
     try {
-      console.log('🎯 [FRONTEND] Sending QR email for booking:', bookingId);
-      
       // Use current booking details or fallback to state
       const details = currentBookingDetails || bookingDetails;
       if (!details) {
-        console.error('❌ [FRONTEND] No booking details available for email');
         return false;
       }
-
       // Create HTML email content
       const htmlContent = createEmailHTML(details, qrCodeDataUrl, qrData);
       const subject = `Xác nhận đặt vé - ${details.movie?.title || 'Unknown Movie'}`;
-      
       // Validate required data
       if (!htmlContent || htmlContent.length === 0) {
-        console.error('❌ [FRONTEND] HTML content is empty');
         return false;
       }
-      
       if (!details.customerEmail || details.customerEmail.trim() === '') {
-        console.error('❌ [FRONTEND] Customer email is empty');
         return false;
       }
-      
-      
-      
       const response = await paymentAPI.sendBookingEmail(bookingId, htmlContent, subject, details.customerEmail);
-      
       if (response.state === 'SUCCESS') {
         return true;
       } else {
-        console.error('❌ [FRONTEND] Failed to send email:', response.message);
         return false;
       }
     } catch (error) {
-      console.error('❌ [FRONTEND] Error sending email:', error);
       return false;
     }
   }, [bookingDetails]);
-
   // Helper function to generate QR code and send email
   const generateQRAndSendEmail = useCallback(async (bookingDetails: BookingDetails) => {
     try {
-      console.log('🎯 [FRONTEND] Starting QR generation and email sending for booking:', bookingDetails.id);
-      
       // Check if email already sent globally to prevent spam
       if (globalEmailSentRef.current) {
-        console.log('📧 [FRONTEND] Email already sent globally, skipping...');
         return { qrCodeDataUrl: qrCodeUrl, emailSent: true };
       }
-      
       // Check if already processing to prevent multiple calls
       if (emailProcessingRef.current) {
-        console.log('📧 [FRONTEND] Already processing email, skipping...');
         return { qrCodeDataUrl: qrCodeUrl, emailSent: true };
       }
-      
       // Check if this specific booking already processed
       const bookingKey = `email_sent_${bookingDetails.id}`;
       if (localStorage.getItem(bookingKey)) {
-        console.log('📧 [FRONTEND] Email already sent for booking ID:', bookingDetails.id);
         return { qrCodeDataUrl: qrCodeUrl, emailSent: true };
       }
-      
       emailProcessingRef.current = true;
       globalEmailSentRef.current = true;
-      
       // Get QR code URL from backend (already generated)
       let qrCodeDataUrl = null;
       let qrData = `BOOKING_${bookingDetails.id}`; // Default fallback
-      
       if (bookingDetails.order?.tickets && bookingDetails.order.tickets.length > 0) {
         const firstTicket = bookingDetails.order.tickets[0];
         if (firstTicket.qrCodeUrl) {
@@ -232,15 +188,11 @@ const PaymentCallback: React.FC = () => {
           qrData = `TICKET_${firstTicket.token}`;
         }
       }
-      
       // QR code should always be available from backend
       if (!qrCodeDataUrl) {
-        console.error('❌ [FRONTEND] No QR code URL from backend - this should not happen');
         return { qrCodeDataUrl: null, emailSent: false };
       }
-      
       setQrCodeUrl(qrCodeDataUrl);
-      
       // Send email with QR code
       const emailSentResult = await sendQREmailToUser(bookingDetails.id, qrCodeDataUrl, bookingDetails, qrData);
       if (emailSentResult) {
@@ -248,44 +200,28 @@ const PaymentCallback: React.FC = () => {
         // Mark this specific booking as email sent
         localStorage.setItem(`email_sent_${bookingDetails.id}`, 'true');
       }
-      
       return { qrCodeDataUrl, emailSent: emailSentResult };
     } catch (error) {
-      console.error('❌ [FRONTEND] Error in QR generation and email sending:', error);
       return { qrCodeDataUrl: null, emailSent: false };
     } finally {
       emailProcessingRef.current = false;
     }
   }, [emailSent, qrCodeUrl, sendQREmailToUser]);
-
   // Function to create HTML email content
   const createEmailHTML = (booking: BookingDetails, qrCodeDataUrl: string, qrData?: string): string => {
     // Validate required data
     if (!booking) {
-      console.error('❌ [FRONTEND] Booking details is null');
       return '';
     }
-    
     if (!booking.movie) {
-      console.error('❌ [FRONTEND] Movie details is null');
       return '';
     }
-    
     if (!booking.showtime) {
-      console.error('❌ [FRONTEND] Showtime details is null');
       return '';
     }
-    
     if (!booking.order || !booking.order.tickets) {
-      console.error('❌ [FRONTEND] Order or tickets details is null');
       return '';
     }
-    
-    console.log('📧 [FRONTEND] Creating HTML content for booking:', booking.id);
-    console.log('📧 [FRONTEND] Movie title:', booking.movie.title);
-    console.log('📧 [FRONTEND] Customer name:', booking.customerName);
-    console.log('📧 [FRONTEND] Customer email:', booking.customerEmail);
-    
     return `
 <!DOCTYPE html>
 <html>
@@ -317,11 +253,8 @@ const PaymentCallback: React.FC = () => {
         <div class="header">
             <h1>🎬 Xác nhận đặt vé thành công!</h1>
         </div>
-        
         <p>Xin chào <span class="highlight">${booking.customerName || 'Khách hàng'}</span>,</p>
-        
         <p>Cảm ơn bạn đã đặt vé tại rạp chiếu phim của chúng tôi! Vé của bạn đã được xác nhận thành công.</p>
-        
         <div class="booking-info">
             <p><strong>🎭 Phim:</strong> ${booking.movie?.title || 'N/A'}</p>
             <p><strong>🏢 Rạp:</strong> ${booking.showtime?.room?.cinema?.name || 'N/A'}</p>
@@ -330,7 +263,6 @@ const PaymentCallback: React.FC = () => {
             <p><strong>💰 Tổng tiền:</strong> ${booking.totalPrice ? booking.totalPrice.toLocaleString('vi-VN') : '0'} VNĐ</p>
             <p><strong>🪑 Ghế:</strong> ${booking.order?.tickets ? booking.order.tickets.map(t => t.seat?.seatNumber || 'N/A').join(', ') : 'N/A'}</p>
         </div>
-        
         <div class="qr-section">
             <div style="text-align: center; margin: 20px 0;">
                 <div style="background: white; padding: 20px; border-radius: 8px; display: inline-block; border: 2px solid #333;">
@@ -348,7 +280,6 @@ const PaymentCallback: React.FC = () => {
             </div>
             <p><strong>Xuất trình mã QR này tại quầy vé để nhận vé</strong></p>
         </div>
-        
         <div class="notice">
             <h4>📱 Lưu ý quan trọng</h4>
             <ul>
@@ -358,7 +289,6 @@ const PaymentCallback: React.FC = () => {
                 <li>Liên hệ hotline nếu cần hỗ trợ: <strong>1900-xxxx</strong></li>
             </ul>
         </div>
-        
         <div class="footer">
             <p>Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!</p>
             <p><strong>🎭 Cinema Team</strong></p>
@@ -369,70 +299,46 @@ const PaymentCallback: React.FC = () => {
 </html>
     `;
   };
-
   useEffect(() => {
     const processPayment = async () => {
       try {
         // Check if already processed to prevent infinite loop
         if (processedRef.current) {
-          console.log('🔍 [PaymentCallback] Already processed, skipping...');
           return;
         }
-        
         // Reset processed flag if we have new URL parameters
         if (searchParams && searchParams.size > 0) {
           processedRef.current = false;
         }
-        
-        console.log('🔍 [PaymentCallback] Starting processPayment...');
-        console.log('🔍 [PaymentCallback] searchParams:', searchParams);
-        console.log('🔍 [PaymentCallback] searchParams.size:', searchParams?.size);
-        console.log('🔍 [PaymentCallback] searchParams.entries():', searchParams ? Object.fromEntries(searchParams.entries()) : 'null');
-        
         // Kiểm tra xem có tham số URL từ VNPay callback không
         if (searchParams && searchParams.size > 0) {
-          console.log('✅ [PaymentCallback] Found URL parameters from VNPay callback:', Object.fromEntries(searchParams.entries()));
-          
           const status = searchParams.get('status');
           const txnRef = searchParams.get('txnRef');
           const message = searchParams.get('message');
-          
-          console.log('🔍 [PaymentCallback] Parsed parameters - status:', status, 'txnRef:', txnRef, 'message:', message);
-          
           if (status === 'success' && txnRef) {
-            console.log('✅ [PaymentCallback] VNPay payment successful, processing with txnRef:', txnRef);
             await processPaymentWithTxnRef(txnRef);
             return;
           } else if (status === 'failed') {
-            console.log('❌ [PaymentCallback] VNPay payment failed:', message);
             setErrorMessage(message || 'Thanh toán thất bại');
             setStatus('failed');
             setLoading(false);
             return;
           } else {
-            console.log('⚠️ [PaymentCallback] URL parameters found but not processed:', { status, txnRef, message });
           }
         } else {
-          console.log('⚠️ [PaymentCallback] No URL parameters found or searchParams is empty');
         }
-        
         // Kiểm tra xem có tham số URL không
         if (!searchParams || searchParams.size === 0) {
-          console.log('No search parameters found in URL, checking for booking from Profile or localStorage');
-          
           // Kiểm tra xem có txnRef từ payment không
           const currentTxnRef = localStorage.getItem('currentTxnRef');
           if (currentTxnRef) {
-            console.log('Found txnRef from payment:', currentTxnRef);
             // Process payment with txnRef from localStorage
             await processPaymentWithTxnRef(currentTxnRef);
             return;
           }
-          
           // Kiểm tra xem có pending booking không (fallback khi VNPay lỗi)
           const pendingBooking = localStorage.getItem('pendingBooking');
           if (pendingBooking) {
-            console.log('Found pending booking from VNPay error:', pendingBooking);
             try {
               const bookingData = JSON.parse(pendingBooking);
               // Simulate successful payment for testing
@@ -464,11 +370,9 @@ const PaymentCallback: React.FC = () => {
                   }))
                 }
               });
-              
               // Clear pending booking
               localStorage.removeItem('pendingBooking');
               localStorage.removeItem('currentTxnRef');
-              
               // Generate QR code and send email
               await generateQRAndSendEmail({
                 id: bookingData.bookingId,
@@ -497,73 +401,54 @@ const PaymentCallback: React.FC = () => {
                   }))
                 }
               });
-              
               setLoading(false);
               return;
             } catch (error) {
-              console.error('Error processing pending booking:', error);
               setErrorMessage('Có lỗi xảy ra khi xử lý đặt vé. Vui lòng thử lại.');
               setStatus('failed');
               setLoading(false);
               return;
             }
           }
-          
           // Kiểm tra xem có booking từ Profile không
           const selectedBooking = localStorage.getItem('selectedBooking');
           if (selectedBooking) {
-            console.log('Found booking from Profile:', selectedBooking);
             try {
               const booking = JSON.parse(selectedBooking);
-              
               // Kiểm tra authentication trước khi gọi API
               if (!user) {
-                console.error('User not authenticated');
                 setErrorMessage('Bạn cần đăng nhập để xem thông tin vé. Vui lòng đăng nhập và thử lại.');
                 setStatus('failed');
                 setLoading(false);
                 return;
               }
-
               // Gọi API để lấy thông tin chi tiết booking với ghế
               try {
                 const bookingDetailsResponse = await bookingAPI.getById(booking.id);
-                console.log('Booking details from API:', bookingDetailsResponse);
-                
                 // Xử lý response với các state khác nhau
                 let bookingData;
                 if (bookingDetailsResponse.state === 'SUCCESS' || bookingDetailsResponse.state === '200' || bookingDetailsResponse.state === '302') {
                   bookingData = bookingDetailsResponse.object;
-                  console.log('Raw booking data:', bookingData);
                 } else {
                   throw new Error(`API returned state: ${bookingDetailsResponse.state}`);
                 }
-                
                 // Cố gắng lấy thông tin vé với nhiều cách khác nhau
                 let tickets = [];
                 const anyBookingData = bookingData as any; // Cast to any to access dynamic properties
-                
                 // Cách 1: Từ bookingData.tickets trực tiếp
                 if (anyBookingData.tickets && Array.isArray(anyBookingData.tickets)) {
-                  console.log('Found tickets directly in booking data:', anyBookingData.tickets);
                   tickets = anyBookingData.tickets;
                 }
                 // Cách 2: Từ bookingData.order.tickets
                 else if (anyBookingData.order?.tickets && Array.isArray(anyBookingData.order.tickets)) {
-                  console.log('Found tickets in booking order:', anyBookingData.order.tickets);
                   tickets = anyBookingData.order.tickets;
                 }
                 // Cách 3: Từ bookingData.bookingTickets (có thể có tên khác)
                 else if (anyBookingData.bookingTickets && Array.isArray(anyBookingData.bookingTickets)) {
-                  console.log('Found bookingTickets:', anyBookingData.bookingTickets);
                   tickets = anyBookingData.bookingTickets;
                 }
-                
-                console.log('Processed tickets array:', tickets);
-                
                 // Tạo booking details từ dữ liệu thực tế
                 const anyBooking = booking as any; // Cast booking to any for accessing extended properties
-                
                 const realBookingDetails: BookingDetails = {
                   id: bookingData.id || booking.id,
                   movie: {
@@ -605,21 +490,14 @@ const PaymentCallback: React.FC = () => {
                   },
                   order: {
                     tickets: tickets.length > 0 ? tickets.map((ticket: unknown, index: number) => {
-                      console.log(`Processing ticket ${index}:`, ticket);
-                      
                       // Lấy thông tin ghế từ các nguồn khác nhau
                       const ticketData = ticket as Record<string, unknown>;
                       const seatInfo = ticketData.seat || ticketData.bookingSeat || ticketData;
-                      console.log(`Seat info for ticket ${index}:`, seatInfo);
-                      
                       // Tạo seatNumber từ rowNumber và columnNumber
                       const seatData = seatInfo as Record<string, unknown>;
                       const rowNumber = seatData.rowNumber || seatData.row || String.fromCharCode(65 + index); // A, B, C...
                       const columnNumber = seatData.columnNumber || seatData.column || (index + 1);
                       const seatNumber = seatData.seatNumber || `${rowNumber}${columnNumber}`;
-                      
-                      console.log(`Generated seat info: ${seatNumber} (${rowNumber}${columnNumber})`);
-                      
                       return {
                         id: ticketData.id || ticketData.ticketId || index + 1,
                         orderId: ticketData.orderId || ticketData.bookingId || bookingData.id,
@@ -661,96 +539,71 @@ const PaymentCallback: React.FC = () => {
                   customerEmail: bookingData.customerEmail || booking.customerEmail,
                   totalPrice: bookingData.totalPrice || booking.totalPrice
                 };
-                
-                console.log('Final booking details:', realBookingDetails);
                 setBookingDetails(realBookingDetails);
-                
                 setStatus('success');
-                
                 // Tạo QR code và gửi email
                 await generateQRAndSendEmail(realBookingDetails);
               } catch (apiError) {
-                console.error('API call failed:', apiError);
-                
                 // Nếu API thất bại, hiển thị thông báo lỗi thay vì mock data
                 setErrorMessage('Không thể lấy thông tin chi tiết vé từ server. Vui lòng kiểm tra kết nối mạng và thử lại.');
                 setStatus('failed');
                 setLoading(false);
                 return;
               }
-              
               // Xóa dữ liệu từ localStorage
               localStorage.removeItem('selectedBooking');
               localStorage.removeItem('lastTxnRef');
               setLoading(false);
               return;
             } catch (error) {
-              console.error('Error processing booking from Profile:', error);
               setErrorMessage('Không thể xử lý thông tin vé từ Profile');
               setStatus('failed');
               setLoading(false);
               return;
             }
           }
-          
           setErrorMessage('Không tìm thấy thông tin thanh toán. Vui lòng truy cập từ trang đặt vé.');
           setStatus('failed');
           setLoading(false);
           return;
         }
-
-        console.log('Search params:', Object.fromEntries(searchParams.entries()));
-
         // Lấy txnRef từ URL trước tiên
         const txnRef = searchParams.get('vnp_TxnRef');
-
         // Nếu không có txnRef trong URL, thử lấy từ localStorage
         if (!txnRef) {
-          console.log('No txnRef in URL, trying to get from localStorage');
           const storedTxnRef = localStorage.getItem('lastTxnRef');
-
           if (storedTxnRef) {
-            console.log('Found txnRef in localStorage:', storedTxnRef);
-
             try {
               // Lấy thông tin đặt vé từ backend bằng txnRef đã lưu
               const response = await paymentAPI.getBookingByTxnRef(storedTxnRef);
-              console.log('Payment API response:', response);
-
               if (response.state === 'SUCCESS') {
                 setBookingDetails(response.object);
                 setStatus('success');
-
                 // Generate QR code and send email
                 await generateQRAndSendEmail(response.object);
-
                 // Xóa txnRef từ localStorage sau khi đã sử dụng
                 localStorage.removeItem('lastTxnRef');
                 setLoading(false);
                 return;
               } else {
-                console.error('Payment API failed:', response.message);
                 setErrorMessage('Không thể lấy thông tin thanh toán: ' + (response.message || 'Lỗi không xác định'));
                 setStatus('failed');
                 setLoading(false);
                 return;
               }
             } catch (error) {
-              console.error('Error fetching booking details from localStorage txnRef:', error);
               setErrorMessage('Lỗi khi lấy thông tin thanh toán. Vui lòng thử lại.');
               setStatus('failed');
               setLoading(false);
               return;
             }
           } else {
-            console.log('No stored txnRef found in localStorage');
             setErrorMessage('Không tìm thấy thông tin thanh toán. Vui lòng truy cập từ trang đặt vé.');
             setStatus('failed');
             setLoading(false);
             return;
           }
         }
-
         // Extract VNPay parameters from URL
         const vnpayResponse: VNPayResponse = {
           vnp_Amount: searchParams.get('vnp_Amount') || '',
@@ -766,89 +619,63 @@ const PaymentCallback: React.FC = () => {
           vnp_TxnRef: txnRef || '',
           vnp_SecureHash: searchParams.get('vnp_SecureHash') || '',
         };
-
-        console.log('VNPay response:', vnpayResponse);
         setPaymentData(vnpayResponse);
-
         // Kiểm tra xem có mã giao dịch không
         if (!vnpayResponse.vnp_TxnRef) {
-          console.error('No transaction reference found in URL or localStorage');
           setErrorMessage('Không tìm thấy mã giao dịch');
           setStatus('failed');
           setLoading(false);
           return;
         }
-
         // Determine payment status
         const paymentStatus = vnpayResponse.vnp_ResponseCode === '00' && vnpayResponse.vnp_TransactionStatus === '00'
           ? 'success'
           : 'failed';
         setStatus(paymentStatus);
-
         // If payment successful, confirm payment and fetch booking details
         if (paymentStatus === 'success' && vnpayResponse.vnp_TxnRef) {
           try {
             // First confirm the payment and generate tickets
-            console.log('Confirming payment for txnRef:', vnpayResponse.vnp_TxnRef);
             const confirmResponse = await paymentAPI.confirmPayment(vnpayResponse.vnp_TxnRef);
-            console.log('Confirm payment response:', confirmResponse);
-
             if (confirmResponse.state === 'SUCCESS') {
               // Then fetch the updated booking details with tickets
-              console.log('Fetching booking details for txnRef:', vnpayResponse.vnp_TxnRef);
               const response = await paymentAPI.getBookingByTxnRef(vnpayResponse.vnp_TxnRef);
-              console.log('Booking details response:', response);
-
               if (response.state === 'SUCCESS') {
                 setBookingDetails(response.object);
-
                 // Generate QR code and send email
                 await generateQRAndSendEmail(response.object);
-
                 // Log ticket status if available
                 if (response.object.order?.tickets && response.object.order.tickets.length > 0) {
                   const firstTicket = response.object.order.tickets[0];
-                  console.log('Ticket data:', firstTicket);
-                  
                   // Lấy thông tin phim từ ticket nếu không có trong bookingDetails
                   if (!response.object.movie && firstTicket.showtime?.movie) {
                     response.object.movie = firstTicket.showtime.movie;
-                    console.log('Updated movie info from ticket:', response.object.movie);
                   }
-
                   // Kiểm tra trạng thái vé
-                  console.log('Ticket status:', firstTicket.status);
                   if (firstTicket.status === 'PAID') {
-                    console.log('Ticket is paid');
                   }
                 }
               } else {
-                console.error('Failed to get booking details:', response.message);
                 setErrorMessage('Không thể lấy thông tin đặt vé: ' + (response.message || 'Không xác định'));
               }
             } else {
-              console.error('Failed to confirm payment:', confirmResponse.message);
               setErrorMessage('Không thể xác nhận thanh toán: ' + confirmResponse.message);
             }
           } catch (error) {
-            console.error('Error confirming payment or fetching booking details:', error);
             setErrorMessage('Lỗi khi xác nhận thanh toán hoặc lấy thông tin đặt vé');
           }
         } else if (paymentStatus === 'failed') {
           setErrorMessage('Thanh toán không thành công. Mã lỗi: ' + vnpayResponse.vnp_ResponseCode);
         }
       } catch (error) {
-        console.error('Error processing payment:', error);
         setErrorMessage('Lỗi xử lý thanh toán');
       } finally {
         setLoading(false);
         processedRef.current = true; // Mark as processed
       }
     };
-
     processPayment();
   }, [searchParams, user]);
-
   // Reset states when component unmounts
   useEffect(() => {
     return () => {
@@ -858,27 +685,22 @@ const PaymentCallback: React.FC = () => {
       globalEmailSentRef.current = false;
     };
   }, []);
-
   // Format amount from VNPay (cents to VND)
   const formatAmount = (amount: string) => {
     const amountInVND = parseInt(amount) / 100;
     return amountInVND.toLocaleString('vi-VN');
   };
-
   // Format date from VNPay format (YYYYMMDDHHmmss)
   const formatDate = (dateString: string) => {
     if (!dateString || dateString.length !== 14) return dateString;
-
     const year = dateString.substring(0, 4);
     const month = dateString.substring(4, 6);
     const day = dateString.substring(6, 8);
     const hour = dateString.substring(8, 10);
     const minute = dateString.substring(10, 12);
     const second = dateString.substring(12, 14);
-
     return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
   };
-
   // Get status icon and styling
   const getStatusIcon = () => {
     switch (status) {
@@ -890,7 +712,6 @@ const PaymentCallback: React.FC = () => {
         return <ClockIcon className="h-16 w-16 text-yellow-500 mx-auto mb-4" />;
     }
   };
-
   const getStatusInfo = () => {
     switch (status) {
       case 'success':
@@ -913,7 +734,6 @@ const PaymentCallback: React.FC = () => {
         };
     }
   };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -921,9 +741,7 @@ const PaymentCallback: React.FC = () => {
       </div>
     );
   }
-
   const statusInfo = getStatusInfo();
-
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -932,7 +750,6 @@ const PaymentCallback: React.FC = () => {
           <div className="text-center mb-6">
             {getStatusIcon()}
           </div>
-
           {/* Status Message */}
           <div className="text-center mb-8">
             <h1 className={`text-2xl font-bold mb-2 ${statusInfo.color}`}>
@@ -941,7 +758,6 @@ const PaymentCallback: React.FC = () => {
             <p className="text-gray-600">
               {errorMessage || statusInfo.message}
             </p>
-            
             {/* Special message for VNPay errors */}
             {status === 'failed' && !errorMessage && (
               <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -952,7 +768,6 @@ const PaymentCallback: React.FC = () => {
               </div>
             )}
           </div>
-
           {/* Booking Details */}
           {bookingDetails && status === 'success' && (
             <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
@@ -960,7 +775,6 @@ const PaymentCallback: React.FC = () => {
                 <TicketIcon className="h-6 w-6 mr-2 text-gray-600" />
                 Thông tin vé đã đặt
               </h2>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column - Movie & Showtime Info */}
                 <div className="space-y-6">
@@ -988,7 +802,6 @@ const PaymentCallback: React.FC = () => {
                       </div>
                     </div>
                   </div>
-
                   {/* Showtime Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -1021,7 +834,6 @@ const PaymentCallback: React.FC = () => {
                       </div>
                     </div>
                   </div>
-
                   {/* Cinema Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -1046,7 +858,6 @@ const PaymentCallback: React.FC = () => {
                       </div>
                     </div>
                   </div>
-
                   {/* Seats Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -1056,13 +867,10 @@ const PaymentCallback: React.FC = () => {
                     {bookingDetails?.order?.tickets && bookingDetails.order.tickets.length > 0 ? (
                       <div className="space-y-2">
                         {bookingDetails.order.tickets.map((ticket, index) => {
-                          console.log(`Rendering ticket ${index}:`, ticket);
-                          
                           // Đảm bảo có thông tin ghế để hiển thị
                           const seatNumber = ticket?.seat?.seatNumber || `Ghế ${index + 1}`;
                           const seatType = ticket?.seat?.seatType || 'REGULAR';
                           const seatPrice = ticket?.seat?.price || ticket?.price || 80000;
-                          
                           return (
                             <div 
                               key={ticket?.id ?? ticket?.token ?? index} 
@@ -1088,7 +896,6 @@ const PaymentCallback: React.FC = () => {
                             </div>
                           );
                         })}
-                        
                         <div className="pt-2 mt-2 border-t">
                           <div className="flex justify-between items-center font-medium">
                             <span>Tổng cộng:</span>
@@ -1100,7 +907,6 @@ const PaymentCallback: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                        
                         {/* Thông tin thêm về booking */}
                         <div className="pt-2 mt-2 border-t bg-gray-50 p-3 rounded">
                           <div className="text-sm space-y-1">
@@ -1131,7 +937,6 @@ const PaymentCallback: React.FC = () => {
                     )}
                   </div>
                 </div>
-
                 {/* Right Column - QR Code & Customer Info */}
                 <div className="space-y-6">
                   {/* QR Code */}
@@ -1154,7 +959,6 @@ const PaymentCallback: React.FC = () => {
                       </div>
                     </div>
                   )}
-
                   {/* Customer Information */}
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -1184,7 +988,6 @@ const PaymentCallback: React.FC = () => {
                       </div>
                     </div>
                   </div>
-
                   {/* Important Notice */}
                   <div className="border border-gray-200 rounded-lg p-4">
                     <h4 className="font-medium text-gray-900 mb-2">Lưu ý quan trọng</h4>
@@ -1199,7 +1002,6 @@ const PaymentCallback: React.FC = () => {
               </div>
             </div>
           )}
-
           {/* Payment Details */}
           {paymentData && (
             <div className="bg-white border rounded-lg p-4 mb-6">
@@ -1207,42 +1009,35 @@ const PaymentCallback: React.FC = () => {
                 <CreditCardIcon className="h-5 w-5 mr-2 text-gray-600" />
                 Chi tiết thanh toán
               </h2>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-gray-500">Mã giao dịch</div>
                   <div className="font-medium text-gray-900">{paymentData.vnp_TxnRef}</div>
                 </div>
-
                 <div>
                   <div className="text-gray-500">Số tiền</div>
                   <div className="font-medium text-gray-900">
                     {formatAmount(paymentData.vnp_Amount)}đ
                   </div>
                 </div>
-
                 <div>
                   <div className="text-gray-500">Ngân hàng</div>
                   <div className="font-medium text-gray-900">{paymentData.vnp_BankCode}</div>
                 </div>
-
                 <div>
                   <div className="text-gray-500">Loại thẻ</div>
                   <div className="font-medium text-gray-900">{paymentData.vnp_CardType}</div>
                 </div>
-
                 <div>
                   <div className="text-gray-500">Mã giao dịch ngân hàng</div>
                   <div className="font-medium text-gray-900">{paymentData.vnp_BankTranNo}</div>
                 </div>
-
                 <div>
                   <div className="text-gray-500">Thời gian</div>
                   <div className="font-medium text-gray-900">
                     {formatDate(paymentData.vnp_PayDate)}
                   </div>
                 </div>
-
                 <div className="md:col-span-2">
                   <div className="text-gray-500">Thông tin đơn hàng</div>
                   <div className="font-medium text-gray-900">
@@ -1252,7 +1047,6 @@ const PaymentCallback: React.FC = () => {
               </div>
             </div>
           )}
-
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {status === 'success' ? (
@@ -1309,5 +1103,4 @@ const PaymentCallback: React.FC = () => {
     </div>
   );
 };
-
 export default PaymentCallback;

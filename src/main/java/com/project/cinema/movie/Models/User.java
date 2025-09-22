@@ -37,6 +37,8 @@ public class User implements UserDetails {
 
     private String phoneNumber;
 
+    private String address;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime registrationDate;

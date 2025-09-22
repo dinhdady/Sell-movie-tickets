@@ -2,34 +2,27 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeftIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { authAPI } from '../services/api';
-
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!email.trim()) {
       setError('Vui lòng nhập email');
       return;
     }
-
     if (!/\S+@\S+\.\S+/.test(email)) {
       setError('Email không hợp lệ');
       return;
     }
-
     try {
       setLoading(true);
       setError('');
       setMessage('');
-
       const response = await authAPI.forgotPassword(email);
-      
       if (response.state === 'SUCCESS') {
         setIsSuccess(true);
         setMessage('Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.');
@@ -37,13 +30,11 @@ const ForgotPassword: React.FC = () => {
         setError(response.message || 'Có lỗi xảy ra khi gửi email');
       }
     } catch (error: any) {
-      console.error('Forgot password error:', error);
       setError(error.response?.data?.message || 'Có lỗi xảy ra khi gửi email');
     } finally {
       setLoading(false);
     }
   };
-
   if (isSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -72,7 +63,6 @@ const ForgotPassword: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -84,7 +74,6 @@ const ForgotPassword: React.FC = () => {
             Nhập email của bạn để nhận link đặt lại mật khẩu
           </p>
         </div>
-        
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email" className="sr-only">
@@ -107,19 +96,16 @@ const ForgotPassword: React.FC = () => {
               />
             </div>
           </div>
-
           {error && (
             <div className="rounded-md bg-red-50 p-4">
               <div className="text-sm text-red-700">{error}</div>
             </div>
           )}
-
           {message && (
             <div className="rounded-md bg-green-50 p-4">
               <div className="text-sm text-green-700">{message}</div>
             </div>
           )}
-
           <div>
             <button
               type="submit"
@@ -136,7 +122,6 @@ const ForgotPassword: React.FC = () => {
               )}
             </button>
           </div>
-
           <div className="text-center">
             <Link
               to="/login"
@@ -151,5 +136,4 @@ const ForgotPassword: React.FC = () => {
     </div>
   );
 };
-
 export default ForgotPassword;

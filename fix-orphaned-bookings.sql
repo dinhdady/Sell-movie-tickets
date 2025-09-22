@@ -67,3 +67,4 @@ SELECT
     COUNT(*) - COUNT(seat_id) as without_seat
 FROM ticket;
 
+

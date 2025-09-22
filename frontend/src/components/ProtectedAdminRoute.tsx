@@ -2,41 +2,25 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
-
 interface ProtectedAdminRouteProps {
   children: React.ReactNode;
 }
-
 const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
-
-  console.log('🔐 [PROTECTED_ADMIN] Checking access...');
-  console.log('🔐 [PROTECTED_ADMIN] Loading:', loading);
-  console.log('🔐 [PROTECTED_ADMIN] User:', user);
-  console.log('🔐 [PROTECTED_ADMIN] User role:', user?.role);
-  console.log('🔐 [PROTECTED_ADMIN] Role type:', typeof user?.role);
-
   if (loading) {
-    console.log('🔐 [PROTECTED_ADMIN] Still loading...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
       </div>
     );
   }
-
   if (!user) {
-    console.log('🔐 [PROTECTED_ADMIN] No user, redirecting to login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-
   // Check if user has ADMIN role (case insensitive)
   const isAdmin = user.role === 'ADMIN' || user.role === 'admin' || user.role?.toString().toUpperCase() === 'ADMIN';
-  console.log('🔐 [PROTECTED_ADMIN] Is admin:', isAdmin);
-
   if (!isAdmin) {
-    console.log('🔐 [PROTECTED_ADMIN] User is not admin, showing access denied');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-6 text-center">
@@ -62,9 +46,6 @@ const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({ children }) =
       </div>
     );
   }
-
-  console.log('🔐 [PROTECTED_ADMIN] Access granted!');
   return <>{children}</>;
 };
-
 export default ProtectedAdminRoute;

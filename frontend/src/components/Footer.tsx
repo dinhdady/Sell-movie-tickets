@@ -9,7 +9,6 @@ import {
   ChatBubbleLeftIcon,
   ShareIcon
 } from '@heroicons/react/24/outline';
-
 const Footer: React.FC = () => {
   return (
     <footer className="bg-gray-900 text-white">
@@ -37,7 +36,6 @@ const Footer: React.FC = () => {
               </a>
             </div>
           </div>
-
           {/* Quick Links */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Liên kết nhanh</h3>
@@ -69,7 +67,6 @@ const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
-
           {/* Support */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Hỗ trợ</h3>
@@ -101,7 +98,6 @@ const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
-
           {/* Contact Info */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Thông tin liên hệ</h3>
@@ -115,12 +111,10 @@ const Footer: React.FC = () => {
                   </p>
                 </div>
               </div>
-              
               <div className="flex items-center space-x-3">
                 <PhoneIcon className="h-5 w-5 text-primary-400" />
                 <p className="text-gray-300 text-sm">1900 1234</p>
               </div>
-              
               <div className="flex items-center space-x-3">
                 <EnvelopeIcon className="h-5 w-5 text-primary-400" />
                 <p className="text-gray-300 text-sm">support@cinemahub.com</p>
@@ -128,7 +122,6 @@ const Footer: React.FC = () => {
             </div>
           </div>
         </div>
-
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
@@ -152,5 +145,4 @@ const Footer: React.FC = () => {
     </footer>
   );
 };
-
 export default Footer;

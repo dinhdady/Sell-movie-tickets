@@ -1,13 +1,11 @@
 import React, { useEffect } from 'react';
 import { XMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
-
 interface TrailerModalProps {
   isOpen: boolean;
   onClose: () => void;
   trailerUrl: string;
   movieTitle: string;
 }
-
 const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl, movieTitle }) => {
   // Extract YouTube video ID from URL
   const getYouTubeVideoId = (url: string): string | null => {
@@ -15,10 +13,8 @@ const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
   };
-
   const videoId = getYouTubeVideoId(trailerUrl);
   const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1` : null;
-
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -26,22 +22,18 @@ const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl
         onClose();
       }
     };
-
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
     }
-
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
-
   if (!isOpen || !embedUrl) {
     return null;
   }
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
@@ -49,7 +41,6 @@ const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl
         className="fixed inset-0 bg-black bg-opacity-75 transition-opacity"
         onClick={onClose}
       />
-      
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-4xl mx-auto">
@@ -60,7 +51,6 @@ const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl
           >
             <XMarkIcon className="h-6 w-6 text-gray-600" />
           </button>
-
           {/* Video container */}
           <div className="relative bg-black rounded-lg overflow-hidden shadow-2xl">
             <div className="aspect-video w-full">
@@ -73,7 +63,6 @@ const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl
                 allowFullScreen
               />
             </div>
-            
             {/* Video info overlay */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
               <h3 className="text-white text-lg font-semibold mb-1">
@@ -84,7 +73,6 @@ const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl
               </p>
             </div>
           </div>
-
           {/* Alternative if video not found */}
           {!videoId && (
             <div className="bg-white rounded-lg p-8 text-center">
@@ -111,5 +99,4 @@ const TrailerModal: React.FC<TrailerModalProps> = ({ isOpen, onClose, trailerUrl
     </div>
   );
 };
-
 export default TrailerModal;

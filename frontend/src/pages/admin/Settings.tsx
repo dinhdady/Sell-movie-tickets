@@ -6,7 +6,6 @@ import {
   CreditCardIcon,
   GlobeAltIcon
 } from '@heroicons/react/24/outline';
-
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState({
@@ -44,7 +43,6 @@ const Settings: React.FC = () => {
       backupFrequency: 'daily'
     }
   });
-
   const tabs = [
     { id: 'general', name: 'Cài đặt chung', icon: Cog6ToothIcon },
     { id: 'notifications', name: 'Thông báo', icon: BellIcon },
@@ -52,7 +50,6 @@ const Settings: React.FC = () => {
     { id: 'payment', name: 'Thanh toán', icon: CreditCardIcon },
     { id: 'system', name: 'Hệ thống', icon: GlobeAltIcon }
   ];
-
   const handleSettingChange = (category: string, key: string, value: any) => {
     setSettings(prev => ({
       ...prev,
@@ -62,13 +59,10 @@ const Settings: React.FC = () => {
       }
     }));
   };
-
   const handleSave = () => {
     // Save settings to backend
-    console.log('Saving settings:', settings);
     alert('Cài đặt đã được lưu thành công!');
   };
-
   const renderGeneralSettings = () => (
     <div className="space-y-6">
       <div>
@@ -80,7 +74,6 @@ const Settings: React.FC = () => {
           onChange={(e) => handleSettingChange('general', 'siteName', e.target.value)}
         />
       </div>
-      
       <div>
         <label className="block text-sm font-medium text-gray-700">Mô tả website</label>
         <textarea
@@ -90,7 +83,6 @@ const Settings: React.FC = () => {
           onChange={(e) => handleSettingChange('general', 'siteDescription', e.target.value)}
         />
       </div>
-      
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         <div>
           <label className="block text-sm font-medium text-gray-700">Múi giờ</label>
@@ -104,7 +96,6 @@ const Settings: React.FC = () => {
             <option value="America/New_York">America/New_York</option>
           </select>
         </div>
-        
         <div>
           <label className="block text-sm font-medium text-gray-700">Tiền tệ</label>
           <select
@@ -117,7 +108,6 @@ const Settings: React.FC = () => {
             <option value="EUR">EUR</option>
           </select>
         </div>
-        
         <div>
           <label className="block text-sm font-medium text-gray-700">Ngôn ngữ</label>
           <select
@@ -132,7 +122,6 @@ const Settings: React.FC = () => {
       </div>
     </div>
   );
-
   const renderNotificationSettings = () => (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -148,7 +137,6 @@ const Settings: React.FC = () => {
             onChange={(e) => handleSettingChange('notifications', 'emailNotifications', e.target.checked)}
           />
         </div>
-        
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-medium text-gray-900">Thông báo SMS</h4>
@@ -161,7 +149,6 @@ const Settings: React.FC = () => {
             onChange={(e) => handleSettingChange('notifications', 'smsNotifications', e.target.checked)}
           />
         </div>
-        
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-medium text-gray-900">Xác nhận đặt vé</h4>
@@ -174,7 +161,6 @@ const Settings: React.FC = () => {
             onChange={(e) => handleSettingChange('notifications', 'bookingConfirmations', e.target.checked)}
           />
         </div>
-        
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-medium text-gray-900">Xác nhận thanh toán</h4>
@@ -187,7 +173,6 @@ const Settings: React.FC = () => {
             onChange={(e) => handleSettingChange('notifications', 'paymentConfirmations', e.target.checked)}
           />
         </div>
-        
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-medium text-gray-900">Email marketing</h4>
@@ -203,7 +188,6 @@ const Settings: React.FC = () => {
       </div>
     </div>
   );
-
   const renderSecuritySettings = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -218,7 +202,6 @@ const Settings: React.FC = () => {
           onChange={(e) => handleSettingChange('security', 'twoFactorAuth', e.target.checked)}
         />
       </div>
-      
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         <div>
           <label className="block text-sm font-medium text-gray-700">Thời gian hết hạn phiên (phút)</label>
@@ -229,7 +212,6 @@ const Settings: React.FC = () => {
             onChange={(e) => handleSettingChange('security', 'sessionTimeout', parseInt(e.target.value))}
           />
         </div>
-        
         <div>
           <label className="block text-sm font-medium text-gray-700">Thời gian hết hạn mật khẩu (ngày)</label>
           <input
@@ -239,7 +221,6 @@ const Settings: React.FC = () => {
             onChange={(e) => handleSettingChange('security', 'passwordExpiry', parseInt(e.target.value))}
           />
         </div>
-        
         <div>
           <label className="block text-sm font-medium text-gray-700">Số lần đăng nhập sai tối đa</label>
           <input
@@ -252,7 +233,6 @@ const Settings: React.FC = () => {
       </div>
     </div>
   );
-
   const renderPaymentSettings = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -267,7 +247,6 @@ const Settings: React.FC = () => {
           onChange={(e) => handleSettingChange('payment', 'vnpayEnabled', e.target.checked)}
         />
       </div>
-      
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">Merchant ID</label>
@@ -278,7 +257,6 @@ const Settings: React.FC = () => {
             onChange={(e) => handleSettingChange('payment', 'vnpayMerchantId', e.target.value)}
           />
         </div>
-        
         <div>
           <label className="block text-sm font-medium text-gray-700">Secret Key</label>
           <input
@@ -289,7 +267,6 @@ const Settings: React.FC = () => {
           />
         </div>
       </div>
-      
       <div>
         <label className="block text-sm font-medium text-gray-700">VNPay URL</label>
         <input
@@ -299,7 +276,6 @@ const Settings: React.FC = () => {
           onChange={(e) => handleSettingChange('payment', 'vnpayUrl', e.target.value)}
         />
       </div>
-      
       <div>
         <label className="block text-sm font-medium text-gray-700">Return URL</label>
         <input
@@ -311,7 +287,6 @@ const Settings: React.FC = () => {
       </div>
     </div>
   );
-
   const renderSystemSettings = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -326,7 +301,6 @@ const Settings: React.FC = () => {
           onChange={(e) => handleSettingChange('system', 'maintenanceMode', e.target.checked)}
         />
       </div>
-      
       <div className="flex items-center justify-between">
         <div>
           <h4 className="text-sm font-medium text-gray-900">Chế độ debug</h4>
@@ -339,7 +313,6 @@ const Settings: React.FC = () => {
           onChange={(e) => handleSettingChange('system', 'debugMode', e.target.checked)}
         />
       </div>
-      
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">Mức độ log</label>
@@ -354,7 +327,6 @@ const Settings: React.FC = () => {
             <option value="ERROR">ERROR</option>
           </select>
         </div>
-        
         <div>
           <label className="block text-sm font-medium text-gray-700">Tần suất sao lưu</label>
           <select
@@ -371,7 +343,6 @@ const Settings: React.FC = () => {
       </div>
     </div>
   );
-
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
@@ -388,7 +359,6 @@ const Settings: React.FC = () => {
         return renderGeneralSettings();
     }
   };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -398,7 +368,6 @@ const Settings: React.FC = () => {
           Quản lý cấu hình và thiết lập hệ thống
         </p>
       </div>
-
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <div className="sm:flex sm:items-center sm:justify-between">
@@ -434,7 +403,6 @@ const Settings: React.FC = () => {
           </div>
         </div>
       </div>
-
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           {renderTabContent()}
@@ -443,5 +411,4 @@ const Settings: React.FC = () => {
     </div>
   );
 };
-
 export default Settings;

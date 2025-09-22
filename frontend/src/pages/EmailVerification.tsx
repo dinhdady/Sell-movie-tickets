@@ -8,7 +8,6 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-
 const EmailVerification: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -20,89 +19,63 @@ const EmailVerification: React.FC = () => {
   const [resendMessage, setResendMessage] = useState('');
   const [isAutoVerifying, setIsAutoVerifying] = useState(false);
   const preventRedirectRef = useRef(false);
-
   useEffect(() => {
     // Lấy token từ URL params nếu có
     const tokenFromUrl = searchParams.get('token');
-    console.log('🔍 [EmailVerification] Token from URL:', tokenFromUrl);
-    
     if (tokenFromUrl) {
       setToken(tokenFromUrl);
       setIsAutoVerifying(true);
       preventRedirectRef.current = true; // Ngăn redirect
-      console.log('🔍 [EmailVerification] Auto-verifying token from URL...');
       // Tự động xác thực khi có token từ URL
       handleVerifyEmail(tokenFromUrl);
     }
   }, [searchParams]);
-
   // Ngăn auto-redirect khi đang auto-verifying
   useEffect(() => {
     if (isAutoVerifying) {
-      console.log('🔍 [EmailVerification] Auto-verifying in progress, preventing redirects');
     }
   }, [isAutoVerifying]);
-
   // Override navigate để ngăn redirect khi đang auto-verifying
   // const safeNavigate = (path: string) => {
   //   if (preventRedirectRef.current && isAutoVerifying) {
-  //     console.log('🔍 [EmailVerification] Prevented redirect to:', path);
   //     return;
   //   }
   //   navigate(path);
   // };
-
   const handleVerifyEmail = async (verificationToken: string) => {
-    console.log('🔍 [EmailVerification] handleVerifyEmail called with token:', verificationToken);
-    
     if (!verificationToken.trim()) {
       setMessage('Vui lòng nhập mã xác thực');
       setVerificationStatus('error');
       return;
     }
-
     try {
-      console.log('🔍 [EmailVerification] Setting status to verifying...');
       setVerificationStatus('verifying');
       setMessage('Đang xác thực email...');
-
-      console.log('🔍 [EmailVerification] Calling authAPI.verifyEmail...');
       const response = await authAPI.verifyEmail(verificationToken);
-      console.log('🔍 [EmailVerification] API response:', response);
-      
       if (response.state === 'SUCCESS') {
-        console.log('🔍 [EmailVerification] Verification successful! Setting success status...');
         setVerificationStatus('success');
         setMessage('🎉 Email đã được xác thực thành công! Tài khoản của bạn đã sẵn sàng sử dụng.');
         setIsAutoVerifying(false);
-        
         // Không tự động redirect, để user có thể click button
-        console.log('🔍 [EmailVerification] Success status set, no auto-redirect');
       } else {
-        console.log('🔍 [EmailVerification] Verification failed:', response.message);
         setVerificationStatus('error');
         setMessage(response.message || 'Mã xác thực không hợp lệ hoặc đã hết hạn');
       }
     } catch (error: any) {
-      console.log('🔍 [EmailVerification] Verification error:', error);
       setVerificationStatus('error');
       setMessage('Lỗi xác thực email: ' + (error.response?.data?.message || error.message));
     }
   };
-
   const handleResendVerification = async () => {
     if (!email.trim()) {
       setResendMessage('Vui lòng nhập email');
       setResendStatus('error');
       return;
     }
-
     try {
       setResendStatus('sending');
       setResendMessage('Đang gửi lại email xác thực...');
-
       const response = await authAPI.resendVerification(email);
-      
       if (response.state === 'SUCCESS') {
         setResendStatus('success');
         setResendMessage('Email xác thực đã được gửi lại thành công!');
@@ -115,7 +88,6 @@ const EmailVerification: React.FC = () => {
       setResendMessage('Lỗi gửi email: ' + (error.response?.data?.message || error.message));
     }
   };
-
   const getStatusIcon = () => {
     switch (verificationStatus) {
       case 'verifying':
@@ -128,7 +100,6 @@ const EmailVerification: React.FC = () => {
         return <EnvelopeIcon className="h-12 w-12 text-gray-400" />;
     }
   };
-
   const getStatusColor = () => {
     switch (verificationStatus) {
       case 'success':
@@ -139,7 +110,6 @@ const EmailVerification: React.FC = () => {
         return 'text-gray-600';
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -153,7 +123,6 @@ const EmailVerification: React.FC = () => {
           </p>
         </div>
       </div>
-
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           {/* Verification Form */}
@@ -176,7 +145,6 @@ const EmailVerification: React.FC = () => {
                   />
                 </div>
               </div>
-
               <div>
                 <button
                   onClick={() => handleVerifyEmail(token)}
@@ -195,7 +163,6 @@ const EmailVerification: React.FC = () => {
               </div>
             </div>
           )}
-
           {/* Success Actions */}
           {verificationStatus === 'success' && (
             <div className="space-y-6">
@@ -210,7 +177,6 @@ const EmailVerification: React.FC = () => {
                   Tài khoản của bạn đã được xác thực. Bây giờ bạn có thể đăng nhập và sử dụng tất cả tính năng.
                 </p>
               </div>
-
               <div className="space-y-3">
                 <button
                   onClick={() => {
@@ -222,7 +188,6 @@ const EmailVerification: React.FC = () => {
                   <span className="mr-2">🚀</span>
                   Tiếp tục đăng nhập
                 </button>
-                
                 <button
                   onClick={() => {
                     preventRedirectRef.current = false; // Cho phép redirect
@@ -235,7 +200,6 @@ const EmailVerification: React.FC = () => {
               </div>
             </div>
           )}
-
           {/* Status Message */}
           {message && (
             <div className={`mt-4 p-4 rounded-md ${verificationStatus === 'success' ? 'bg-green-50' : verificationStatus === 'error' ? 'bg-red-50' : 'bg-blue-50'}`}>
@@ -257,14 +221,12 @@ const EmailVerification: React.FC = () => {
               </div>
             </div>
           )}
-
           {/* Resend Verification */}
           {verificationStatus === 'error' && (
             <div className="mt-6 pt-6 border-t border-gray-200">
               <h3 className="text-sm font-medium text-gray-900 mb-4">
                 Không nhận được email xác thực?
               </h3>
-              
               <div className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -282,7 +244,6 @@ const EmailVerification: React.FC = () => {
                     />
                   </div>
                 </div>
-
                 <button
                   onClick={handleResendVerification}
                   disabled={resendStatus === 'sending' || !email.trim()}
@@ -297,7 +258,6 @@ const EmailVerification: React.FC = () => {
                     'Gửi lại Email Xác thực'
                   )}
                 </button>
-
                 {resendMessage && (
                   <div className={`p-3 rounded-md text-sm ${
                     resendStatus === 'success' ? 'bg-green-50 text-green-700' : 
@@ -310,7 +270,6 @@ const EmailVerification: React.FC = () => {
               </div>
             </div>
           )}
-
           {/* Navigation - chỉ hiển thị khi chưa xác thực thành công */}
           {verificationStatus !== 'success' && (
             <div className="mt-6 flex justify-center space-x-4">
@@ -340,5 +299,4 @@ const EmailVerification: React.FC = () => {
     </div>
   );
 };
-
 export default EmailVerification;

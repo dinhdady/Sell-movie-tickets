@@ -1,6 +1,5 @@
 import type { Movie, Showtime } from './movie';
 import type { Seat } from './booking';
-
 export interface CartItem {
   id: string; // unique identifier for cart item
   movie: Movie;
@@ -10,7 +9,6 @@ export interface CartItem {
   totalPrice: number;
   addedAt: Date;
 }
-
 export interface CartContextType {
   items: CartItem[];
   totalItems: number;

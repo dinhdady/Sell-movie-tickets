@@ -1,9 +1,13 @@
 package com.project.cinema.movie.Controllers;
 
 import com.project.cinema.movie.Models.Booking;
+import com.project.cinema.movie.Models.Ticket;
 import com.project.cinema.movie.Models.ResponseObject;
 import com.project.cinema.movie.DTO.BookingDetailsResponse;
 import com.project.cinema.movie.Services.BookingService;
+import com.project.cinema.movie.Services.TicketService;
+import com.project.cinema.movie.Repositories.BookingRepository;
+import com.project.cinema.movie.Repositories.TicketRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -13,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin/bookings")
@@ -21,29 +27,76 @@ public class BookingManagementController {
 
     @Autowired
     private BookingService bookingService;
+    
+    @Autowired
+    private TicketService ticketService;
+    
+    @Autowired
+    private BookingRepository bookingRepository;
+    
+    @Autowired
+    private TicketRepository ticketRepository;
 
-    // Test endpoint không cần auth
+    // Test endpoint không cần auth - Lấy tất cả vé từ TicketService
     @GetMapping("/test")
     public ResponseEntity<ResponseObject> testEndpoint() {
         try {
-            List<BookingDetailsResponse> bookings = bookingService.getAllBookingsWithDetails();
-            return ResponseEntity.ok(new ResponseObject("200", "Test endpoint works! Bookings retrieved successfully!", bookings));
+            // Sử dụng TicketService để lấy tất cả vé của tất cả user
+            List<BookingDetailsResponse> tickets = ticketService.getAllTicketsWithDetails();
+            System.out.println("🎯 [ADMIN] Found " + tickets.size() + " tickets from TicketService");
+            
+            // Log một vài ticket để debug
+            if (!tickets.isEmpty()) {
+                System.out.println("🎯 [ADMIN] Sample ticket: " + tickets.get(0));
+            }
+            
+            return ResponseEntity.ok(new ResponseObject("200", "Test endpoint works! All tickets retrieved successfully! Found " + tickets.size() + " tickets", tickets));
         } catch (Exception e) {
+            System.err.println("🎯 [ADMIN] Error in test endpoint: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ResponseObject("500", "Test endpoint error: " + e.getMessage(), null));
         }
     }
+    
+    // Test endpoint đơn giản để kiểm tra dữ liệu
+    @GetMapping("/debug")
+    public ResponseEntity<ResponseObject> debugEndpoint() {
+        try {
+            // Lấy tất cả tickets từ database
+            List<Ticket> allTickets = ticketRepository.findAll();
+            System.out.println("🎯 [ADMIN DEBUG] Found " + allTickets.size() + " tickets in database");
+            
+            // Lấy tất cả bookings từ database
+            List<Booking> allBookings = bookingRepository.findAll();
+            System.out.println("🎯 [ADMIN DEBUG] Found " + allBookings.size() + " bookings in database");
+            
+            Map<String, Object> debugInfo = new HashMap<>();
+            debugInfo.put("totalTickets", allTickets.size());
+            debugInfo.put("totalBookings", allBookings.size());
+            debugInfo.put("tickets", allTickets.stream().limit(5).collect(Collectors.toList()));
+            debugInfo.put("bookings", allBookings.stream().limit(5).collect(Collectors.toList()));
+            
+            return ResponseEntity.ok(new ResponseObject("200", "Debug info retrieved successfully!", debugInfo));
+        } catch (Exception e) {
+            System.err.println("🎯 [ADMIN DEBUG] Error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Debug error: " + e.getMessage(), null));
+        }
+    }
 
-    // Lấy danh sách đặt vé với chi tiết đầy đủ
+    // Lấy danh sách đặt vé với chi tiết đầy đủ - Sử dụng TicketService để lấy tất cả vé
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<ResponseObject> getAllBookings() {
         try {
-            List<BookingDetailsResponse> bookings = bookingService.getAllBookingsWithDetails();
-            return ResponseEntity.ok(new ResponseObject("200", "Bookings retrieved successfully!", bookings));
+            // Sử dụng TicketService để lấy tất cả vé của tất cả user
+            List<BookingDetailsResponse> tickets = ticketService.getAllTicketsWithDetails();
+            return ResponseEntity.ok(new ResponseObject("200", "All tickets retrieved successfully! Found " + tickets.size() + " tickets", tickets));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ResponseObject("500", "Error retrieving bookings: " + e.getMessage(), null));
+                .body(new ResponseObject("500", "Error retrieving tickets: " + e.getMessage(), null));
         }
     }
     

@@ -35,8 +35,7 @@ public class Cinema {
     private Date updatedAt;
 
     // One cinema has many rooms
-    @OneToMany(mappedBy = "cinema", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
+    @OneToMany(mappedBy = "cinema", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Room> rooms;
 
     @PrePersist

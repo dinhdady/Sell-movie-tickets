@@ -10,8 +10,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { bookingAPI, dashboardAPI, userAPI, movieAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-
-
 interface DashboardStats {
   totalBookings: number;
   totalMovies: number;
@@ -22,10 +20,7 @@ interface DashboardStats {
   bookingsGrowth: number;
   revenueGrowth: number;
 }
-
 const Dashboard: React.FC = () => {
-  console.log('📊 [DASHBOARD] Component rendered');
-  
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalBookings: 0,
@@ -38,15 +33,12 @@ const Dashboard: React.FC = () => {
     revenueGrowth: 0
   });
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetchDashboardData();
   }, []);
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
       // Fetch dashboard overview from backend
       const overviewResponse = await dashboardAPI.getOverview();
       if (overviewResponse.state === '200') {
@@ -66,14 +58,12 @@ const Dashboard: React.FC = () => {
         await fetchFallbackData();
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
       // Fallback to individual API calls
       await fetchFallbackData();
     } finally {
       setLoading(false);
     }
   };
-
   const fetchFallbackData = async () => {
     try {
       // Fetch data from individual APIs
@@ -82,17 +72,14 @@ const Dashboard: React.FC = () => {
         movieAPI.getAll(),
         userAPI.getAllUsers()
       ]);
-
       const bookings = bookingsResponse || [];
       const movies = moviesResponse.movies || [];
       const users = usersResponse.object || [];
-
       // Calculate stats
       const totalBookings = bookings.length;
       const totalMovies = movies.length;
       const totalUsers = users.length;
       const totalRevenue = bookings.reduce((sum: number, booking: any) => sum + (booking.totalPrice || 0), 0);
-      
       const bookingsToday = bookings.filter((booking: any) => {
         const today = new Date();
         const dateString = booking.createdAt || booking.bookingDate;
@@ -100,7 +87,6 @@ const Dashboard: React.FC = () => {
         const bookingDate = new Date(dateString);
         return bookingDate.toDateString() === today.toDateString();
       }).length;
-      
       const revenueToday = bookings.filter((booking: any) => {
         const today = new Date();
         const dateString = booking.createdAt || booking.bookingDate;
@@ -108,7 +94,6 @@ const Dashboard: React.FC = () => {
         const bookingDate = new Date(dateString);
         return bookingDate.toDateString() === today.toDateString();
       }).reduce((sum: number, booking: any) => sum + (booking.totalPrice || 0), 0);
-
       setStats({
         totalBookings,
         totalMovies,
@@ -120,10 +105,8 @@ const Dashboard: React.FC = () => {
         revenueGrowth: 8.3 // Mock data
       });
     } catch (error) {
-      console.error('Error fetching fallback data:', error);
     }
   };
-
   const statCards = [
     {
       name: 'Tổng đặt vé',
@@ -158,7 +141,6 @@ const Dashboard: React.FC = () => {
       color: 'bg-yellow-500'
     }
   ];
-
   const todayStats = [
     {
       name: 'Đặt vé hôm nay',
@@ -173,7 +155,6 @@ const Dashboard: React.FC = () => {
       color: 'text-green-600'
     }
   ];
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -181,7 +162,6 @@ const Dashboard: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Welcome Message */}
@@ -202,7 +182,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
@@ -210,7 +189,6 @@ const Dashboard: React.FC = () => {
           Tổng quan về hệ thống quản lý rạp chiếu phim
         </p>
       </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => {
@@ -255,7 +233,6 @@ const Dashboard: React.FC = () => {
           );
         })}
       </div>
-
       {/* Today's Stats */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -280,7 +257,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Quick Actions */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -307,7 +283,6 @@ const Dashboard: React.FC = () => {
                 </p>
               </div>
             </a>
-
             <a
               href="/admin/bookings"
               className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg border border-gray-200 hover:border-gray-300"
@@ -327,7 +302,6 @@ const Dashboard: React.FC = () => {
                 </p>
               </div>
             </a>
-
             <a
               href="/admin/users"
               className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg border border-gray-200 hover:border-gray-300"
@@ -347,7 +321,6 @@ const Dashboard: React.FC = () => {
                 </p>
               </div>
             </a>
-
             <a
               href="/admin/statistics"
               className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-lg border border-gray-200 hover:border-gray-300"
@@ -373,5 +346,4 @@ const Dashboard: React.FC = () => {
     </div>
   );
 };
-
 export default Dashboard;

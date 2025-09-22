@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { CogIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { roomAPI, cinemaAPI, seatAPI } from '../../services/api';
-
 interface Cinema {
   id: number;
   name: string;
   address: string;
 }
-
 interface Room {
   id: number;
   name: string;
@@ -15,7 +13,6 @@ interface Room {
   cinemaId: number;
   cinema?: Cinema;
 }
-
 interface Seat {
   id: number;
   seatNumber: string;
@@ -26,13 +23,11 @@ interface Seat {
   price?: number;
   status?: 'AVAILABLE' | 'BOOKED' | 'RESERVED' | 'MAINTENANCE' | 'SELECTED' | 'OCCUPIED';
 }
-
 interface SeatConfigModalProps {
   room: Room | null;
   onClose: () => void;
   onGenerate: (config: any) => void;
 }
-
 const SeatConfigModal: React.FC<SeatConfigModalProps> = ({ room, onClose, onGenerate }) => {
   const [config, setConfig] = useState({
     rows: 8,
@@ -41,14 +36,11 @@ const SeatConfigModal: React.FC<SeatConfigModalProps> = ({ room, onClose, onGene
     vipRows: 0,
     coupleSeats: 0
   });
-
   const [mode, setMode] = useState<'default' | 'custom'>('default');
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     onGenerate({ ...config, mode });
   };
-
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -84,7 +76,6 @@ const SeatConfigModal: React.FC<SeatConfigModalProps> = ({ room, onClose, onGene
                 </label>
               </div>
             </div>
-
             {mode === 'custom' && (
               <>
                 <div>
@@ -145,7 +136,6 @@ const SeatConfigModal: React.FC<SeatConfigModalProps> = ({ room, onClose, onGene
                 </div>
               </>
             )}
-
             <div className="bg-blue-50 p-3 rounded-md">
               <p className="text-sm text-blue-800">
                 <strong>Pattern ghế:</strong> A1, A2, A3... B1, B2, B3... C1, C2, C3...
@@ -154,7 +144,6 @@ const SeatConfigModal: React.FC<SeatConfigModalProps> = ({ room, onClose, onGene
                 <strong>Tổng ghế:</strong> {mode === 'default' ? '80' : config.rows * config.seatsPerRow} ghế
               </p>
             </div>
-
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
@@ -176,7 +165,6 @@ const SeatConfigModal: React.FC<SeatConfigModalProps> = ({ room, onClose, onGene
     </div>
   );
 };
-
 const SeatManagement: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
@@ -186,19 +174,16 @@ const SeatManagement: React.FC = () => {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedCinema, setSelectedCinema] = useState<number>(0);
   const [seatInfo, setSeatInfo] = useState<any>(null);
-
   useEffect(() => {
     fetchRooms();
     fetchCinemas();
   }, []);
-
   useEffect(() => {
     if (selectedRoom) {
       fetchSeats(selectedRoom.id);
       fetchSeatInfo(selectedRoom.id);
     }
   }, [selectedRoom]);
-
   const fetchRooms = async () => {
     try {
       const response = await roomAPI.getAll();
@@ -206,12 +191,10 @@ const SeatManagement: React.FC = () => {
         setRooms(response.object as Room[]);
       }
     } catch (error) {
-      console.error('Error fetching rooms:', error);
     } finally {
       setLoading(false);
     }
   };
-
   const fetchCinemas = async () => {
     try {
       const response = await cinemaAPI.getAll();
@@ -219,10 +202,8 @@ const SeatManagement: React.FC = () => {
         setCinemas(response.object as Cinema[]);
       }
     } catch (error) {
-      console.error('Error fetching cinemas:', error);
     }
   };
-
   const fetchSeats = async (roomId: number) => {
     try {
       const response = await seatAPI.getByRoom(roomId);
@@ -230,10 +211,8 @@ const SeatManagement: React.FC = () => {
         setSeats(response.object);
       }
     } catch (error) {
-      console.error('Error fetching seats:', error);
     }
   };
-
   const fetchSeatInfo = async (roomId: number) => {
     try {
       const response = await seatAPI.getRoomInfo(roomId);
@@ -241,13 +220,10 @@ const SeatManagement: React.FC = () => {
         setSeatInfo(response.object);
       }
     } catch (error) {
-      console.error('Error fetching seat info:', error);
     }
   };
-
   const handleGenerateSeats = async (config: any) => {
     if (!selectedRoom) return;
-
     try {
       let response;
       if (config.mode === 'default') {
@@ -255,7 +231,6 @@ const SeatManagement: React.FC = () => {
       } else {
         response = await seatAPI.generateCustom(selectedRoom.id, config);
       }
-
       if (response.state === '200' || response.state === 'SUCCESS') {
         fetchSeats(selectedRoom.id);
         fetchSeatInfo(selectedRoom.id);
@@ -266,14 +241,11 @@ const SeatManagement: React.FC = () => {
         alert(response.message || 'Lỗi khi tạo ghế');
       }
     } catch (error) {
-      console.error('Error generating seats:', error);
       alert('Có lỗi xảy ra khi tạo ghế');
     }
   };
-
   const handleDeleteSeats = async (roomId: number) => {
     if (!confirm('Bạn có chắc chắn muốn xóa tất cả ghế của phòng này?')) return;
-
     try {
       const response = await seatAPI.deleteByRoom(roomId);
       if (response.state === '200' || response.state === 'SUCCESS') {
@@ -285,18 +257,14 @@ const SeatManagement: React.FC = () => {
         alert('Lỗi khi xóa ghế: ' + response.message);
       }
     } catch (error) {
-      console.error('Error deleting seats:', error);
       alert('Có lỗi xảy ra khi xóa ghế');
     }
   };
-
   const filteredRooms = rooms.filter(room => 
     selectedCinema === 0 || room.cinemaId === selectedCinema
   );
-
   const renderSeatGrid = () => {
     if (!seats.length) return null;
-
     // Nhóm ghế theo hàng
     const seatsByRow = seats.reduce((acc, seat) => {
       if (!acc[seat.rowNumber]) {
@@ -305,10 +273,8 @@ const SeatManagement: React.FC = () => {
       acc[seat.rowNumber].push(seat);
       return acc;
     }, {} as Record<string, Seat[]>);
-
     // Sắp xếp các hàng
     const sortedRows = Object.keys(seatsByRow).sort();
-
     return (
       <div className="space-y-2">
         {sortedRows.map(rowNumber => (
@@ -336,7 +302,6 @@ const SeatManagement: React.FC = () => {
       </div>
     );
   };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -344,7 +309,6 @@ const SeatManagement: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -358,7 +322,6 @@ const SeatManagement: React.FC = () => {
           </p>
         </div>
       </div>
-
       {/* Room Selection */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -404,7 +367,6 @@ const SeatManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {selectedRoom && (
         <>
           {/* Room Info */}
@@ -438,7 +400,6 @@ const SeatManagement: React.FC = () => {
               </div>
             </div>
           </div>
-
           {/* Seat Info */}
           {seatInfo && (
             <div className="bg-white shadow rounded-lg p-6">
@@ -477,7 +438,6 @@ const SeatManagement: React.FC = () => {
               )}
             </div>
           )}
-
           {/* Seat Grid */}
           {seats.length > 0 ? (
             <div className="bg-white shadow rounded-lg p-6">
@@ -522,7 +482,6 @@ const SeatManagement: React.FC = () => {
           )}
         </>
       )}
-
       {/* Config Modal */}
       {showConfigModal && (
         <SeatConfigModal
@@ -534,5 +493,4 @@ const SeatManagement: React.FC = () => {
     </div>
   );
 };
-
 export default SeatManagement;

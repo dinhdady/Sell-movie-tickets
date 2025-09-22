@@ -1,5 +1,4 @@
 import type { Showtime } from './movie';
-
 // Seat types
 export interface Seat {
   id: number;
@@ -11,7 +10,6 @@ export interface Seat {
   isBooked?: boolean;
   status?: 'AVAILABLE' | 'BOOKED' | 'RESERVED' | 'MAINTENANCE' | 'SELECTED' | 'OCCUPIED';
 }
-
 // Booking types
 export interface Booking {
   id: number;
@@ -29,7 +27,6 @@ export interface Booking {
   showtime?: Showtime;
   tickets?: Ticket[];
 }
-
 // Ticket types
 export interface Ticket {
   id: number;

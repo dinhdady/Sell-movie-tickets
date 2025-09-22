@@ -32,6 +32,36 @@ public class TicketController {
         }
     }
 
+    // Lấy tất cả tickets (không cần auth - cho admin management)
+    @GetMapping("/getAllTickets")
+    public ResponseEntity<ResponseObject> getAllTicketsNoAuth() {
+        try {
+            List<BookingDetailsResponse> tickets = ticketService.getAllTicketsWithDetails();
+            System.out.println("🎯 [TICKETS] Found " + tickets.size() + " tickets from getAllTickets endpoint");
+            return ResponseEntity.ok(new ResponseObject("200", "All tickets retrieved successfully! Found " + tickets.size() + " tickets", tickets));
+        } catch (Exception e) {
+            System.err.println("🎯 [TICKETS] Error in getAllTickets: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error retrieving tickets: " + e.getMessage(), null));
+        }
+    }
+
+    // Lấy chi tiết ticket theo ID (cho admin modal)
+    @GetMapping("/{id}/details")
+    public ResponseEntity<ResponseObject> getTicketDetailsById(@PathVariable Long id) {
+        try {
+            BookingDetailsResponse ticketDetails = ticketService.getTicketDetailsById(id);
+            System.out.println("🎯 [TICKETS] Found ticket details for ID: " + id);
+            return ResponseEntity.ok(new ResponseObject("200", "Ticket details retrieved successfully!", ticketDetails));
+        } catch (Exception e) {
+            System.err.println("🎯 [TICKETS] Error in getTicketDetailsById: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ResponseObject("404", "Ticket not found: " + e.getMessage(), null));
+        }
+    }
+
     // Lấy tickets của user hiện tại (cho profile)
     @GetMapping("/my-tickets")
     public ResponseEntity<ResponseObject> getMyTickets(@RequestParam String userId) {
