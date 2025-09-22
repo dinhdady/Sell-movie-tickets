@@ -1,7 +1,9 @@
 package com.project.cinema.movie.Controllers;
 
+import com.project.cinema.movie.DTO.BookingDetailsResponse;
 import com.project.cinema.movie.Models.ResponseObject;
 import com.project.cinema.movie.Models.User;
+import com.project.cinema.movie.Services.BookingService;
 import com.project.cinema.movie.Services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,9 @@ public class UserController {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private BookingService bookingService;
 
     // Lấy thông tin người dùng hiện tại
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
@@ -83,7 +88,7 @@ public class UserController {
     @GetMapping("/{userId}/bookings")
     public ResponseEntity<ResponseObject> getUserBookingHistory(@PathVariable String userId) {
         try {
-            List<Map<String, Object>> bookings = userService.getUserBookingHistory(userId);
+            List<BookingDetailsResponse> bookings = bookingService.getUserBookingHistory(userId);
             return ResponseEntity.ok(new ResponseObject("200", "User booking history retrieved successfully!", bookings));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

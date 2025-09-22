@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import EmailVerification from './pages/EmailVerification';
 import Movies from './pages/Movies';
 import MovieDetail from './pages/MovieDetail';
 import Booking from './pages/Booking';
@@ -48,6 +49,7 @@ function App() {
                   <Route path="/register" element={<Register />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/verify-email" element={<EmailVerification />} />
                   <Route path="/movies" element={<Movies />} />
                   <Route path="/movies/:id" element={<MovieDetail />} />
                   <Route path="/cinemas" element={<Cinemas />} />

@@ -13,9 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderDTO {
-    @JsonIgnore
     private String userId;
-    @JsonIgnore
     private Long showtimeId;
     private double totalPrice;
     private String customerEmail;

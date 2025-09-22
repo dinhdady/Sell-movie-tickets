@@ -1,71 +1,215 @@
 package com.project.cinema.movie.Services;
 
-import com.google.zxing.WriterException;
-import com.project.cinema.movie.DTO.TicketDTO;
-import com.project.cinema.movie.DTO.TicketResponse;
-import com.project.cinema.movie.Exception.ResourceNotFoundException;
+import com.project.cinema.movie.DTO.BookingDetailsResponse;
+import com.project.cinema.movie.DTO.CinemaDTO;
+import com.project.cinema.movie.DTO.MovieDTO;
+import com.project.cinema.movie.DTO.OrderDTO;
+import com.project.cinema.movie.DTO.RoomDTO;
+import com.project.cinema.movie.DTO.ShowtimeDTO;
+import com.project.cinema.movie.DTO.TicketDetailsResponse;
 import com.project.cinema.movie.Models.*;
-import com.project.cinema.movie.Repositories.OrderRepository;
-import com.project.cinema.movie.Repositories.SeatRepository;
-import com.project.cinema.movie.Repositories.TicketRepository;
+import com.project.cinema.movie.Repositories.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired; 
-import com.project.cinema.movie.Services.QRCodeService; // Add this import
 import org.springframework.stereotype.Service; 
-import com.project.cinema.movie.Services.QRCodeService; // Add this import
-import com.project.cinema.movie.Services.QRCodeService; // Add this import
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class TicketService {
+    
     @Autowired
     private TicketRepository ticketRepository;
+    
     @Autowired
     private OrderRepository orderRepository;
+    
+    @Autowired
+    private ShowtimeRepository showtimeRepository;
+    
+    @Autowired
+    private MovieRepository movieRepository;
+    
+    @Autowired
+    private CinemaRepository cinemaRepository;
+    
+    @Autowired
+    private RoomRepository roomRepository;
+    
     @Autowired
     private SeatRepository seatRepository;
-    @Autowired
-    private QRCodeService qrCodeService; // Inject QRCodeService
-    public List<Ticket> getAllTickets() {
-        return ticketRepository.findAll();
-    }
-
-    public Ticket getTicketById(Long id) {
-        return ticketRepository.findById(id).orElse(null);
-    }
-    public TicketResponse createTicket(TicketDTO ticketDTO) throws IOException, WriterException {
-        Order order = orderRepository.findById(ticketDTO.getOrderId()).orElse(null);
-        Seat seat = seatRepository.findById(ticketDTO.getSeatId()).orElse(null);
-        if (order == null || seat == null) {
-            throw new RuntimeException("Booking id or seat id not found");
+    
+    private static final Logger logger = LoggerFactory.getLogger(TicketService.class);
+    
+    // Lấy tất cả tickets với thông tin đầy đủ (cho admin)
+    public List<BookingDetailsResponse> getAllTicketsWithDetails() {
+        try {
+            List<Ticket> tickets = ticketRepository.findAll();
+            logger.info("Found {} tickets in database", tickets.size());
+            
+            return tickets.stream()
+                    .map(this::buildBookingDetailsFromTicket)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error fetching tickets with details", e);
+            return new ArrayList<>();
         }
-        Ticket ticket = new Ticket();
-        ticket.setToken(UUID.randomUUID().toString());
-        ticket.setOrder(order);
-        ticket.setSeat(seat);
-        ticket.setPrice(ticketDTO.getPrice());
-        ticket.setStatus(TicketStatus.PENDING);
-        ticket = ticketRepository.save(ticket);
-        String qrCode = qrCodeService.generateTicketQRCode(ticket.getId(), ticket.getToken());
-        return new TicketResponse(ticket,qrCode);
     }
-
-    public Ticket updateTicket(Long id, Ticket ticketDetails) {
-        return ticketRepository.findById(id).map(ticket -> {
-            ticket.setPrice(ticketDetails.getPrice());
-            return ticketRepository.save(ticket);
-        }).orElseThrow(() -> new ResourceNotFoundException("Ticket cannot be found with id :" + id));
+    
+    // Lấy tickets của user cụ thể (cho profile)
+    public List<BookingDetailsResponse> getTicketsByUserId(String userId) {
+        try {
+            List<Ticket> userTickets = ticketRepository.findByUserId(userId);
+            logger.info("Found {} tickets for user {}", userTickets.size(), userId);
+            
+            return userTickets.stream()
+                    .map(this::buildBookingDetailsFromTicket)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error fetching tickets for user {}", userId, e);
+            return new ArrayList<>();
+        }
     }
-
-    public void deleteTicket(Long id) {
-        ticketRepository.deleteById(id);
+    
+    // Lấy tickets theo order ID
+    public List<BookingDetailsResponse> getTicketsByOrderId(Long orderId) {
+        try {
+            List<Ticket> tickets = ticketRepository.findByOrderId(orderId);
+            logger.info("Found {} tickets for order {}", tickets.size(), orderId);
+            
+            return tickets.stream()
+                    .map(this::buildBookingDetailsFromTicket)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error fetching tickets for order {}", orderId, e);
+            return new ArrayList<>();
+        }
     }
-    public Optional<Ticket> findByToken(String token){
-        return ticketRepository.findByToken(token);
+    
+    // Xây dựng BookingDetailsResponse từ Ticket
+    private BookingDetailsResponse buildBookingDetailsFromTicket(Ticket ticket) {
+        try {
+            BookingDetailsResponse response = new BookingDetailsResponse();
+            response.setId(ticket.getId());
+            
+            // Lấy thông tin Order
+            Order order = ticket.getOrder();
+            if (order != null) {
+                // Lấy thông tin từ User thay vì Order
+                String customerName = order.getUser() != null ? order.getUser().getFullName() : "N/A";
+                String customerPhone = "N/A"; // User entity không có phone field
+                String customerAddress = "N/A"; // User entity không có address field
+                
+                response.setCustomerName(customerName);
+                response.setCustomerEmail(order.getCustomerEmail());
+                response.setCustomerPhone(customerPhone);
+                response.setCustomerAddress(customerAddress);
+                response.setTotalPrice(order.getTotalPrice());
+                response.setPaymentStatus(order.getStatus());
+                response.setPaymentMethod("VNPay");
+                response.setCreatedAt(order.getCreatedAt() != null ? order.getCreatedAt().toString() : "");
+                
+                // Map OrderDTO
+                OrderDTO orderDTO = new OrderDTO();
+                orderDTO.setUserId(order.getUser() != null ? order.getUser().getId().toString() : null);
+                orderDTO.setTotalPrice(order.getTotalPrice());
+                orderDTO.setCustomerEmail(order.getCustomerEmail());
+                orderDTO.setCustomerName(customerName);
+                orderDTO.setCustomerPhone(customerPhone);
+                orderDTO.setCustomerAddress(customerAddress);
+                // OrderDTO không có setCreatedAt method
+                
+                // Thêm ticket vào order
+                List<TicketDetailsResponse> ticketDetails = new ArrayList<>();
+                TicketDetailsResponse ticketDetail = new TicketDetailsResponse();
+                ticketDetail.setId(ticket.getId());
+                ticketDetail.setOrderId(order.getId());
+                // TicketDetailsResponse không có setSeatId method
+                ticketDetail.setPrice(ticket.getPrice());
+                ticketDetail.setToken(ticket.getToken());
+                ticketDetail.setStatus(ticket.getStatus() != null ? ticket.getStatus().toString() : "UNKNOWN");
+                ticketDetail.setQrCodeUrl(ticket.getQrCodeUrl());
+                ticketDetail.setCreatedAt(ticket.getCreatedAt() != null ? ticket.getCreatedAt().toString() : "");
+                
+                // Thêm thông tin seat
+                if (ticket.getSeat() != null) {
+                    ticketDetail.setSeatNumber(ticket.getSeat().getSeatNumber());
+                    ticketDetail.setSeatType(ticket.getSeat().getSeatType() != null ? ticket.getSeat().getSeatType().toString() : "REGULAR");
+                    ticketDetail.setRowNumber(ticket.getSeat().getRowNumber());
+                    ticketDetail.setColumnNumber(ticket.getSeat().getColumnNumber());
+                }
+                
+                ticketDetails.add(ticketDetail);
+                // OrderDTO không có setTickets method với TicketDetailsResponse
+                response.setOrder(orderDTO);
+            }
+            
+            // Lấy thông tin Showtime từ Booking (vì Order không có showtime trực tiếp)
+            Showtime showtime = null;
+            if (order != null && order.getBookings() != null && !order.getBookings().isEmpty()) {
+                showtime = order.getBookings().get(0).getShowtime();
+            }
+            if (showtime != null) {
+                ShowtimeDTO showtimeDTO = new ShowtimeDTO();
+                showtimeDTO.setStartTime(showtime.getStartTime());
+                showtimeDTO.setEndTime(showtime.getEndTime());
+                showtimeDTO.setMovieId(showtime.getMovie() != null ? showtime.getMovie().getId() : null);
+                showtimeDTO.setRoomId(showtime.getRoom() != null ? showtime.getRoom().getId() : null);
+                
+                // Map Room và Cinema
+                if (showtime.getRoom() != null) {
+                    Room room = showtime.getRoom();
+                    RoomDTO roomDTO = new RoomDTO();
+                    roomDTO.setName(room.getName());
+                    roomDTO.setCapacity(room.getCapacity());
+                    roomDTO.setCinemaId(room.getCinema() != null ? room.getCinema().getId() : null);
+                    
+                    if (room.getCinema() != null) {
+                        Cinema cinema = room.getCinema();
+                        CinemaDTO cinemaDTO = new CinemaDTO();
+                        cinemaDTO.setName(cinema.getName());
+                        cinemaDTO.setAddress(cinema.getAddress());
+                        cinemaDTO.setPhone(cinema.getPhone());
+                        cinemaDTO.setCinemaType(cinema.getCinemaType());
+                        roomDTO.setCinema(cinemaDTO);
+                    }
+                    
+                    showtimeDTO.setRoom(roomDTO);
+                }
+                
+                response.setShowtime(showtimeDTO);
+                
+                // Map Movie
+                if (showtime.getMovie() != null) {
+                    Movie movie = showtime.getMovie();
+                    MovieDTO movieDTO = new MovieDTO();
+                    movieDTO.setTitle(movie.getTitle());
+                    movieDTO.setDescription(movie.getDescription());
+                    movieDTO.setDuration(movie.getDuration());
+                    movieDTO.setReleaseDate(movie.getReleaseDate());
+                    movieDTO.setGenre(movie.getGenre());
+                    movieDTO.setDirector(movie.getDirector());
+                    movieDTO.setTrailerUrl(movie.getTrailerUrl());
+                    movieDTO.setLanguage(movie.getLanguage());
+                    movieDTO.setCast(movie.getCast());
+                    movieDTO.setRating(movie.getRating());
+                    movieDTO.setStatus(movie.getStatus());
+                    movieDTO.setPrice(movie.getPrice());
+                    movieDTO.setFilmRating(movie.getFilmRating());
+                    response.setMovie(movieDTO);
+                }
+            }
+            
+            return response;
+            
+        } catch (Exception e) {
+            logger.error("Error building booking details from ticket {}: {}", ticket.getId(), e.getMessage(), e);
+            return null;
+        }
     }
-
-    public Ticket save(Ticket ticket){return ticketRepository.save(ticket);}
 }

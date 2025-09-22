@@ -2,13 +2,18 @@ package com.project.cinema.movie.Services;
 
 import com.project.cinema.movie.Models.Room;
 import com.project.cinema.movie.Models.Seat;
+import com.project.cinema.movie.Models.SeatStatus;
 import com.project.cinema.movie.Models.SeatType;
+import com.project.cinema.movie.Models.ShowtimeSeatBooking;
 import com.project.cinema.movie.Repositories.SeatRepository;
+import com.project.cinema.movie.Repositories.ShowtimeSeatBookingRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Quản lý ghế trong phòng chiếu
@@ -18,10 +23,12 @@ public class SeatService {
 
     private final SeatRepository seatRepository;
     private final RoomService roomService;
+    private final ShowtimeSeatBookingRepository showtimeSeatBookingRepository;
 
-    public SeatService(SeatRepository seatRepository, RoomService roomService) {
+    public SeatService(SeatRepository seatRepository, RoomService roomService, ShowtimeSeatBookingRepository showtimeSeatBookingRepository) {
         this.seatRepository = seatRepository;
         this.roomService = roomService;
+        this.showtimeSeatBookingRepository = showtimeSeatBookingRepository;
     }
 
     /**
@@ -73,12 +80,33 @@ public class SeatService {
 
     /**
      * Lấy trạng thái ghế cho 1 suất chiếu.
-     * Hiện tại trả về toàn bộ ghế với status "AVAILABLE".
-     * TODO: Bổ sung logic check ghế đã được đặt
+     * Kiểm tra trạng thái ghế từ bảng showtime_seat_booking
      */
     public List<Seat> getSeatAvailability(Long showtimeId, Long roomId) {
+        // Lấy tất cả ghế trong phòng
         List<Seat> seats = seatRepository.findByRoomId(roomId);
-        seats.forEach(seat -> seat.setStatus("AVAILABLE"));
+        
+        // Lấy tất cả booking ghế cho suất chiếu này
+        List<ShowtimeSeatBooking> seatBookings = showtimeSeatBookingRepository.findByShowtimeId(showtimeId);
+        
+        // Tạo map để tra cứu nhanh trạng thái ghế
+        Map<Long, SeatStatus> seatStatusMap = seatBookings.stream()
+            .collect(Collectors.toMap(
+                booking -> booking.getSeat().getId(),
+                ShowtimeSeatBooking::getStatus,
+                (existing, replacement) -> existing // Nếu có duplicate, giữ giá trị cũ
+            ));
+        
+        // Cập nhật trạng thái cho từng ghế
+        seats.forEach(seat -> {
+            SeatStatus status = seatStatusMap.get(seat.getId());
+            if (status != null) {
+                seat.setStatus(status.name());
+            } else {
+                seat.setStatus(SeatStatus.AVAILABLE.name());
+            }
+        });
+        
         return seats;
     }
 
@@ -148,6 +176,21 @@ public class SeatService {
                 seat.setColumnNumber(col);
                 seat.setSeatType(currentType);
                 seat.setRoom(room);
+                
+                // Set price based on seat type
+                switch (currentType) {
+                    case VIP:
+                        seat.setPrice(150000.0); // VIP seat price
+                        break;
+                    case COUPLE:
+                        seat.setPrice(200000.0); // Couple seat price
+                        break;
+                    case REGULAR:
+                    default:
+                        seat.setPrice(100000.0); // Regular seat price
+                        break;
+                }
+                
                 seats.add(seat);
             }
         }

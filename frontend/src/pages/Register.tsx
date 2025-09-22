@@ -18,6 +18,8 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -55,6 +57,7 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     if (!validateForm()) {
       return;
@@ -63,8 +66,16 @@ const Register: React.FC = () => {
     try {
       const { confirmPassword, ...registerData } = formData;
       console.log('Register form submitting with data:', registerData);
-      await register(registerData);
-      navigate('/');
+      const response = await register(registerData);
+      
+      // Kiểm tra nếu có thông tin verification
+      if (response?.verificationRequired) {
+        setVerificationEmail(response.email || formData.email);
+        setSuccess('Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
+      } else {
+        // Fallback nếu không có thông tin verification
+        navigate('/login');
+      }
     } catch (err: any) {
       console.error('Register form error:', err);
       setError(err.message || 'Đăng ký thất bại');
@@ -216,6 +227,42 @@ const Register: React.FC = () => {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="font-medium">{success}</p>
+                  {verificationEmail && (
+                    <div className="mt-2">
+                      <p className="text-sm">
+                        Email đã gửi đến: <span className="font-medium">{verificationEmail}</span>
+                      </p>
+                      <div className="mt-3 flex space-x-3">
+                        <button
+                          onClick={() => navigate('/verify-email')}
+                          className="text-sm font-medium text-green-600 hover:text-green-500"
+                        >
+                          Xác thực email ngay →
+                        </button>
+                        <button
+                          onClick={() => navigate('/login')}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                        >
+                          Đăng nhập →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

@@ -3,13 +3,16 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { movieAPI } from '../services/api';
 import type { Movie, Showtime } from '../types/movie';
 import BookingSidebar from '../components/BookingSidebar';
+import TrailerModal from '../components/TrailerModal';
+import TrailerPlayer from '../components/TrailerPlayer';
 import { 
   ClockIcon, 
   CalendarIcon, 
   PlayIcon,
   MapPinIcon,
   UserGroupIcon,
-  ChevronLeftIcon
+  ChevronLeftIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
@@ -21,6 +24,8 @@ const MovieDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const [showTrailerInline, setShowTrailerInline] = useState(false);
 
   useEffect(() => {
     const fetchMovieDetails = async () => {
@@ -313,10 +318,16 @@ const MovieDetail: React.FC = () => {
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 {movie.trailerUrl && (
-                  <button className="flex items-center justify-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors form-element">
-                    <PlayIcon className="h-5 w-5 mr-2 flex-shrink-0" />
-                    <span className="text-ellipsis">Xem trailer</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button 
+                      onClick={() => setIsTrailerOpen(true)}
+                      className="flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors form-element"
+                    >
+                      <PlayIcon className="h-5 w-5 mr-2 flex-shrink-0" />
+                      <span className="text-ellipsis">Xem trailer</span>
+                    </button>
+                
+                  </div>
                 )}
                 {movie.status === 'NOW_SHOWING' && (
                   <button
@@ -330,6 +341,25 @@ const MovieDetail: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Inline Trailer */}
+        {movie?.trailerUrl && showTrailerInline && (
+          <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Trailer</h2>
+              <button
+                onClick={() => setShowTrailerInline(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <TrailerPlayer
+              trailerUrl={movie.trailerUrl}
+              movieTitle={movie.title}
+            />
+          </div>
+        )}
 
         {/* Showtimes */}
         {showtimes.length > 0 && (
@@ -385,6 +415,16 @@ const MovieDetail: React.FC = () => {
           onClose={() => setIsBookingOpen(false)}
           onBookingSuccess={handleBookingSuccess}
         />
+
+        {/* Trailer Modal */}
+        {movie?.trailerUrl && (
+          <TrailerModal
+            isOpen={isTrailerOpen}
+            onClose={() => setIsTrailerOpen(false)}
+            trailerUrl={movie.trailerUrl}
+            movieTitle={movie.title}
+          />
+        )}
       </div>
     </div>
   );

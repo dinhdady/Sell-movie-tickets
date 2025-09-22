@@ -29,14 +29,14 @@ public class Order {
     private User user;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference  // Điều khiển serialization
+    @JsonIgnore  // Tránh infinite recursion
     private List<Booking> bookings;
     private String txnRef;
     private double totalPrice;
     private String status;
     private String customerEmail;
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonIgnore  // Tránh infinite recursion
     private List<Ticket> tickets;
     private String transactionId;
     @Temporal(TemporalType.TIMESTAMP)

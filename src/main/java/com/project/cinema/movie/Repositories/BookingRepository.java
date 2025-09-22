@@ -4,6 +4,7 @@ import com.project.cinema.movie.Models.Booking;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -108,5 +109,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     
     // Find booking by order ID
     Booking findByOrderId(Long orderId);
+    
+    // Delete bookings by showtime ID
+    @Modifying
+    @Query("DELETE FROM Booking b WHERE b.showtime.id = :showtimeId")
+    void deleteByShowtimeId(@Param("showtimeId") Long showtimeId);
     
 }

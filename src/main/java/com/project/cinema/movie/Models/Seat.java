@@ -31,6 +31,9 @@ public class Seat {
     @Column(name = "seat_type", nullable = false)
     private SeatType seatType; // Loại ghế: REGULAR, VIP, COUPLE
 
+    @Column(name = "price", nullable = false)
+    private Double price; // Giá ghế
+
     @ManyToOne
     @JoinColumn(name = "roomId", nullable = false)
     @JsonIgnore

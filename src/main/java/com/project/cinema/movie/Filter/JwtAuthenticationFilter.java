@@ -38,7 +38,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                path.equals("/") ||
                path.contains("/refresh-token") ||
                path.equals("/api/vnpayment/return") ||
-               path.equals("/api/vnpay/return"); // <-- Bổ sung loại trừ cho /api/vnpay/return
+               path.equals("/api/vnpay/return") ||
+               path.startsWith("/api/test/"); // <-- Thêm loại trừ cho test endpoints
         
         System.out.println("[JWT Filter] Request path: " + path + ", shouldNotFilter: " + shouldNotFilter);
         return shouldNotFilter;

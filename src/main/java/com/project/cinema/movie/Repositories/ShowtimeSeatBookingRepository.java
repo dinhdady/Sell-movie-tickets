@@ -26,4 +26,7 @@ public interface ShowtimeSeatBookingRepository extends JpaRepository<ShowtimeSea
     
     @Query("SELECT COUNT(ssb) > 0 FROM ShowtimeSeatBooking ssb WHERE ssb.showtime.id = :showtimeId AND ssb.seat.id = :seatId")
     boolean isSeatBookedForShowtime(@Param("showtimeId") Long showtimeId, @Param("seatId") Long seatId);
+    
+    // Delete all ShowtimeSeatBooking by showtime ID
+    void deleteByShowtimeId(Long showtimeId);
 }

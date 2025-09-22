@@ -24,20 +24,32 @@ import java.util.Map;
 
 @Controller
 @RequestMapping("api/movie")
-//@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"}, allowCredentials = "true")
 public class MovieController {
-    // @Autowired
-    // private CloudinaryService cloudinaryService;
+     @Autowired
+     private CloudinaryService cloudinaryService;
     @Autowired
     private MovieService movieService;
     private static final Logger logger = LoggerFactory.getLogger(MovieController.class);
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/add")
-    public ResponseEntity<ResponseObject> addNewMovie(@Valid @ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg){
+    public ResponseEntity<ResponseObject> addNewMovie(@ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg){
         try {
             logger.info("[MovieController] Creating new movie");
             logger.info("[MovieController] MovieDTO received: " + movieDto);
+            logger.info("[MovieController] FilmRating: " + movieDto.getFilmRating());
             logger.info("[MovieController] Poster file: " + (posterImg != null ? posterImg.getOriginalFilename() : "null"));
+            
+            // Manual validation
+            if (movieDto.getTitle() == null || movieDto.getTitle().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject("400", "Title is required", null));
+            }
+            
+            if (movieDto.getDuration() <= 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject("400", "Duration must be greater than 0", null));
+            }
+            
             Movie movie = movieService.createMovie(movieDto, posterImg);
             logger.info("[MovieController] Movie created successfully with ID: " + movie.getId());
 
@@ -80,7 +92,7 @@ public class MovieController {
     }
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<ResponseObject> updateMovie(@PathVariable Long id, @Valid @ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg) {
+    public ResponseEntity<ResponseObject> updateMovie(@PathVariable Long id, @ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg) {
         try {
             logger.info("[MovieController] Updating movie with ID: " + id);
             logger.info("[MovieController] MovieDTO received: " + movieDto);

@@ -66,6 +66,43 @@ public class ShowtimeController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{id}/can-delete")
+    public ResponseEntity<ResponseObject> canDeleteShowtime(@PathVariable Long id) {
+        try {
+            boolean canDelete = showtimeService.canDeleteShowtime(id);
+            String message = canDelete ? "Showtime can be deleted" : "Showtime cannot be deleted - has associated bookings";
+            return ResponseEntity.ok(new ResponseObject("200", message, Map.of("canDelete", canDelete)));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error checking showtime deletion: " + e.getMessage(), null));
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}/force")
+    public ResponseEntity<ResponseObject> forceDeleteShowtime(@PathVariable Long id) {
+        try {
+            showtimeService.forceDeleteShowtime(id);
+            return ResponseEntity.ok(new ResponseObject("200", "Showtime and all related data deleted successfully!", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ResponseObject("400", "Error force deleting showtime: " + e.getMessage(), null));
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}/cascade")
+    public ResponseEntity<ResponseObject> cascadeDeleteShowtime(@PathVariable Long id) {
+        try {
+            showtimeService.cascadeDeleteShowtime(id);
+            return ResponseEntity.ok(new ResponseObject("200", "Showtime and all related data cascade deleted successfully!", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ResponseObject("400", "Error cascade deleting showtime: " + e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/room/{roomId}")
     public ResponseEntity<ResponseObject> getShowtimesByRoom(@PathVariable Long roomId) {
         try {

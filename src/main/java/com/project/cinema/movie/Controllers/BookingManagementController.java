@@ -2,6 +2,7 @@ package com.project.cinema.movie.Controllers;
 
 import com.project.cinema.movie.Models.Booking;
 import com.project.cinema.movie.Models.ResponseObject;
+import com.project.cinema.movie.DTO.BookingDetailsResponse;
 import com.project.cinema.movie.Services.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -21,10 +22,35 @@ public class BookingManagementController {
     @Autowired
     private BookingService bookingService;
 
-    // Lấy danh sách đặt vé với phân trang
+    // Test endpoint không cần auth
+    @GetMapping("/test")
+    public ResponseEntity<ResponseObject> testEndpoint() {
+        try {
+            List<BookingDetailsResponse> bookings = bookingService.getAllBookingsWithDetails();
+            return ResponseEntity.ok(new ResponseObject("200", "Test endpoint works! Bookings retrieved successfully!", bookings));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Test endpoint error: " + e.getMessage(), null));
+        }
+    }
+
+    // Lấy danh sách đặt vé với chi tiết đầy đủ
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<ResponseObject> getAllBookings(
+    public ResponseEntity<ResponseObject> getAllBookings() {
+        try {
+            List<BookingDetailsResponse> bookings = bookingService.getAllBookingsWithDetails();
+            return ResponseEntity.ok(new ResponseObject("200", "Bookings retrieved successfully!", bookings));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error retrieving bookings: " + e.getMessage(), null));
+        }
+    }
+    
+    // Lấy danh sách đặt vé với phân trang và filter (giữ lại cho tương lai)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/filtered")
+    public ResponseEntity<ResponseObject> getAllBookingsWithFilters(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,

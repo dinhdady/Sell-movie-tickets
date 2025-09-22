@@ -55,7 +55,9 @@ public class SecurityConfig {
                 "/api/booking/showtime/*/seats",
                 "/api/vnpay/**",
                 "/api/booking/**",
-                "/api/testing/**" // <-- Thêm dòng này để công khai test endpoints
+                "/api/testing/**", // <-- Thêm dòng này để công khai test endpoints
+                "/api/admin/bookings/test", // <-- Thêm dòng này để công khai test endpoint admin
+                "/api/tickets/test" // <-- Thêm dòng này để công khai test endpoint tickets
         };
 
         private static final String ADMIN_URLS = "/admin/**";
@@ -209,8 +211,9 @@ public class SecurityConfig {
                         || (acceptHeader != null && acceptHeader.contains("application/json"))
                         || (xRequestedWith != null && xRequestedWith.equalsIgnoreCase("XMLHttpRequest"));
                 boolean isVnpayCallback = requestURI.contains("/api/vnpay/return");
+                boolean isTestEndpoint = requestURI.startsWith("/api/test/");
                 
-                System.out.println("[AuthenticationEntryPoint] URI: " + requestURI + ", isApiRequest: " + isApiRequest + ", isVnpayCallback: " + isVnpayCallback + ", Exception: " + authException.getMessage());
+                System.out.println("[AuthenticationEntryPoint] URI: " + requestURI + ", isApiRequest: " + isApiRequest + ", isVnpayCallback: " + isVnpayCallback + ", isTestEndpoint: " + isTestEndpoint + ", Exception: " + authException.getMessage());
                 if (response.isCommitted()) {
                     System.out.println("[AuthenticationEntryPoint] Response already committed, skipping");
                     return;
@@ -220,6 +223,13 @@ public class SecurityConfig {
                 if (isVnpayCallback) {
                     System.out.println("[AuthenticationEntryPoint] VNPay callback detected, allowing access");
                     // Cho phép VNPay callback truy cập mà không cần authentication
+                    return;
+                }
+                
+                // Xử lý test endpoints đặc biệt
+                if (isTestEndpoint) {
+                    System.out.println("[AuthenticationEntryPoint] Test endpoint detected, allowing access");
+                    // Cho phép test endpoints truy cập mà không cần authentication
                     return;
                 }
                 

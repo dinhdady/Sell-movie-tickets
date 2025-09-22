@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { movieAPI, showtimeAPI, cinemaAPI, roomAPI } from '../../services/api';
 import type { Movie, Showtime } from '../../types/movie';
+import MovieInfoCard from '../../components/MovieInfoCard';
 
 
 const MovieManagement: React.FC = () => {
@@ -97,12 +98,21 @@ const MovieManagement: React.FC = () => {
 
   const fetchShowtimes = async (movieId: number) => {
     try {
+      console.log(`[MovieManagement] Fetching showtimes for movie ID: ${movieId}`);
       const response = await showtimeAPI.getByMovie(movieId);
-      if (response.state === 'SUCCESS') {
-        setShowtimes(response.object as any[]);
+      console.log('[MovieManagement] Showtime API response:', response);
+      
+      if (response.state === 'SUCCESS' || response.state === '200') {
+        const showtimes = response.object as any[];
+        console.log(`[MovieManagement] Found ${showtimes.length} showtimes:`, showtimes);
+        setShowtimes(showtimes);
+      } else {
+        console.warn('[MovieManagement] Showtime API response not successful:', response);
+        setShowtimes([]);
       }
     } catch (error) {
       console.error('Error fetching showtimes:', error);
+      setShowtimes([]);
     }
   };
 
@@ -183,7 +193,9 @@ const MovieManagement: React.FC = () => {
   };
 
   const handleViewShowtimes = (movie: Movie) => {
+    console.log(`[MovieManagement] Opening showtimes modal for movie: ${movie.title} (ID: ${movie.id})`);
     setSelectedMovie(movie);
+    setShowtimes([]); // Reset showtimes first
     fetchShowtimes(movie.id);
     setShowShowtimeModal(true);
   };
@@ -729,7 +741,7 @@ const MovieManagement: React.FC = () => {
                     {showtimes.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
-                          Chưa có suất chiếu nào
+                          {selectedMovie ? `Chưa có suất chiếu nào cho phim "${selectedMovie.title}"` : 'Chưa có suất chiếu nào'}
                         </td>
                       </tr>
                     ) : (
@@ -782,7 +794,7 @@ const MovieManagement: React.FC = () => {
       {/* Add Showtime Modal */}
       {showAddShowtimeModal && selectedMovie && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
@@ -797,6 +809,66 @@ const MovieManagement: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
+              </div>
+
+              {/* Movie Information Display */}
+              <MovieInfoCard movie={selectedMovie} />
+
+              {/* Current Showtimes Display */}
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-900 mb-3">
+                  Suất chiếu hiện có ({showtimes.length})
+                  {selectedMovie && (
+                    <span className="text-sm text-gray-500 ml-2">
+                      cho phim "{selectedMovie.title}"
+                    </span>
+                  )}
+                </h4>
+                {showtimes.length > 0 ? (
+                  <div className="bg-white border rounded-lg overflow-hidden">
+                    <div className="max-h-40 overflow-y-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Thời gian
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Phòng chiếu
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Rạp chiếu
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {showtimes.slice(0, 5).map((showtime) => (
+                            <tr key={showtime.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 text-sm text-gray-900">
+                                {formatTime(showtime.startTime)} - {formatTime(showtime.endTime)}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-900">
+                                {(showtime as any).roomName || 'N/A'}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-900">
+                                {(showtime as any).cinemaName || 'N/A'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {showtimes.length > 5 && (
+                      <div className="px-4 py-2 bg-gray-50 text-sm text-gray-500 text-center">
+                        Và {showtimes.length - 5} suất chiếu khác...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border rounded-lg p-4 text-center text-gray-500">
+                    Chưa có suất chiếu nào cho phim này
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

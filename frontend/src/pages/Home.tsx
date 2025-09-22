@@ -149,7 +149,7 @@ const Home: React.FC = () => {
                       to={`/booking/${featuredMovie.id}`}
                       className="btn-primary px-8 py-3 text-center"
                     >
-                      Thêm vào giỏ hàng
+                      Đặt vé ngay
                     </Link>
                   ) : (
                     <Link

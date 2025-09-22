@@ -51,6 +51,9 @@ public class User implements UserDetails {
     @Column(name = "is_active")
     private Boolean isActive = Boolean.TRUE;
 
+    @Column(name = "is_email_verified")
+    private Boolean isEmailVerified = Boolean.FALSE;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -59,6 +62,7 @@ public class User implements UserDetails {
         this.password = password;
         this.email = email;
         this.isActive = Boolean.TRUE;
+        this.isEmailVerified = Boolean.FALSE;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -72,6 +76,7 @@ public class User implements UserDetails {
         this.registrationDate = registrationDate;
         this.role = role;
         this.isActive = Boolean.TRUE;
+        this.isEmailVerified = Boolean.FALSE;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -107,6 +112,15 @@ public class User implements UserDetails {
 
     public void setActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    // Getter and setter for isEmailVerified
+    public Boolean isEmailVerified() {
+        return isEmailVerified;
+    }
+
+    public void setEmailVerified(Boolean isEmailVerified) {
+        this.isEmailVerified = isEmailVerified;
     }
 
     // Getter and setter for createdAt

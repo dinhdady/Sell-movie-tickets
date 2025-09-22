@@ -175,7 +175,7 @@ public class BookingController {
     @GetMapping("/user/{userId}/history")
     public ResponseEntity<ResponseObject> getUserBookingHistory(@PathVariable String userId) {
         try {
-            List<Map<String, Object>> bookingHistory = bookingService.getUserBookingHistory(userId);
+            List<BookingDetailsResponse> bookingHistory = bookingService.getUserBookingHistory(userId);
             return ResponseEntity.ok(new ResponseObject("200", "User booking history retrieved successfully!", bookingHistory));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

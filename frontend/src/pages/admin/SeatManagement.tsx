@@ -21,8 +21,10 @@ interface Seat {
   seatNumber: string;
   rowNumber: string;
   columnNumber: number;
-  seatType: string;
+  seatType: 'REGULAR' | 'VIP' | 'COUPLE';
   roomId: number;
+  price?: number;
+  status?: 'AVAILABLE' | 'BOOKED' | 'RESERVED' | 'MAINTENANCE' | 'SELECTED' | 'OCCUPIED';
 }
 
 interface SeatConfigModalProps {

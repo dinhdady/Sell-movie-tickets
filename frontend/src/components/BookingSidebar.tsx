@@ -81,7 +81,8 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
   };
 
   const handleSeatSelect = (seat: Seat) => {
-    if (seat.status === 'OCCUPIED') return;
+    // Don't allow selection of booked, reserved, or maintenance seats
+    if (seat.status === 'BOOKED' || seat.status === 'RESERVED' || seat.status === 'MAINTENANCE') return;
 
     setSelectedSeats(prev => {
       const isSelected = prev.find(s => s.id === seat.id);
@@ -94,15 +95,45 @@ const BookingSidebar: React.FC<BookingSidebarProps> = ({
   };
 
   const getSeatColor = (seat: Seat) => {
-    if (seat.status === 'OCCUPIED') return 'bg-gray-400 cursor-not-allowed';
+    // Check if seat is selected
     if (selectedSeats.find(s => s.id === seat.id)) return 'bg-blue-600 text-white';
-    if (seat.seatType === 'VIP') return 'bg-yellow-500 hover:bg-yellow-600';
-    if (seat.seatType === 'COUPLE') return 'bg-pink-500 hover:bg-pink-600';
-    return 'bg-green-500 hover:bg-green-600';
+    
+    // Check seat status first
+    switch (seat.status) {
+      case 'BOOKED':
+        return 'bg-red-600 text-white cursor-not-allowed opacity-80';
+      case 'RESERVED':
+        return 'bg-orange-500 text-white cursor-not-allowed opacity-80';
+      case 'MAINTENANCE':
+        return 'bg-gray-500 text-white cursor-not-allowed opacity-60';
+      case 'AVAILABLE':
+      default:
+        // Color by seat type for available seats
+        if (seat.seatType === 'VIP') return 'bg-yellow-500 hover:bg-yellow-600';
+        if (seat.seatType === 'COUPLE') return 'bg-pink-500 hover:bg-pink-600';
+        return 'bg-green-500 hover:bg-green-600';
+    }
   };
 
   const calculateTotal = () => {
-    return selectedSeats.reduce((total, seat) => total + seat.price, 0);
+    return selectedSeats.reduce((total, seat) => {
+      // Use seat price from database, fallback to seat type pricing
+      const seatPrice = seat.price || getSeatTypePrice(seat.seatType);
+      return total + seatPrice;
+    }, 0);
+  };
+
+  const getSeatTypePrice = (seatType: string) => {
+    const basePrice = 80000; // Default base price
+    switch (seatType) {
+      case 'VIP':
+        return basePrice * 1.5;
+      case 'COUPLE':
+        return basePrice * 2;
+      case 'REGULAR':
+      default:
+        return basePrice;
+    }
   };
 
   const handleBooking = async () => {

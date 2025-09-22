@@ -31,29 +31,41 @@ interface Seat {
   columnNumber: number;
   seatType: 'REGULAR' | 'VIP' | 'COUPLE';
   roomId: number;
-  status?: string;
+  price?: number;
+  status?: 'AVAILABLE' | 'BOOKED' | 'RESERVED' | 'MAINTENANCE' | 'SELECTED' | 'OCCUPIED';
 }
 
 export interface ApiBooking {
   id: number;
-  userId: string;
+  userId?: string;
   createdAt: string;
-  status: string;
+  status?: string;
   movie: {
     id: number;
     title: string;
     posterUrl?: string;
     genre?: string;
     duration?: number;
+    description?: string;
+    releaseDate?: string;
+    director?: string;
+    cast?: string;
+    rating?: number;
+    language?: string;
+    filmRating?: string;
+    price?: number;
   };
   showtime: {
     id: number;
     startTime: string;
     endTime: string;
+    roomId?: number;
+    movieId?: number;
     room: {
       id: number;
       name: string;
       capacity?: number;
+      cinemaId?: number;
       cinema: {
         id: number;
         name: string;
@@ -63,31 +75,68 @@ export interface ApiBooking {
       };
     };
   };
-  order: {
+  order?: {
     id: number;
     status: string;
+    userId?: string;
+    showtimeId?: number;
+    totalPrice: number;
+    customerEmail: string;
+    customerName: string;
+    customerPhone?: string;
+    customerAddress?: string;
     tickets: Array<{
       id: number;
+      orderId: number;
+      seatId: number;
+      price: number;
+      token: string;
+      status: string;
+      qrCodeUrl?: string;
       seat: {
         seatNumber: string;
         rowNumber: string;
         columnNumber: number;
+        roomId: number;
         seatType: 'REGULAR' | 'VIP' | 'COUPLE';
         price: number;
       };
-      price: number;
-      status: string;
-      qrCodeUrl?: string;
     }>;
   };
   customerName: string;
   customerEmail: string;
-  customerPhone: string;
-  customerAddress: string;
-  paymentStatus: string;
-  paymentMethod: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
   totalPrice: number;
 }
+
+// Type for my-tickets API response
+export interface MyTicketResponse {
+  id: number;
+  token: string;
+  price: number;
+  status: string;
+  qrCodeUrl?: string;
+  customerEmail: string;
+  customerName?: string;
+  totalPrice?: number;
+  orderId?: number;
+  movieTitle: string;
+  moviePosterUrl?: string;
+  startTime: string;
+  endTime: string;
+  roomName: string;
+  cinemaName: string;
+  cinemaAddress: string;
+  seatNumber: string;
+  seatType: string;
+  rowNumber: number;
+  columnNumber: number;
+  createdAt: string;
+}
+
 import type { ResponseObject, VnpayRequest, VNPayResponseDTO } from '../types/api';
 
 const API_BASE_URL = 'http://localhost:8080/api';
@@ -200,6 +249,18 @@ export const authAPI = {
 
   validateResetToken: async (token: string): Promise<ResponseObject> => {
     const response = await api.get(`/auth/validate-reset-token?token=${token}`);
+    return response.data;
+  },
+  verifyEmail: async (token: string): Promise<ResponseObject> => {
+    const response = await api.post('/auth/verify-email', { token });
+    return response.data;
+  },
+  resendVerification: async (email: string): Promise<ResponseObject> => {
+    const response = await api.post('/auth/resend-verification', { email });
+    return response.data;
+  },
+  checkEmailVerification: async (email: string): Promise<ResponseObject> => {
+    const response = await api.get(`/auth/check-email-verification?email=${email}`);
     return response.data;
   },
 
@@ -405,12 +466,55 @@ export const showtimeAPI = {
 export const bookingAPI = {
   getAll: async (): Promise<ApiBooking[]> => {
     const response = await api.get('/booking');
-    return response.data;
+    // Backend returns BookingDetailsResponse[] directly, not wrapped in ResponseObject
+    return response.data as ApiBooking[];
   },
 
   getAllWithDetails: async (): Promise<ApiBooking[]> => {
     const response = await api.get('/admin/bookings');
     return response.data.object?.content || response.data.object || [];
+  },
+
+  // Test endpoint không cần auth - lấy bookings
+  testAdminBookings: async (): Promise<ApiBooking[]> => {
+    const response = await api.get('/test/bookings');
+    return response.data.object?.content || response.data.object || [];
+  },
+
+  // Test endpoint lấy tickets
+  testAdminTickets: async (): Promise<any[]> => {
+    const response = await api.get('/test/tickets');
+    return response.data.object?.content || response.data.object || [];
+  },
+
+  // Test endpoint lấy tickets với token thực
+  testTicketsWithTokens: async (): Promise<any[]> => {
+    const response = await api.get('/test/tickets-with-tokens');
+    return response.data.object || [];
+  },
+
+  // Lấy tất cả tickets (cho admin)
+  getAllTickets: async (): Promise<ApiBooking[]> => {
+    const response = await api.get('/tickets');
+    return response.data.object || [];
+  },
+
+  // Lấy tickets của user hiện tại (cho profile)
+  getMyTickets: async (userId: string): Promise<ApiBooking[]> => {
+    const response = await api.get(`/tickets/my-tickets?userId=${userId}`);
+    return response.data.object || [];
+  },
+
+  // Test endpoint tickets
+  testTickets: async (): Promise<ApiBooking[]> => {
+    const response = await api.get('/tickets/test');
+    return response.data.object || [];
+  },
+
+
+  getUserBookings: async (userId: string): Promise<ApiBooking[]> => {
+    const response = await api.get(`/user/${userId}/bookings`);
+    return response.data.object || [];
   },
 
   getById: async (id: number): Promise<ResponseObject<ApiBooking>> => {
@@ -446,8 +550,8 @@ export const userAPI = {
     return response.data;
   },
 
-  updateProfile: async (userData: Partial<User>): Promise<ResponseObject<User>> => {
-    const response = await api.put('/user/profile', userData);
+  updateProfile: async (userId: string, userData: Partial<User>): Promise<ResponseObject<User>> => {
+    const response = await api.put(`/user/${userId}/profile`, userData);
     return response.data;
   },
 

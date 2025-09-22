@@ -9,7 +9,7 @@ export interface Seat {
   seatType: 'REGULAR' | 'VIP' | 'COUPLE';
   price: number;
   isBooked?: boolean;
-  status?: 'AVAILABLE' | 'BOOKED' | 'SELECTED' | 'OCCUPIED';
+  status?: 'AVAILABLE' | 'BOOKED' | 'RESERVED' | 'MAINTENANCE' | 'SELECTED' | 'OCCUPIED';
 }
 
 // Booking types

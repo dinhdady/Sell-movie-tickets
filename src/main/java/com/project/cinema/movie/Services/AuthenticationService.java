@@ -51,10 +51,10 @@ public class AuthenticationService {
 
     public AuthenticationResponse register(RegisterRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            return new AuthenticationResponse(false, "", "", "User already exists");
+            return new AuthenticationResponse(false, "", "", "User already exists", null);
         }
         userService.register(request);
-        return new AuthenticationResponse(true, "", "", "User registration was successful");
+        return new AuthenticationResponse(true, "", "", "User registration was successful", null);
     }
 
     public AuthenticationResponse authenticate(AuthRequest request,
@@ -62,7 +62,7 @@ public class AuthenticationService {
                                                HttpSession session) {
 
         if (isBlank(request.getUsername()) || isBlank(request.getPassword())) {
-            return new AuthenticationResponse(false, "", "", "Tên đăng nhập hoặc mật khẩu không được để trống");
+            return new AuthenticationResponse(false, "", "", "Tên đăng nhập hoặc mật khẩu không được để trống", null);
         }
 
         try {
@@ -90,7 +90,7 @@ public class AuthenticationService {
 
             session.setAttribute("username", user.getUsername());
 
-            return new AuthenticationResponse(true, accessToken, refreshToken, "Đăng nhập thành công!");
+            return new AuthenticationResponse(true, accessToken, refreshToken, "Đăng nhập thành công!", user);
         } catch (BadCredentialsException e) {
             return handleBadCredentials(request.getUsername());
         }
@@ -119,7 +119,7 @@ public class AuthenticationService {
     private AuthenticationResponse handleBadCredentials(String username) {
         boolean userExists = userService.findByUsername(username).isPresent();
         String message = userExists ? "Mật khẩu không chính xác" : "Người dùng không tồn tại";
-        return new AuthenticationResponse(false, "", "", message);
+        return new AuthenticationResponse(false, "", "", message, null);
     }
 
     private boolean isBlank(String str) {

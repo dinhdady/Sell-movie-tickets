@@ -84,13 +84,19 @@ const Booking: React.FC = () => {
               const showtimesResponse = await showtimeAPI.getByMovieId(parseInt(id!));
               if ((showtimesResponse.state === 'SUCCESS' || showtimesResponse.state === '200') && showtimesResponse.object) {
                 setShowtimes(showtimesResponse.object);
-                // Auto-select the preselected showtime
+                // Auto-select the preselected showtime ONLY if it exists in the API response
                 const selectedShowtime = showtimesResponse.object.find(st => st.id === parseInt(preselectedShowtimeId));
                 if (selectedShowtime) {
+                  console.log('✅ Found preselected showtime from API:', selectedShowtime);
                   setSelectedShowtime(selectedShowtime);
                   
                   // Fetch seats from database for room 1
                   await loadSeatsFromDatabase(room1.id, selectedShowtime.id);
+                } else {
+                  console.log('❌ Preselected showtime ID', preselectedShowtimeId, 'not found in API response');
+                  console.log('Available showtime IDs:', showtimesResponse.object.map(st => st.id));
+                  // Don't auto-select any showtime if the preselected one doesn't exist
+                  setError('Suất chiếu đã chọn không còn tồn tại. Vui lòng chọn suất chiếu khác.');
                 }
               }
             }
@@ -248,7 +254,8 @@ const Booking: React.FC = () => {
 
 
   const handleSeatSelect = (seat: Seat) => {
-    if (seat.status === 'OCCUPIED' || seat.status === 'BOOKED') return;
+    // Don't allow selection of booked, reserved, or maintenance seats
+    if (seat.status === 'BOOKED' || seat.status === 'RESERVED' || seat.status === 'MAINTENANCE') return;
     
     const isSelected = selectedSeats.some(s => s.id === seat.id);
     if (isSelected) {
@@ -264,20 +271,26 @@ const Booking: React.FC = () => {
       return 'bg-blue-500 text-white border-2 border-blue-600';
     }
     
-    // Check if seat is booked or occupied - these should be red and not clickable
-    if (seat.status === 'BOOKED' || seat.status === 'OCCUPIED') {
-      return 'bg-red-500 text-white cursor-not-allowed opacity-60';
-    }
-    
-    // Color by seat type for available seats
-    switch (seat.seatType) {
-      case 'VIP':
-        return 'bg-yellow-400 hover:bg-yellow-500 text-gray-800 cursor-pointer border border-yellow-500';
-      case 'COUPLE':
-        return 'bg-purple-400 hover:bg-purple-500 text-white cursor-pointer border border-purple-500';
-      case 'REGULAR':
+    // Check seat status first
+    switch (seat.status) {
+      case 'BOOKED':
+        return 'bg-red-600 text-white cursor-not-allowed opacity-80 border-2 border-red-700';
+      case 'RESERVED':
+        return 'bg-orange-500 text-white cursor-not-allowed opacity-80 border-2 border-orange-600';
+      case 'MAINTENANCE':
+        return 'bg-gray-500 text-white cursor-not-allowed opacity-60 border-2 border-gray-600';
+      case 'AVAILABLE':
       default:
-        return 'bg-green-400 hover:bg-green-500 text-white cursor-pointer border border-green-500';
+        // Color by seat type for available seats
+        switch (seat.seatType) {
+          case 'VIP':
+            return 'bg-yellow-400 hover:bg-yellow-500 text-gray-800 cursor-pointer border border-yellow-500';
+          case 'COUPLE':
+            return 'bg-purple-400 hover:bg-purple-500 text-white cursor-pointer border border-purple-500';
+          case 'REGULAR':
+          default:
+            return 'bg-green-400 hover:bg-green-500 text-white cursor-pointer border border-green-500';
+        }
     }
   };
 
@@ -561,7 +574,7 @@ const Booking: React.FC = () => {
                       <span>Ghế đôi</span>
                     </div>
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-red-500 rounded mr-2"></div>
+                      <div className="w-4 h-4 bg-red-600 rounded mr-2 border border-red-700"></div>
                       <span>Đã đặt</span>
                     </div>
                     <div className="flex items-center">
@@ -592,7 +605,7 @@ const Booking: React.FC = () => {
                             <span>Đã chọn</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 bg-red-500 rounded"></div>
+                            <div className="w-4 h-4 bg-red-600 rounded border border-red-700"></div>
                             <span>Đã đặt</span>
                           </div>
                           <div className="flex items-center gap-2">

@@ -4,6 +4,7 @@ import com.project.cinema.movie.DTO.*;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.PasswordResetTokenRepository;
 import com.project.cinema.movie.Services.AuthenticationService;
+import com.project.cinema.movie.Services.EmailVerificationService;
 import com.project.cinema.movie.Services.JwtService;
 import com.project.cinema.movie.Services.UserService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -41,6 +42,8 @@ public class AuthenticationController {
     private PasswordResetTokenRepository passwordResetTokenRepository;
     @Autowired
     private JavaMailSender mailSender;
+    @Autowired
+    private EmailVerificationService emailVerificationService;
 
     /**
      * User registration handler
@@ -58,17 +61,32 @@ public class AuthenticationController {
                         .body(new ResponseObject("FAILED", "Username already exists", null));
             }
 
+            if (userService.findByEmail(registerRequest.getEmail()).isPresent()) {
+                logger.warn("Email '{}' is already in use", registerRequest.getEmail());
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(new ResponseObject("FAILED", "Email already exists", null));
+            }
+
             if (registerRequest.getPassword() == null || registerRequest.getPassword().trim().isEmpty()) {
                 logger.warn("Password is null or empty for username: {}", registerRequest.getUsername());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new ResponseObject("FAILED", "Password cannot be null or empty", null));
             }
 
-            userService.register(registerRequest);
+            // Đăng ký user (với isEmailVerified = false)
+            User user = userService.register(registerRequest);
             logger.info("User '{}' registered successfully", registerRequest.getUsername());
 
+            // Tạo và gửi email verification
+            String verificationToken = emailVerificationService.generateVerificationToken(user);
+            emailVerificationService.sendVerificationEmail(user.getEmail(), verificationToken);
+            logger.info("Verification email sent to: {}", user.getEmail());
+
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ResponseObject("SUCCESS", "User registered successfully", null));
+                    .body(new ResponseObject("SUCCESS", "User registered successfully. Please check your email to verify your account.", Map.of(
+                        "email", user.getEmail(),
+                        "verificationRequired", true
+                    )));
         } catch (Exception e) {
             logger.error("Error during user registration for username '{}'", registerRequest.getUsername(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -147,7 +165,7 @@ public class AuthenticationController {
                 String newAccessToken = jwtService.generateAccessToken(user.get());
                 logger.info("Generated new accessToken for username: {}", username);
 
-                AuthenticationResponse authResponse = new AuthenticationResponse(true, newAccessToken, refreshToken, "Success");
+                AuthenticationResponse authResponse = new AuthenticationResponse(true, newAccessToken, refreshToken, "Success", user.get());
                 return ResponseEntity.status(HttpStatus.OK)
                         .body(new ResponseObject("SUCCESS", "Token refreshed successfully", authResponse));
             } else {
@@ -282,6 +300,90 @@ public class AuthenticationController {
             logger.error("Error validating reset token", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseObject("FAILED", "Error validating token", null));
+        }
+    }
+
+    /**
+     * Verify email with token
+     * @param request the verification request containing token
+     * @return ResponseEntity with verification status
+     */
+    @PostMapping("/verify-email")
+    public ResponseEntity<ResponseObject> verifyEmail(@RequestBody Map<String, String> request) {
+        String token = request.get("token");
+        
+        if (token == null || token.trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject("FAILED", "Token is required", null));
+        }
+        
+        try {
+            boolean isVerified = emailVerificationService.verifyToken(token);
+            
+            if (isVerified) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ResponseObject("SUCCESS", "Email verified successfully", null));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseObject("FAILED", "Invalid or expired token", null));
+            }
+        } catch (Exception e) {
+            logger.error("Error verifying email token", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject("FAILED", "Error verifying email: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Resend verification email
+     * @param request the resend request containing email
+     * @return ResponseEntity with resend status
+     */
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ResponseObject> resendVerificationEmail(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject("FAILED", "Email is required", null));
+        }
+        
+        try {
+            boolean resendSuccess = emailVerificationService.resendVerificationEmail(email);
+            
+            if (resendSuccess) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ResponseObject("SUCCESS", "Verification email sent successfully", null));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseObject("FAILED", "Email not found or already verified", null));
+            }
+        } catch (Exception e) {
+            logger.error("Error resending verification email", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject("FAILED", "Error resending verification email: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Check email verification status
+     * @param email the email to check
+     * @return ResponseEntity with verification status
+     */
+    @GetMapping("/check-email-verification")
+    public ResponseEntity<ResponseObject> checkEmailVerification(@RequestParam String email) {
+        try {
+            boolean isVerified = emailVerificationService.isEmailVerified(email);
+            
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject("SUCCESS", "Email verification status retrieved", Map.of(
+                        "email", email,
+                        "isVerified", isVerified
+                    )));
+        } catch (Exception e) {
+            logger.error("Error checking email verification status", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject("FAILED", "Error checking email verification: " + e.getMessage(), null));
         }
     }
 }

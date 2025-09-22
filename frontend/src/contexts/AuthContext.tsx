@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { User, AuthRequest, RegisterRequest } from '../types/auth';
+import type { User, AuthRequest, RegisterRequest, AuthResponse } from '../types/auth';
 import { authAPI, userAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
 
@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (credentials: AuthRequest) => Promise<{ success: boolean; message: string }>;
-  register: (userData: RegisterRequest) => Promise<void>;
+  register: (userData: RegisterRequest) => Promise<AuthResponse | undefined>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   isLoading: boolean;
@@ -166,6 +166,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authAPI.register(userData);
       
       if (response.state === 'SUCCESS') {
+        // Kiểm tra nếu cần xác thực email
+        if (response.object && response.object.verificationRequired) {
+          console.log('Email verification required for:', response.object.email);
+          return response.object; // Trả về thông tin verification
+        }
+        
         const authResponse = response.object;
         const newToken = authResponse.accessToken;
         

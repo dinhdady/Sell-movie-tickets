@@ -16,11 +16,28 @@ import {
 } from '@heroicons/react/24/outline';
 import { bookingAPI, type ApiBooking } from '../../services/api';
 
-type BookingWithExtras = ApiBooking;
-
+type BookingWithExtras = ApiBooking & {
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  totalPrice?: number;
+  seat?: {
+    seatNumber: string;
+    seatType: string;
+    rowNumber: string;
+    columnNumber: number;
+  };
+  ticket?: {
+    id: number;
+    token: string;
+    price: number;
+    status: string;
+    qrCodeUrl: string;
+  };
+};
 
 const BookingManagement: React.FC = () => {
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<BookingWithExtras[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
@@ -37,15 +54,59 @@ const BookingManagement: React.FC = () => {
     try {
       setLoading(true);
       console.log('🎯 [Admin] Fetching all bookings...');
-      const response = await bookingAPI.getAll();
-      console.log('🎯 [Admin] All bookings response:', response);
-      console.log('🎯 [Admin] First booking details:', response?.[0]);
-      console.log('🎯 [Admin] First booking movie:', response?.[0]?.movie);
-      console.log('🎯 [Admin] First booking showtime:', response?.[0]?.showtime);
-      console.log('🎯 [Admin] First booking order:', response?.[0]?.order);
-      setBookings((response || []) as BookingWithExtras[]);
+      
+      // Sử dụng test API làm primary source (vì database chưa có dữ liệu)
+      try {
+        console.log('🎯 [Admin] Trying test bookings API...');
+        const testResponse = await bookingAPI.testAdminBookings();
+        console.log('🎯 [Admin] Test bookings response:', testResponse);
+        
+        if (testResponse && Array.isArray(testResponse) && testResponse.length > 0) {
+          console.log('🎯 [Admin] Test bookings count:', testResponse.length);
+          setBookings(testResponse as BookingWithExtras[]);
+          return;
+        }
+      } catch (testError: any) {
+        console.log('🎯 [Admin] Test API failed:', testError);
+      }
+      
+      // Fallback to admin API (cần authentication)
+      try {
+        console.log('🎯 [Admin] Trying admin bookings API...');
+        const response = await bookingAPI.getAllWithDetails();
+        console.log('🎯 [Admin] Admin bookings response:', response);
+        
+        if (response && Array.isArray(response) && response.length > 0) {
+          console.log('🎯 [Admin] Admin bookings count:', response.length);
+          setBookings(response as BookingWithExtras[]);
+          return;
+        }
+      } catch (adminError: any) {
+        console.log('🎯 [Admin] Admin API failed:', adminError);
+      }
+      
+      // Fallback to main booking API (cần authentication)
+      try {
+        console.log('🎯 [Admin] Trying main booking API...');
+        const mainResponse = await bookingAPI.getAll();
+        console.log('🎯 [Admin] Main API response:', mainResponse);
+        
+        if (mainResponse && Array.isArray(mainResponse) && mainResponse.length > 0) {
+          console.log('🎯 [Admin] Main API count:', mainResponse.length);
+          setBookings((mainResponse || []) as BookingWithExtras[]);
+          return;
+        }
+      } catch (mainError: any) {
+        console.log('🎯 [Admin] Main API failed:', mainError);
+      }
+      
+      // No data found from any source
+      console.log('🎯 [Admin] No data found from any API');
+      setBookings([]);
+      
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.error('🎯 [Admin] Error fetching data:', error);
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -94,9 +155,9 @@ const BookingManagement: React.FC = () => {
   const filteredBookings = bookings
     .filter(booking => {
       const matchesSearch = 
-        booking.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.movie?.title?.toLowerCase().includes(searchTerm.toLowerCase());
+        (booking.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (booking.customerEmail || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (booking.movie?.title || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = filterStatus === 'ALL' || (booking.paymentStatus || booking.status) === filterStatus;
       return matchesSearch && matchesStatus;
     })
@@ -223,7 +284,10 @@ const BookingManagement: React.FC = () => {
                     Đã xác nhận
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {bookings.filter(b => (b.paymentStatus || b.status) === 'CONFIRMED').length}
+                    {bookings.filter(b => {
+                      const status = b.paymentStatus || b.status;
+                      return status === 'CONFIRMED' || status === 'PAID' || status === 'SUCCESS';
+                    }).length}
                   </dd>
                 </dl>
               </div>
@@ -245,7 +309,10 @@ const BookingManagement: React.FC = () => {
                     Chờ xác nhận
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {bookings.filter(b => b.status === 'PENDING').length}
+                    {bookings.filter(b => {
+                      const status = b.paymentStatus || b.status;
+                      return status === 'PENDING' || status === 'PROCESSING';
+                    }).length}
                   </dd>
                 </dl>
               </div>
@@ -267,10 +334,20 @@ const BookingManagement: React.FC = () => {
                     Doanh thu
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {bookings
-                      .filter(b => b.status === 'CONFIRMED')
-                      .reduce((sum, b) => sum + b.totalPrice, 0)
-                      .toLocaleString()} VNĐ
+                    {(() => {
+                      const totalRevenue = bookings
+                        .filter(b => {
+                          const status = b.paymentStatus || b.status;
+                          return status === 'CONFIRMED' || status === 'PAID' || status === 'SUCCESS';
+                        })
+                        .reduce((sum, b) => {
+                          const price = b.totalPrice || b.order?.totalPrice || 0;
+                          console.log('🎯 [Admin] Revenue - Booking:', b.id, 'Price:', price, 'Status:', b.paymentStatus || b.status);
+                          return sum + price;
+                        }, 0);
+                      console.log('🎯 [Admin] Total revenue:', totalRevenue);
+                      return totalRevenue.toLocaleString();
+                    })()} VNĐ
                   </dd>
                 </dl>
               </div>
@@ -278,6 +355,7 @@ const BookingManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
@@ -394,14 +472,14 @@ const BookingManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {booking.order?.tickets?.map((t: any) => t.seat.seatNumber).join(', ') || 'Chưa cập nhật'}
+                      {booking.seat?.seatNumber || booking.order?.tickets?.map((t: any) => t.seat?.seatNumber).join(', ') || 'Chưa cập nhật'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {booking.totalPrice.toLocaleString()} VNĐ
+                      {(booking.totalPrice || booking.order?.totalPrice || 0).toLocaleString()} VNĐ
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.paymentStatus || booking.status)}`}>
-                        {getStatusText(booking.paymentStatus || booking.status)}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.paymentStatus || booking.status || 'UNKNOWN')}`}>
+                        {getStatusText(booking.paymentStatus || booking.status || 'UNKNOWN')}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

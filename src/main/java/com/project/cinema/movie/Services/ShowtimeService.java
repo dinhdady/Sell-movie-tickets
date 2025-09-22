@@ -24,6 +24,15 @@ public class ShowtimeService {
     
     @Autowired
     private CinemaRepository cinemaRepository;
+    
+    @Autowired
+    private BookingRepository bookingRepository;
+    @Autowired
+    private TicketRepository ticketRepository;
+    @Autowired
+    private OrderRepository orderRepository;
+    @Autowired
+    private ShowtimeSeatBookingRepository showtimeSeatBookingRepository;
 
     public Optional<Showtime> findById(Long id) {
         return showtimeRepository.findById(id);
@@ -136,9 +145,117 @@ public class ShowtimeService {
         try {
             Showtime showtime = showtimeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Showtime not found"));
+            
+            // Kiểm tra xem có booking nào đang sử dụng showtime này không
+            List<Booking> bookings = bookingRepository.findByShowtimeId(id);
+            if (!bookings.isEmpty()) {
+                throw new RuntimeException("Cannot delete showtime: There are " + bookings.size() + " bookings associated with this showtime. Please delete the bookings first.");
+            }
+            
+            // Xóa các ShowtimeSeatBooking liên quan trước
+            List<ShowtimeSeatBooking> seatBookings = showtimeSeatBookingRepository.findByShowtimeId(id);
+            for (ShowtimeSeatBooking seatBooking : seatBookings) {
+                showtimeSeatBookingRepository.delete(seatBooking);
+            }
+            
+            // Sau đó mới xóa showtime
             showtimeRepository.delete(showtime);
+            
+            System.out.println("[ShowtimeService] Successfully deleted showtime ID: " + id);
         } catch (Exception e) {
+            System.err.println("[ShowtimeService] Error deleting showtime ID " + id + ": " + e.getMessage());
             throw new RuntimeException("Error deleting showtime: " + e.getMessage());
+        }
+    }
+
+    public boolean canDeleteShowtime(Long id) {
+        try {
+            Showtime showtime = showtimeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Showtime not found"));
+            
+            // Kiểm tra xem có booking nào đang sử dụng showtime này không
+            List<Booking> bookings = bookingRepository.findByShowtimeId(id);
+            return bookings.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Xóa showtime và tất cả dữ liệu liên quan (chỉ dùng cho admin)
+     */
+    @Transactional
+    public void forceDeleteShowtime(Long id) {
+        try {
+            Showtime showtime = showtimeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Showtime not found"));
+            
+            System.out.println("[ShowtimeService] Force deleting showtime ID: " + id);
+            
+            // 1. Xóa tất cả ShowtimeSeatBooking
+            List<ShowtimeSeatBooking> seatBookings = showtimeSeatBookingRepository.findByShowtimeId(id);
+            System.out.println("[ShowtimeService] Found " + seatBookings.size() + " seat bookings to delete");
+            for (ShowtimeSeatBooking seatBooking : seatBookings) {
+                showtimeSeatBookingRepository.delete(seatBooking);
+            }
+            
+            // 2. Xóa tất cả Bookings liên quan
+            List<Booking> bookings = bookingRepository.findByShowtimeId(id);
+            System.out.println("[ShowtimeService] Found " + bookings.size() + " bookings to delete");
+            for (Booking booking : bookings) {
+                // Xóa tickets liên quan
+                if (booking.getOrder() != null) {
+                    List<Ticket> tickets = ticketRepository.findByOrderId(booking.getOrder().getId());
+                    for (Ticket ticket : tickets) {
+                        ticketRepository.delete(ticket);
+                    }
+                    
+                    // Xóa order
+                    orderRepository.delete(booking.getOrder());
+                }
+                
+                // Xóa booking
+                bookingRepository.delete(booking);
+            }
+            
+            // 3. Cuối cùng xóa showtime
+            showtimeRepository.delete(showtime);
+            
+            System.out.println("[ShowtimeService] Successfully force deleted showtime ID: " + id);
+        } catch (Exception e) {
+            System.err.println("[ShowtimeService] Error force deleting showtime ID " + id + ": " + e.getMessage());
+            throw new RuntimeException("Error force deleting showtime: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Xóa showtime với cascade delete (sử dụng native query)
+     */
+    @Transactional
+    public void cascadeDeleteShowtime(Long id) {
+        try {
+            System.out.println("[ShowtimeService] Cascade deleting showtime ID: " + id);
+            
+            // Sử dụng native query để xóa theo thứ tự đúng
+            // 1. Xóa ShowtimeSeatBooking
+            showtimeSeatBookingRepository.deleteByShowtimeId(id);
+            
+            // 2. Xóa Tickets
+            ticketRepository.deleteByShowtimeId(id);
+            
+            // 3. Xóa Orders
+            orderRepository.deleteByShowtimeId(id);
+            
+            // 4. Xóa Bookings
+            bookingRepository.deleteByShowtimeId(id);
+            
+            // 5. Xóa Showtime
+            showtimeRepository.deleteById(id);
+            
+            System.out.println("[ShowtimeService] Successfully cascade deleted showtime ID: " + id);
+        } catch (Exception e) {
+            System.err.println("[ShowtimeService] Error cascade deleting showtime ID " + id + ": " + e.getMessage());
+            throw new RuntimeException("Error cascade deleting showtime: " + e.getMessage());
         }
     }
 
