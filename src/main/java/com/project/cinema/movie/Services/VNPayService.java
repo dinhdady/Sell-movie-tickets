@@ -184,6 +184,7 @@ public class VNPayService {
 
             // Sử dụng BookingService để xử lý payment confirmation
             try {
+                logger.info("[VNPAY] Calling confirmPaymentAndGenerateTickets for txnRef: {}", vnp_TxnRef);
                 Booking updatedBooking = bookingService.confirmPaymentAndGenerateTickets(vnp_TxnRef);
                 logger.info("[VNPAY] Successfully confirmed payment and generated tickets for txnRef: {}", vnp_TxnRef);
                 

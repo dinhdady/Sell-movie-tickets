@@ -8,8 +8,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import com.project.cinema.movie.Models.Showtime;
+import com.project.cinema.movie.Repositories.ShowtimeRepository;
 
 @RestController
 @RequestMapping("/api/showtime")
@@ -18,6 +23,9 @@ public class ShowtimeController {
     
     @Autowired
     private ShowtimeService showtimeService;
+    
+    @Autowired
+    private ShowtimeRepository showtimeRepository;
 
     @GetMapping("/movie/{movieId}")
     public ResponseEntity<ResponseObject> getShowtimesByMovie(@PathVariable Long movieId) {
@@ -134,6 +142,43 @@ public class ShowtimeController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ResponseObject("500", "Error retrieving showtimes: " + e.getMessage(), null));
+        }
+    }
+
+    // Debug endpoint to check all showtimes (including expired)
+    @GetMapping("/debug/all")
+    public ResponseEntity<ResponseObject> debugAllShowtimes() {
+        try {
+            Date now = new Date();
+            List<Showtime> allShowtimes = showtimeRepository.findAll();
+            
+            Map<String, Object> debugInfo = new HashMap<>();
+            debugInfo.put("currentTime", now);
+            debugInfo.put("timezone", System.getProperty("user.timezone"));
+            debugInfo.put("totalShowtimes", allShowtimes.size());
+            
+            List<Map<String, Object>> showtimeDetails = allShowtimes.stream()
+                .map(showtime -> {
+                    Map<String, Object> detail = new HashMap<>();
+                    detail.put("id", showtime.getId());
+                    detail.put("startTime", showtime.getStartTime());
+                    detail.put("endTime", showtime.getEndTime());
+                    detail.put("isActive", showtime.getEndTime().after(now));
+                    detail.put("startTimeDiff", showtime.getStartTime().getTime() - now.getTime());
+                    detail.put("endTimeDiff", showtime.getEndTime().getTime() - now.getTime());
+                    if (showtime.getMovie() != null) {
+                        detail.put("movieTitle", showtime.getMovie().getTitle());
+                    }
+                    return detail;
+                })
+                .collect(Collectors.toList());
+                
+            debugInfo.put("showtimes", showtimeDetails);
+            
+            return ResponseEntity.ok(new ResponseObject("200", "Debug info retrieved successfully!", debugInfo));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error retrieving debug info: " + e.getMessage(), null));
         }
     }
 }

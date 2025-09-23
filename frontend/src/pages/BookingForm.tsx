@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { bookingAPI, orderAPI, paymentAPI } from '../services/api';
 import type { Seat } from '../types/booking';
+// import type { Coupon } from '../types/coupon';
 import ProtectedRoute from '../components/ProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
@@ -10,7 +11,8 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   MapPinIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 interface BookingFormData {
   customerName: string;
@@ -24,7 +26,7 @@ const BookingForm: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   // Get booking data from location state
-  const { movie, showtime, selectedSeats, totalPrice } = location.state || {};
+  const { movie, showtime, selectedSeats, totalPrice, appliedCoupon, discountAmount, finalTotal } = location.state || {};
   // Add debug logging
   const [formData, setFormData] = useState<BookingFormData>({
     customerName: user?.fullName || user?.username || '',
@@ -97,7 +99,7 @@ const BookingForm: React.FC = () => {
       const orderData = {
         userId: validUserId,
         showtimeId: showtime.id,
-        totalPrice: totalPrice,
+        totalPrice: finalTotal || totalPrice,
         customerEmail: formData.customerEmail,
         customerName: formData.customerName,
         customerPhone: formData.customerPhone,
@@ -115,20 +117,21 @@ const BookingForm: React.FC = () => {
         userId: validUserId,
         showtimeId: showtime.id,
         orderId: createdOrder.id,
-        totalPrice: totalPrice,
+        totalPrice: finalTotal || totalPrice,
         customerName: formData.customerName,
         customerEmail: formData.customerEmail,
         customerPhone: formData.customerPhone,
         customerAddress: formData.customerAddress,
-        seatIds: selectedSeats.map((seat: Seat) => seat.id)
+        seatIds: selectedSeats.map((seat: Seat) => seat.id),
+        couponCode: appliedCoupon?.code || null
       };
       const response = await bookingAPI.create(bookingData);
       if (response.state === 'SUCCESS') {
         // Chỉ truyền đúng các trường backend cần
         const paymentData = {
           bookingId: response.object.id,
-          amount: totalPrice,
-          orderDescription: `Thanh toán vé xem phim ${movie.title}`
+          amount: finalTotal || totalPrice,
+          orderDescription: `Thanh toán vé xem phim ${movie.title}${appliedCoupon ? ` (Đã áp dụng coupon ${appliedCoupon.code})` : ''}`
         };
         const paymentUrl = await paymentAPI.createVNPayPayment(paymentData);
         // Show loading state before redirect
@@ -139,7 +142,9 @@ const BookingForm: React.FC = () => {
           movie: movie,
           showtime: showtime,
           selectedSeats: selectedSeats,
-          totalPrice: totalPrice,
+          totalPrice: finalTotal || totalPrice,
+          appliedCoupon: appliedCoupon,
+          discountAmount: discountAmount,
           txnRef: createdOrder.txnRef
         }));
         // Small delay to show loading state
@@ -234,10 +239,27 @@ const BookingForm: React.FC = () => {
                           </div>
                         ))}
                       </div>
-                      <div className="border-t pt-2 mt-2">
-                        <div className="flex justify-between font-semibold">
+                      <div className="border-t pt-2 mt-2 space-y-2">
+                        <div className="flex justify-between">
+                          <span>Tạm tính</span>
+                          <span>{totalPrice.toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        {appliedCoupon && discountAmount > 0 && (
+                          <>
+                            <div className="flex justify-between text-green-600">
+                              <span className="flex items-center gap-1">
+                                <TagIcon className="w-3 h-3" />
+                                Giảm giá ({appliedCoupon.code})
+                              </span>
+                              <span>-{discountAmount.toLocaleString('vi-VN')}đ</span>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex justify-between font-semibold border-t pt-2">
                           <span>Tổng cộng</span>
-                          <span className="text-blue-600">{totalPrice.toLocaleString('vi-VN')}đ</span>
+                          <span className="text-blue-600">
+                            {(finalTotal || totalPrice).toLocaleString('vi-VN')}đ
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -340,7 +362,7 @@ const BookingForm: React.FC = () => {
                         ) : (
                           <>
                             <CreditCardIcon className="h-5 w-5 mr-2" />
-                            Thanh toán {totalPrice.toLocaleString('vi-VN')}đ
+                            Thanh toán {(finalTotal || totalPrice).toLocaleString('vi-VN')}đ
                           </>
                         )}
                       </button>

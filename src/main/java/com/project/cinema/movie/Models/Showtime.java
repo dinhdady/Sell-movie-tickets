@@ -44,6 +44,9 @@ public class Showtime {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedAt;
 
+    @Column(name = "status")
+    private String status = "ACTIVE"; // Default status
+
     // One showtime can have many seat bookings
     @OneToMany(mappedBy = "showtime", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference

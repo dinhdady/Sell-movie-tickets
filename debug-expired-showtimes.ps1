@@ -1,0 +1,38 @@
+Write-Host "=== DEBUGGING EXPIRED SHOWTIMES ==="
+
+Write-Host "1. Starting frontend..."
+Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -Command `"npm run dev`"" -WorkingDirectory "frontend" -NoNewWindow
+Write-Host "Waiting for frontend to start..."
+Start-Sleep -Seconds 15
+
+Write-Host "=== APPLICATION STARTED ==="
+Write-Host "Backend: http://localhost:8080 (should be running)"
+Write-Host "Frontend: http://localhost:5176"
+
+Write-Host ""
+Write-Host "=== DEBUGGING EXPIRED SHOWTIMES ==="
+Write-Host "This will help us understand why seats are not being released:"
+Write-Host ""
+Write-Host "=== TEST ENDPOINTS ==="
+Write-Host "1. Debug expired showtimes: GET http://localhost:8080/api/booking/debug-expired-showtimes"
+Write-Host "2. Manual release seats: POST http://localhost:8080/api/booking/release-expired-seats"
+Write-Host ""
+Write-Host "=== EXPECTED DEBUG OUTPUT ==="
+Write-Host "Current time: 2025-09-23T22:30:00"
+Write-Host "Found X expired showtimes"
+Write-Host "Showtime ID: 123, Movie: Movie Name, End Time: 2025-09-23T20:00:00"
+Write-Host "Booked Seats: 5, Reserved Seats: 2, Available Seats: 3"
+Write-Host ""
+Write-Host "=== TESTING STEPS ==="
+Write-Host "1. Call debug endpoint to see expired showtimes"
+Write-Host "2. Check if any showtimes have endTime < now"
+Write-Host "3. Check seat status counts (BOOKED/RESERVED/AVAILABLE)"
+Write-Host "4. Call manual release endpoint"
+Write-Host "5. Check debug endpoint again to see if seats were released"
+Write-Host ""
+Write-Host "=== CURL COMMANDS ==="
+Write-Host "curl http://localhost:8080/api/booking/debug-expired-showtimes"
+Write-Host "curl -X POST http://localhost:8080/api/booking/release-expired-seats"
+Write-Host ""
+Write-Host "Press any key to exit..."
+$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null

@@ -118,12 +118,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         throw new Error(response.message || 'Đăng nhập thất bại');
       }
-    } catch (error) {
+    } catch (error: any) {
       // Don't re-throw if it's already a successful login being treated as error
       if (error instanceof Error && error.message.includes('thành công')) {
         return { success: true, message: error.message };
       }
-      throw error;
+      
+      // Handle different types of errors
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Clear any existing tokens on login failure
+      setToken(null);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }

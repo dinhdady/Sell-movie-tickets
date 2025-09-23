@@ -1,48 +1,46 @@
-import axios from 'axios';
+import api from './api';
 import type { Event } from '../types/event';
-
-const API_BASE_URL = 'http://localhost:8080/api';
 
 export const eventAPI = {
   // Lấy tất cả event
   getAll: async () => {
-    const response = await axios.get(`${API_BASE_URL}/event`);
+    const response = await api.get('/event');
     return response.data;
   },
 
   // Lấy event theo ID
   getById: async (id: number) => {
-    const response = await axios.get(`${API_BASE_URL}/event/${id}`);
+    const response = await api.get(`/event/${id}`);
     return response.data;
   },
 
   // Lấy event đang hoạt động
   getActive: async () => {
-    const response = await axios.get(`${API_BASE_URL}/event/active`);
+    const response = await api.get('/event/active');
     return response.data;
   },
 
   // Lấy event hiện tại (đang diễn ra)
   getCurrent: async () => {
-    const response = await axios.get(`${API_BASE_URL}/event/current`);
+    const response = await api.get('/event/current');
     return response.data;
   },
 
   // Lấy event có thể áp dụng
   getApplicable: async (orderAmount: number) => {
-    const response = await axios.get(`${API_BASE_URL}/event/applicable?orderAmount=${orderAmount}`);
+    const response = await api.get(`/event/applicable?orderAmount=${orderAmount}`);
     return response.data;
   },
 
   // Lấy event theo type
   getByType: async (type: string) => {
-    const response = await axios.get(`${API_BASE_URL}/event/type/${type}`);
+    const response = await api.get(`/event/type/${type}`);
     return response.data;
   },
 
   // Validate event
   validate: async (eventId: number, orderAmount: number, userId: number) => {
-    const response = await axios.post(`${API_BASE_URL}/event/validate`, {
+    const response = await api.post('/event/validate', {
       eventId,
       orderAmount,
       userId
@@ -52,55 +50,55 @@ export const eventAPI = {
 
   // Tạo event mới (Admin only)
   create: async (event: Partial<Event>) => {
-    const response = await axios.post(`${API_BASE_URL}/event`, event);
+    const response = await api.post('/event', event);
     return response.data;
   },
 
   // Cập nhật event (Admin only)
   update: async (id: number, event: Partial<Event>) => {
-    const response = await axios.put(`${API_BASE_URL}/event/${id}`, event);
+    const response = await api.put(`/event/${id}`, event);
     return response.data;
   },
 
   // Xóa event (Admin only)
   delete: async (id: number) => {
-    const response = await axios.delete(`${API_BASE_URL}/event/${id}`);
+    const response = await api.delete(`/event/${id}`);
     return response.data;
   },
 
   // Lấy thống kê event (Admin only)
   getStats: async (id: number) => {
-    const response = await axios.get(`${API_BASE_URL}/event/${id}/stats`);
+    const response = await api.get(`/event/${id}/stats`);
     return response.data;
   },
 
   // Lấy event sắp bắt đầu (Admin only)
   getUpcoming: async () => {
-    const response = await axios.get(`${API_BASE_URL}/event/upcoming`);
+    const response = await api.get('/event/upcoming');
     return response.data;
   },
 
   // Lấy event sắp kết thúc (Admin only)
   getEndingSoon: async () => {
-    const response = await axios.get(`${API_BASE_URL}/event/ending-soon`);
+    const response = await api.get('/event/ending-soon');
     return response.data;
   },
 
   // Lấy event đã hết hạn (Admin only)
   getExpired: async () => {
-    const response = await axios.get(`${API_BASE_URL}/event/expired`);
+    const response = await api.get('/event/expired');
     return response.data;
   },
 
   // Tìm kiếm event
   search: async (keyword: string) => {
-    const response = await axios.get(`${API_BASE_URL}/event/search?keyword=${keyword}`);
+    const response = await api.get(`/event/search?keyword=${keyword}`);
     return response.data;
   },
 
   // Cập nhật status của event (Admin only)
   updateStatuses: async () => {
-    const response = await axios.post(`${API_BASE_URL}/event/update-statuses`);
+    const response = await api.post('/event/update-statuses');
     return response.data;
   }
 };

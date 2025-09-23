@@ -141,7 +141,7 @@ public class EventService {
         logger.info("[EventService] Using event: {} for booking: {} by user: {}", eventId, booking.getId(), user.getId());
         
         // Validate event
-        EventValidationDTO validation = validateEvent(eventId, originalAmount, user.getId());
+        EventValidationDTO validation = validateEvent(eventId, originalAmount, Long.parseLong(user.getId()));
         if (!validation.isValid()) {
             throw new RuntimeException(validation.getMessage());
         }

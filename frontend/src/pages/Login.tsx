@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import Notification from '../components/Notification';
+
 const Login: React.FC = () => {
   const { login, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +17,25 @@ const Login: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const from = location.state?.from?.pathname || '/';
+
+  // Auto-hide notifications after 3 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -32,25 +53,43 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    
     if (!formData.username || !formData.password) {
       setError('Vui lòng điền đầy đủ thông tin');
       return;
     }
+    
     try {
       const result = await login(formData);
+      
       // Save remember me preference
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true');
       } else {
         localStorage.removeItem('rememberMe');
       }
+      
       if (result.success) {
-        setSuccess(result.message + ' Đang chuyển hướng...');
-        // Immediate redirect after success
-        navigate(from, { replace: true });
+        setSuccess('Đăng nhập thành công! Đang chuyển hướng...');
+        // Delay redirect to show success message
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 1500);
       }
     } catch (err: any) {
-      setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      // Handle specific error messages
+      const errorMessage = err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+      
+      // Check for email verification error
+      if (errorMessage.includes('xác thực email')) {
+        setError('Hãy xác thực email để đăng nhập. Kiểm tra hộp thư của bạn.');
+      } else if (errorMessage.includes('mật khẩu') || errorMessage.includes('password')) {
+        setError('Mật khẩu không chính xác. Vui lòng thử lại.');
+      } else if (errorMessage.includes('không tồn tại') || errorMessage.includes('not found')) {
+        setError('Tên đăng nhập không tồn tại. Vui lòng kiểm tra lại.');
+      } else {
+        setError(errorMessage);
+      }
     }
   };
   return (
@@ -116,15 +155,26 @@ const Login: React.FC = () => {
               </div>
             </div>
           </div>
+          {/* Error Notification - Red background, auto-hide after 3 seconds */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
+            <Notification
+              type="error"
+              message={error}
+              onClose={() => setError('')}
+              autoHide={true}
+              duration={3000}
+            />
           )}
+          
+          {/* Success Notification - Green background, auto-hide after 3 seconds */}
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm">
-              {success}
-            </div>
+            <Notification
+              type="success"
+              message={success}
+              onClose={() => setSuccess('')}
+              autoHide={true}
+              duration={3000}
+            />
           )}
           <div className="flex items-center justify-between">
             <div className="flex items-center">

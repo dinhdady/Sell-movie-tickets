@@ -77,6 +77,12 @@ public class AuthenticationService {
             User user = userService.findByUsername(request.getUsername())
                     .orElseThrow(() -> new BadCredentialsException("User not found"));
 
+            // Check if email is verified
+            if (user.getIsEmailVerified() == null || !user.getIsEmailVerified()) {
+                log.warn("Login attempt for unverified email: {}", user.getEmail());
+                return new AuthenticationResponse(false, "", "", "Vui lòng xác thực email trước khi đăng nhập. Kiểm tra hộp thư của bạn.", null);
+            }
+
             var userDetails = userDetailsService.loadUserByUsername(user.getUsername());
 
             String accessToken = jwtService.generateAccessToken(userDetails);

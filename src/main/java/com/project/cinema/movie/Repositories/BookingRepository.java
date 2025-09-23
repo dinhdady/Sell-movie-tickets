@@ -1,6 +1,7 @@
 package com.project.cinema.movie.Repositories;
 
 import com.project.cinema.movie.Models.Booking;
+import com.project.cinema.movie.Models.BookingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -114,5 +115,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Modifying
     @Query("DELETE FROM Booking b WHERE b.showtime.id = :showtimeId")
     void deleteByShowtimeId(@Param("showtimeId") Long showtimeId);
+    
+    // Find bookings by status and created date before
+    List<Booking> findByStatusAndCreatedAtBefore(BookingStatus status, Date createdAt);
     
 }

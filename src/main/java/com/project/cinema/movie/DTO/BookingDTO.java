@@ -19,4 +19,5 @@ public class BookingDTO {
     private String customerEmail;
     private String customerPhone;
     private String customerAddress;
+    private String couponCode; // Mã coupon được áp dụng
 }

@@ -168,12 +168,19 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    
+    // Handle 302 redirects as successful responses
     if (error.response?.status === 302) {
-      // Return the response data as if it was successful
       return Promise.resolve(error.response);
     }
-    // Handle 401 Unauthorized - try to refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    
+    // Don't redirect or refresh for login/register endpoints - let them handle their own errors
+    if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/register')) {
+      return Promise.reject(error);
+    }
+    
+    // Handle 401 Unauthorized - try to refresh token (but not for auth endpoints)
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/')) {
       originalRequest._retry = true;
       try {
         const newToken = await tokenService.refreshAccessToken();
@@ -181,17 +188,23 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Clear tokens and redirect to login
+        // Clear tokens and redirect to login only if not already on login page
         tokenService.clearTokens();
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }
+    
     // Only redirect to login for actual authentication errors, not for other 401s
-    if (error.response?.status === 401 && error.response?.data?.message?.includes('authentication')) {
+    if (error.response?.status === 401 && 
+        error.response?.data?.message?.includes('authentication') &&
+        window.location.pathname !== '/login') {
       tokenService.clearTokens();
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );
@@ -462,6 +475,23 @@ export const bookingAPI = {
   },
   delete: async (id: number): Promise<ResponseObject> => {
     const response = await api.delete(`/booking/${id}`);
+    return response.data;
+  },
+  // Seat checking APIs
+  getAvailableSeats: async (showtimeId: number): Promise<ResponseObject<string[]>> => {
+    const response = await api.get(`/booking/${showtimeId}/available-seats`);
+    return response.data;
+  },
+  getBookedSeats: async (showtimeId: number): Promise<ResponseObject<string[]>> => {
+    const response = await api.get(`/booking/${showtimeId}/booked-seats`);
+    return response.data;
+  },
+  getSeatStatus: async (showtimeId: number): Promise<ResponseObject<any>> => {
+    const response = await api.get(`/booking/${showtimeId}/seat-status`);
+    return response.data;
+  },
+  checkSeatStatus: async (showtimeId: number, seatNumber: string): Promise<ResponseObject<any>> => {
+    const response = await api.post(`/booking/${showtimeId}/check-seat/${seatNumber}`);
     return response.data;
   },
 };

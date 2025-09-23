@@ -15,8 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class MovieService {
@@ -32,7 +34,25 @@ public class MovieService {
     }
 
     public List<Showtime> getShowtimesByMovieId(Long movieId) {
-        return showtimeRepository.findByMovieIdWithRoomAndCinema(movieId);
+        List<Showtime> showtimes = showtimeRepository.findByMovieIdWithRoomAndCinema(movieId);
+        // Filter to show only active showtimes (endTime > now) for room display
+        Date now = new Date();
+        System.out.println("[MovieService] Filtering showtimes for movie " + movieId + " at: " + now);
+        System.out.println("[MovieService] Total showtimes before filtering: " + showtimes.size());
+        
+        List<Showtime> filteredShowtimes = showtimes.stream()
+            .filter(showtime -> {
+                boolean isActive = showtime.getEndTime().after(now);
+                System.out.println("[MovieService] Showtime ID: " + showtime.getId() + 
+                    ", StartTime: " + showtime.getStartTime() + 
+                    ", EndTime: " + showtime.getEndTime() +
+                    ", IsActive: " + isActive);
+                return isActive;
+            })
+            .collect(Collectors.toList());
+            
+        System.out.println("[MovieService] Active showtimes after filtering: " + filteredShowtimes.size());
+        return filteredShowtimes;
     }
     @Transactional
     public Movie createMovie(MovieDTO movieDto, MultipartFile posterImg) {

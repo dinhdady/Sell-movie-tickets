@@ -40,23 +40,25 @@ public class ShowtimeService {
 
     public List<Map<String, Object>> getShowtimesByMovieId(Long movieId) {
         List<Showtime> showtimes = showtimeRepository.findByMovieIdWithRoomAndCinema(movieId);
-        return showtimes.stream().map(this::convertToMap).collect(Collectors.toList());
+        return filterActiveShowtimes(showtimes);
     }
 
     public List<Map<String, Object>> getShowtimesByRoomId(Long roomId) {
         List<Showtime> showtimes = showtimeRepository.findByRoomId(roomId);
-        return showtimes.stream().map(this::convertToMap).collect(Collectors.toList());
+        return filterActiveShowtimes(showtimes);
     }
 
     public List<Map<String, Object>> getShowtimesByCinemaId(Long cinemaId) {
         List<Showtime> showtimes = showtimeRepository.findByCinemaId(cinemaId);
-        return showtimes.stream().map(this::convertToMap).collect(Collectors.toList());
+        return filterActiveShowtimes(showtimes);
     }
 
     public List<Map<String, Object>> getShowtimesByMovieAndRoom(Long movieId, Long roomId) {
         List<Showtime> showtimes = showtimeRepository.findByMovieIdWithRoomAndCinema(movieId);
         return showtimes.stream()
             .filter(showtime -> showtime.getRoom().getId().equals(roomId))
+            .collect(Collectors.toList())
+            .stream()
             .map(this::convertToMap)
             .collect(Collectors.toList());
     }
@@ -221,7 +223,6 @@ public class ShowtimeService {
             // 3. Cuối cùng xóa showtime
             showtimeRepository.delete(showtime);
             
-            System.out.println("[ShowtimeService] Successfully force deleted showtime ID: " + id);
         } catch (Exception e) {
             System.err.println("[ShowtimeService] Error force deleting showtime ID " + id + ": " + e.getMessage());
             throw new RuntimeException("Error force deleting showtime: " + e.getMessage());
@@ -252,11 +253,30 @@ public class ShowtimeService {
             // 5. Xóa Showtime
             showtimeRepository.deleteById(id);
             
-            System.out.println("[ShowtimeService] Successfully cascade deleted showtime ID: " + id);
         } catch (Exception e) {
-            System.err.println("[ShowtimeService] Error cascade deleting showtime ID " + id + ": " + e.getMessage());
             throw new RuntimeException("Error cascade deleting showtime: " + e.getMessage());
         }
+    }
+
+    // Filter to show only active showtimes (endTime > now) for room display
+    private List<Map<String, Object>> filterActiveShowtimes(List<Showtime> showtimes) {
+        Date now = new Date();
+        
+        List<Map<String, Object>> filteredShowtimes = showtimes.stream()
+            .filter(showtime -> {
+                boolean isActive = showtime.getEndTime().after(now);
+                long timeDiff = showtime.getEndTime().getTime() - now.getTime();
+                System.out.println("[ShowtimeService] Showtime ID: " + showtime.getId() + 
+                    ", StartTime: " + showtime.getStartTime() + 
+                    ", EndTime: " + showtime.getEndTime() +
+                    ", TimeDiff: " + timeDiff + "ms" +
+                    ", IsActive: " + isActive);
+                return isActive;
+            })
+            .map(this::convertToMap)
+            .collect(Collectors.toList());
+            
+        return filteredShowtimes;
     }
 
     private Map<String, Object> convertToMap(Showtime showtime) {

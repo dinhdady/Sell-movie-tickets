@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Date;
 import java.util.List;
 
 @Repository
@@ -19,4 +20,7 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
 
     @Query("SELECT s FROM Showtime s JOIN FETCH s.room r JOIN FETCH r.cinema WHERE s.movie.id = :movieId")
     List<Showtime> findByMovieIdWithRoomAndCinema(@Param("movieId") Long movieId);
+    
+    // Find showtimes that have ended
+    List<Showtime> findByEndTimeBefore(Date endTime);
 }

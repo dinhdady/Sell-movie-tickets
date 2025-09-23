@@ -133,13 +133,21 @@ public class CouponService {
     // Sử dụng coupon
     @Transactional
     public CouponUsage useCoupon(String couponCode, User user, Booking booking, Double originalAmount) {
-        logger.info("[CouponService] Using coupon: {} for booking: {} by user: {}", couponCode, booking.getId(), user.getId());
+        logger.info("[CouponService] Using coupon: {} for booking: {} by user: {} with originalAmount: {}", 
+            couponCode, booking.getId(), user.getId(), originalAmount);
         
         // Validate coupon
-        CouponValidationDTO validation = validateCoupon(couponCode, originalAmount, user.getId());
+        logger.info("[CouponService] Validating coupon: {} with amount: {} for user: {}", 
+            couponCode, originalAmount, user.getId());
+        
+        CouponValidationDTO validation = validateCoupon(couponCode, originalAmount, Long.parseLong(user.getId()));
         if (!validation.isValid()) {
+            logger.error("[CouponService] Coupon validation failed: {}", validation.getMessage());
             throw new RuntimeException(validation.getMessage());
         }
+        
+        logger.info("[CouponService] Coupon validation successful: discountAmount={}, finalAmount={}", 
+            validation.getDiscountAmount(), validation.getFinalAmount());
         
         Coupon coupon = couponRepository.findByCode(couponCode).orElseThrow(
             () -> new RuntimeException("Coupon không tồn tại")
@@ -156,13 +164,19 @@ public class CouponService {
         );
         
         // Cập nhật coupon usage count
+        logger.info("[CouponService] Before using coupon - Code: {}, Used: {}, Remaining: {}", 
+            coupon.getCode(), coupon.getUsedQuantity(), coupon.getRemainingQuantity());
+        
         coupon.useCoupon();
         couponRepository.save(coupon);
+        
+        logger.info("[CouponService] After using coupon - Code: {}, Used: {}, Remaining: {}, Status: {}", 
+            coupon.getCode(), coupon.getUsedQuantity(), coupon.getRemainingQuantity(), coupon.getStatus());
         
         // Lưu usage record
         CouponUsage savedUsage = couponUsageRepository.save(usage);
         
-        logger.info("[CouponService] Coupon used successfully: {}", savedUsage.getId());
+        logger.info("[CouponService] Coupon used successfully: {} - Usage ID: {}", coupon.getCode(), savedUsage.getId());
         
         return savedUsage;
     }

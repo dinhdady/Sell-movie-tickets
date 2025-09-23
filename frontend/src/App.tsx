@@ -32,6 +32,8 @@ import RoomManagement from './pages/admin/RoomManagement';
 import SeatManagement from './pages/admin/SeatManagement';
 import Statistics from './pages/admin/Statistics';
 import Settings from './pages/admin/Settings';
+import CouponManagement from './pages/admin/CouponManagement';
+import EventManagement from './pages/admin/EventManagement';
 function App() {
   return (
     <ErrorBoundary>
@@ -74,6 +76,8 @@ function App() {
                     <Route path="seats" element={<SeatManagement />} />
                     <Route path="statistics" element={<Statistics />} />
                     <Route path="settings" element={<Settings />} />
+                    <Route path="coupons" element={<CouponManagement />} />
+                    <Route path="events" element={<EventManagement />} />
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>

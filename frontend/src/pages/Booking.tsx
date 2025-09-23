@@ -2,15 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { movieAPI, roomAPI, seatAPI, cinemaAPI, showtimeAPI } from '../services/api';
+import { couponAPI } from '../services/couponApi';
 import type { Movie, Showtime, Cinema, Room } from '../types/movie';
 import type { Seat } from '../types/booking';
+import type { Coupon } from '../types/coupon';
 import ProtectedRoute from '../components/ProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
   ClockIcon, 
   MapPinIcon,
   BuildingOfficeIcon,
-  FilmIcon
+  FilmIcon,
+  TagIcon,
+  CheckIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 const Booking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +35,12 @@ const Booking: React.FC = () => {
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Coupon states
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
@@ -242,6 +253,71 @@ const Booking: React.FC = () => {
       return total + seatPrice;
     }, 0);
   };
+
+  const calculateDiscount = () => {
+    if (!appliedCoupon) return 0;
+    
+    const totalAmount = calculateTotal();
+    if (totalAmount < appliedCoupon.minimumOrderAmount) return 0;
+    
+    let discount = 0;
+    if (appliedCoupon.type === 'PERCENTAGE') {
+      discount = totalAmount * (appliedCoupon.discountValue / 100);
+    } else if (appliedCoupon.type === 'FIXED_AMOUNT') {
+      discount = appliedCoupon.discountValue;
+    }
+    
+    // Apply maximum discount limit
+    if (appliedCoupon.maximumDiscountAmount && discount > appliedCoupon.maximumDiscountAmount) {
+      discount = appliedCoupon.maximumDiscountAmount;
+    }
+    
+    return discount;
+  };
+
+  const calculateFinalTotal = () => {
+    return calculateTotal() - calculateDiscount();
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Vui lòng nhập mã coupon');
+      return;
+    }
+
+    if (!user) {
+      setCouponError('Vui lòng đăng nhập để sử dụng coupon');
+      return;
+    }
+
+    try {
+      setCouponLoading(true);
+      setCouponError('');
+      
+      const totalAmount = calculateTotal();
+      const validation = await couponAPI.validate(couponCode, totalAmount, parseInt(user.id));
+      
+      if (validation.object?.valid) {
+        setAppliedCoupon(validation.object.coupon);
+        setCouponError('');
+      } else {
+        setCouponError(validation.object?.message || 'Coupon không hợp lệ');
+        setAppliedCoupon(null);
+      }
+    } catch (error) {
+      console.error('Error validating coupon:', error);
+      setCouponError('Không thể validate coupon. Vui lòng thử lại.');
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
   const getSeatTypePrice = (seatType: string) => {
     const basePrice = movie?.price || 80000;
     switch (seatType) {
@@ -281,7 +357,10 @@ const Booking: React.FC = () => {
         movie,
         showtime: selectedShowtime,
         selectedSeats: validatedSeats,
-        totalPrice: calculateTotal()
+        totalPrice: calculateTotal(),
+        appliedCoupon: appliedCoupon,
+        discountAmount: calculateDiscount(),
+        finalTotal: calculateFinalTotal()
       }
     });
   };
@@ -613,10 +692,82 @@ const Booking: React.FC = () => {
                       )}
                     </div>
                   </div>
+                  
+                  {/* Coupon Section */}
                   <div className="border-t pt-4">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Tổng cộng</span>
+                    <div className="text-sm text-gray-600 mb-3">Mã giảm giá</div>
+                    
+                    {!appliedCoupon ? (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            placeholder="Nhập mã coupon"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                          />
+                          <button
+                            onClick={handleApplyCoupon}
+                            disabled={couponLoading || !couponCode.trim()}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+                          >
+                            {couponLoading ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <TagIcon className="w-4 h-4" />
+                            )}
+                            Áp dụng
+                          </button>
+                        </div>
+                        {couponError && (
+                          <div className="text-red-500 text-xs flex items-center gap-1">
+                            <XMarkIcon className="w-3 h-3" />
+                            {couponError}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckIcon className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-800">
+                              {appliedCoupon.code} - {appliedCoupon.name}
+                            </span>
+                          </div>
+                          <button
+                            onClick={handleRemoveCoupon}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="text-xs text-green-600 mt-1">
+                          {appliedCoupon.type === 'PERCENTAGE' 
+                            ? `Giảm ${appliedCoupon.discountValue}%`
+                            : `Giảm ${appliedCoupon.discountValue.toLocaleString('vi-VN')}đ`
+                          }
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span>Tạm tính</span>
                       <span>{calculateTotal().toLocaleString('vi-VN')}đ</span>
+                    </div>
+                    {appliedCoupon && calculateDiscount() > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Giảm giá</span>
+                        <span>-{calculateDiscount().toLocaleString('vi-VN')}đ</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-lg font-bold border-t pt-2">
+                      <span>Tổng cộng</span>
+                      <span>{calculateFinalTotal().toLocaleString('vi-VN')}đ</span>
                     </div>
                   </div>
                   <button

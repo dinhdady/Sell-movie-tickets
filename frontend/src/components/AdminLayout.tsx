@@ -12,7 +12,9 @@ import {
   Cog6ToothIcon,
   Bars3Icon,
   XMarkIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  TagIcon,
+  GiftIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 const AdminLayout: React.FC = () => {
@@ -27,6 +29,8 @@ const AdminLayout: React.FC = () => {
     { name: 'Rạp chiếu', href: '/admin/cinemas', icon: BuildingOfficeIcon },
     { name: 'Phòng chiếu', href: '/admin/rooms', icon: HomeModernIcon },
     { name: 'Quản lý ghế', href: '/admin/seats', icon: Squares2X2Icon },
+    { name: 'Coupon', href: '/admin/coupons', icon: TagIcon },
+    { name: 'Sự kiện', href: '/admin/events', icon: GiftIcon },
     { name: 'Thống kê', href: '/admin/statistics', icon: ChartBarIcon },
     { name: 'Cài đặt', href: '/admin/settings', icon: Cog6ToothIcon },
   ];

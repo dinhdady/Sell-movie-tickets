@@ -60,6 +60,7 @@ public class Booking {
     private String customerEmail;
     private String customerPhone;
     private String customerAddress;
+    private String couponCode; // Mã coupon được áp dụng
     
     @ElementCollection
     @CollectionTable(name = "booking_seat_ids", joinColumns = @JoinColumn(name = "booking_id"))

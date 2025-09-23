@@ -129,13 +129,23 @@ public class Coupon {
     // Method để sử dụng coupon
     public void useCoupon() {
         if (remainingQuantity > 0) {
+            int oldUsed = this.usedQuantity;
+            int oldRemaining = this.remainingQuantity;
+            
             this.usedQuantity++;
             this.remainingQuantity--;
+            
+            System.out.println("[Coupon] useCoupon() - Code: " + this.code + 
+                ", Used: " + oldUsed + " -> " + this.usedQuantity + 
+                ", Remaining: " + oldRemaining + " -> " + this.remainingQuantity);
             
             // Tự động deactivate nếu hết coupon
             if (remainingQuantity <= 0) {
                 this.status = CouponStatus.EXHAUSTED;
+                System.out.println("[Coupon] Code: " + this.code + " is now EXHAUSTED");
             }
+        } else {
+            System.out.println("[Coupon] useCoupon() - Code: " + this.code + " has no remaining quantity");
         }
     }
 }

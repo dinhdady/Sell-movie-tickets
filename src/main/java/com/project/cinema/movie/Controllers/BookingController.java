@@ -3,6 +3,7 @@ package com.project.cinema.movie.Controllers;
 import com.project.cinema.movie.DTO.BookingDTO;
 import com.project.cinema.movie.DTO.BookingDetailsResponse;
 import com.project.cinema.movie.Models.*;
+import com.project.cinema.movie.Repositories.*;
 import com.project.cinema.movie.Services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,8 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.Date;
 
 @RestController
 @RequestMapping("/api/booking")
@@ -28,6 +29,12 @@ public class BookingController {
     private EmailService emailService;
     @Autowired
     private ShowtimeService showtimeService;
+    @Autowired
+    private CouponService couponService;
+    @Autowired
+    private ShowtimeRepository showtimeRepository;
+    @Autowired
+    private ShowtimeSeatBookingRepository showtimeSeatBookingRepository;
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
     @GetMapping
     public List<BookingDetailsResponse> getAllBookings(){
@@ -117,7 +124,7 @@ public class BookingController {
             booking.setCustomerEmail(bookingDTO.getCustomerEmail());
             booking.setCustomerPhone(bookingDTO.getCustomerPhone());
             booking.setCustomerAddress(bookingDTO.getCustomerAddress());
-            
+            booking.setCouponCode(bookingDTO.getCouponCode());
             // Associate with existing Order if orderId is provided
             if (bookingDTO.getOrderId() != null) {
                 Order order = orderService.findById(bookingDTO.getOrderId());
@@ -145,6 +152,133 @@ public class BookingController {
         }
     }
 
+    // Confirm payment endpoint
+    @PostMapping("/{id}/confirm-payment")
+    public ResponseEntity<ResponseObject> confirmPayment(@PathVariable Long id) {
+        try {
+            bookingService.confirmPayment(id);
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Payment confirmed successfully!", null));
+        } catch (Exception e) {
+            logger.error("[BookingController] Error confirming payment: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("ERROR", "Error confirming payment: " + e.getMessage(), null));
+        }
+    }
+
+    // Cancel payment endpoint
+    @PostMapping("/{id}/cancel-payment")
+    public ResponseEntity<ResponseObject> cancelPayment(@PathVariable Long id) {
+        try {
+            bookingService.cancelPayment(id);
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Payment cancelled successfully!", null));
+        } catch (Exception e) {
+            logger.error("[BookingController] Error cancelling payment: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("ERROR", "Error cancelling payment: " + e.getMessage(), null));
+        }
+    }
+
+    // Test endpoint để test coupon usage
+    @PostMapping("/test-coupon/{id}")
+    public ResponseEntity<ResponseObject> testCouponUsage(@PathVariable Long id) {
+        try {
+            Booking booking = bookingService.getBookingById(id);
+            if (booking == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseObject("ERROR", "Booking not found", null));
+            }
+            
+            if (booking.getCouponCode() == null || booking.getCouponCode().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject("ERROR", "No coupon code found in booking", null));
+            }
+            
+            logger.info("[BookingController] Testing coupon usage for booking ID: {} with coupon: {}", 
+                id, booking.getCouponCode());
+            
+            Booking updatedBooking = bookingService.applyCouponDiscount(id, booking.getCouponCode());
+            
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Coupon applied successfully", Map.of(
+                "bookingId", updatedBooking.getId(),
+                "couponCode", updatedBooking.getCouponCode(),
+                "totalPrice", updatedBooking.getTotalPrice()
+            )));
+        } catch (Exception e) {
+            logger.error("[BookingController] Error testing coupon usage: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("ERROR", "Error testing coupon usage: " + e.getMessage(), null));
+        }
+    }
+
+    // Manual endpoint để release seats for expired showtimes
+    @PostMapping("/release-expired-seats")
+    public ResponseEntity<ResponseObject> releaseExpiredSeats() {
+        try {
+            logger.info("[BookingController] Manual release expired seats called");
+            bookingService.releaseSeatsForExpiredShowtimes();
+            
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Expired seats released successfully", null));
+        } catch (Exception e) {
+            logger.error("[BookingController] Error releasing expired seats: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("ERROR", "Error releasing expired seats: " + e.getMessage(), null));
+        }
+    }
+
+    // Debug endpoint để check expired showtimes
+    @GetMapping("/debug-expired-showtimes")
+    public ResponseEntity<ResponseObject> debugExpiredShowtimes() {
+        try {
+            logger.info("[BookingController] Debug expired showtimes called");
+            
+            // Get current time
+            Date now = new Date();
+            logger.info("[BookingController] Current time: {}", now);
+            
+            // Find expired showtimes
+            List<Showtime> expiredShowtimes = showtimeRepository.findByEndTimeBefore(now);
+            logger.info("[BookingController] Found {} expired showtimes", expiredShowtimes.size());
+            
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Showtime showtime : expiredShowtimes) {
+                Map<String, Object> showtimeInfo = new HashMap<>();
+                showtimeInfo.put("id", showtime.getId());
+                showtimeInfo.put("movieName", showtime.getMovie().getTitle());
+                showtimeInfo.put("startTime", showtime.getStartTime());
+                showtimeInfo.put("endTime", showtime.getEndTime());
+                
+                // Count seat bookings
+                List<ShowtimeSeatBooking> seatBookings = showtimeSeatBookingRepository.findByShowtimeId(showtime.getId());
+                int bookedCount = 0;
+                int reservedCount = 0;
+                int availableCount = 0;
+                
+                for (ShowtimeSeatBooking seatBooking : seatBookings) {
+                    if (seatBooking.getStatus() == SeatStatus.BOOKED) bookedCount++;
+                    else if (seatBooking.getStatus() == SeatStatus.RESERVED) reservedCount++;
+                    else if (seatBooking.getStatus() == SeatStatus.AVAILABLE) availableCount++;
+                }
+                
+                showtimeInfo.put("bookedSeats", bookedCount);
+                showtimeInfo.put("reservedSeats", reservedCount);
+                showtimeInfo.put("availableSeats", availableCount);
+                showtimeInfo.put("totalSeats", seatBookings.size());
+                
+                result.add(showtimeInfo);
+            }
+            
+            return ResponseEntity.ok(new ResponseObject("SUCCESS", "Debug info retrieved", Map.of(
+                "currentTime", now,
+                "expiredShowtimesCount", expiredShowtimes.size(),
+                "expiredShowtimes", result
+            )));
+        } catch (Exception e) {
+            logger.error("[BookingController] Error debugging expired showtimes: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("ERROR", "Error debugging expired showtimes: " + e.getMessage(), null));
+        }
+    }
+
     // Kiểm tra ghế có sẵn
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/{showtimeId}/available-seats")
@@ -155,6 +289,64 @@ public class BookingController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ResponseObject("500", "Error retrieving available seats: " + e.getMessage(), null));
+        }
+    }
+
+    // Lấy thông tin chi tiết về seat status (bao gồm expired check)
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    @GetMapping("/{showtimeId}/seat-status")
+    public ResponseEntity<ResponseObject> getSeatStatus(@PathVariable Long showtimeId) {
+        try {
+            logger.info("[BookingController] Getting seat status for showtime: {}", showtimeId);
+            
+            // Lấy thông tin showtime
+            Showtime showtime = showtimeRepository.findById(showtimeId)
+                .orElseThrow(() -> new RuntimeException("Showtime not found"));
+            
+            Date now = new Date();
+            boolean isExpired = showtime.getEndTime().before(now);
+            
+            // Lấy danh sách ghế
+            List<String> availableSeats = bookingService.getAvailableSeats(showtimeId);
+            List<String> bookedSeats = bookingService.getBookedSeats(showtimeId);
+            
+            Map<String, Object> seatStatus = new HashMap<>();
+            seatStatus.put("showtimeId", showtimeId);
+            seatStatus.put("movieTitle", showtime.getMovie().getTitle());
+            seatStatus.put("startTime", showtime.getStartTime());
+            seatStatus.put("endTime", showtime.getEndTime());
+            seatStatus.put("isExpired", isExpired);
+            seatStatus.put("currentTime", now);
+            seatStatus.put("availableSeats", availableSeats);
+            seatStatus.put("bookedSeats", bookedSeats);
+            seatStatus.put("totalAvailableSeats", availableSeats.size());
+            seatStatus.put("totalBookedSeats", bookedSeats.size());
+            
+            logger.info("[BookingController] Seat status for showtime {}: expired={}, available={}, booked={}", 
+                showtimeId, isExpired, availableSeats.size(), bookedSeats.size());
+            
+            return ResponseEntity.ok(new ResponseObject("200", "Seat status retrieved successfully!", seatStatus));
+        } catch (Exception e) {
+            logger.error("[BookingController] Error retrieving seat status: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error retrieving seat status: " + e.getMessage(), null));
+        }
+    }
+
+    // Kiểm tra trạng thái ghế khi chọn (real-time check)
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    @PostMapping("/{showtimeId}/check-seat/{seatNumber}")
+    public ResponseEntity<ResponseObject> checkSeatStatus(@PathVariable Long showtimeId, @PathVariable String seatNumber) {
+        try {
+            logger.info("[BookingController] Checking seat status for showtime: {} seat: {}", showtimeId, seatNumber);
+            
+            Map<String, Object> seatInfo = bookingService.checkSeatStatus(showtimeId, seatNumber);
+            
+            return ResponseEntity.ok(new ResponseObject("200", "Seat status checked successfully!", seatInfo));
+        } catch (Exception e) {
+            logger.error("[BookingController] Error checking seat status: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("500", "Error checking seat status: " + e.getMessage(), null));
         }
     }
 

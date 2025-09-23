@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/coupon")
@@ -248,5 +249,26 @@ public class CouponController {
         
         public Long getUserId() { return userId; }
         public void setUserId(Long userId) { this.userId = userId; }
+    }
+
+    // Test endpoint để verify coupon usage
+    @GetMapping("/test-usage/{code}")
+    public ResponseEntity<ResponseObject> testCouponUsage(@PathVariable String code) {
+        try {
+            return couponService.getCouponByCode(code)
+                .map(coupon -> ResponseEntity.ok(new ResponseObject("SUCCESS", "Coupon usage info", Map.of(
+                    "code", coupon.getCode(),
+                    "name", coupon.getName(),
+                    "usedQuantity", coupon.getUsedQuantity(),
+                    "remainingQuantity", coupon.getRemainingQuantity(),
+                    "totalQuantity", coupon.getTotalQuantity(),
+                    "status", coupon.getStatus()
+                ))))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseObject("ERROR", "Coupon not found: " + code, null)));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseObject("ERROR", "Error getting coupon usage: " + e.getMessage(), null));
+        }
     }
 }
