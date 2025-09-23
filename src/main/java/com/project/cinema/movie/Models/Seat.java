@@ -61,8 +61,6 @@ public class Seat {
     @JsonIgnore
     private List<ShowtimeSeatBooking> showtimeSeatBookings;
 
-    // Transient field for frontend display - not stored in database
-    @Transient
     private String status; // AVAILABLE, BOOKED, SELECTED, OCCUPIED
 
     public Seat(String seatNumber, String rowNumber, Integer columnNumber, Room room) {
