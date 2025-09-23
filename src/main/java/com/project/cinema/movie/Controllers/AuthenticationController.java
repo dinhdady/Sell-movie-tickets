@@ -131,7 +131,6 @@ public class AuthenticationController {
             if (httpSession != null) {
                 httpSession.invalidate();
             }
-            // Không cần clear cookie nữa
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject("SUCCESS", "Logout successful", null));
         } catch (Exception e) {

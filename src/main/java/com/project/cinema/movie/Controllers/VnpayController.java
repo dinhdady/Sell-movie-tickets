@@ -130,26 +130,7 @@ public class VnpayController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
-    
-    @GetMapping("/fix-database-status")
-    public ResponseEntity<?> fixDatabaseStatus() {
-        logger.info("[API] /api/vnpay/fix-database-status - fixing database status column");
-        try {
-            // This endpoint will help us understand the database issue
-            // The problem is that the status column is too short for enum values
-            return ResponseEntity.ok(Map.of(
-                "message", "Database status fix endpoint",
-                "status", "OK",
-                "note", "The status column needs to be VARCHAR(20) or longer to store enum values like 'PAID'",
-                "current_issue", "Data truncated for column 'status' at row 1",
-                "solution", "ALTER TABLE bookings MODIFY COLUMN status VARCHAR(20);"
-            ));
-        } catch (Exception e) {
-            logger.error("[API] /api/vnpay/fix-database-status - error: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
+
     
     @GetMapping("/test-redirect")
     public ResponseEntity<?> testRedirect() {

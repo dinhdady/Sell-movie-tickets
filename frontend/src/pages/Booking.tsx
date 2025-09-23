@@ -76,12 +76,14 @@ const Booking: React.FC = () => {
                 // Auto-select the preselected showtime ONLY if it exists in the API response
                 const selectedShowtime = showtimesResponse.object.find(st => st.id === parseInt(preselectedShowtimeId));
                 if (selectedShowtime) {
+                  console.log('✅ Found preselected showtime from API:', selectedShowtime);
                   setSelectedShowtime(selectedShowtime);
                   // Fetch seats from database for room 1
                   await loadSeatsFromDatabase(room1.id, selectedShowtime.id);
                 } else {
-                  // Don't auto-select any showtime if the preselected one doesn't exist
-                  setError('Suất chiếu đã chọn không còn tồn tại. Vui lòng chọn suất chiếu khác.');
+                  console.log('❌ Preselected showtime ID', preselectedShowtimeId, 'not found in API response');
+                  console.log('Available showtime IDs:', showtimesResponse.object.map(st => st.id));
+                  setError(`Suất chiếu ID ${preselectedShowtimeId} không còn tồn tại. Vui lòng chọn suất chiếu khác từ danh sách bên dưới.`);
                 }
               }
             }

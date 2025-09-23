@@ -94,26 +94,6 @@ public class MovieController {
     @PutMapping("/{id}")
     public ResponseEntity<ResponseObject> updateMovie(@PathVariable Long id, @ModelAttribute MovieDTO movieDto, @RequestPart(name = "posterImg", required = false) MultipartFile posterImg) {
         try {
-            logger.info("[MovieController] Updating movie with ID: " + id);
-            logger.info("[MovieController] MovieDTO received: " + movieDto);
-            logger.info("[MovieController] FilmRating value: '" + movieDto.getFilmRating() + "'");
-            logger.info("[MovieController] FilmRating type: " + (movieDto.getFilmRating() != null ? movieDto.getFilmRating().getClass().getSimpleName() : "null"));
-            logger.info("[MovieController] FilmRating length: " + (movieDto.getFilmRating() != null ? movieDto.getFilmRating().toString().length() : "null"));
-            
-            // Print all form data for debugging
-            logger.info("[MovieController] All form data:");
-            logger.info("  - title: '" + movieDto.getTitle() + "'");
-            logger.info("  - description: '" + movieDto.getDescription() + "'");
-            logger.info("  - duration: " + movieDto.getDuration());
-            logger.info("  - releaseDate: '" + movieDto.getReleaseDate() + "'");
-            logger.info("  - genre: '" + movieDto.getGenre() + "'");
-            logger.info("  - director: '" + movieDto.getDirector() + "'");
-            logger.info("  - cast: '" + movieDto.getCast() + "'");
-            logger.info("  - rating: " + movieDto.getRating());
-            logger.info("  - status: '" + movieDto.getStatus() + "'");
-            logger.info("  - filmRating: '" + movieDto.getFilmRating() + "'");
-            logger.info("  - price: " + movieDto.getPrice());
-            
             Movie updatedMovie = movieService.updateMovie(id, movieDto, posterImg);
             return ResponseEntity.status(HttpStatus.OK).body(new ResponseObject("200", "Movie updated successfully!", updatedMovie));
         } catch (Exception e) {

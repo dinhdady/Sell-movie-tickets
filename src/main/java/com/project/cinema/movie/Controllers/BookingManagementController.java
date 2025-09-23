@@ -8,6 +8,8 @@ import com.project.cinema.movie.Services.BookingService;
 import com.project.cinema.movie.Services.TicketService;
 import com.project.cinema.movie.Repositories.BookingRepository;
 import com.project.cinema.movie.Repositories.TicketRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -36,23 +38,23 @@ public class BookingManagementController {
     
     @Autowired
     private TicketRepository ticketRepository;
-
+    private static final Logger logger = LoggerFactory.getLogger(BookingManagementController.class);
     // Test endpoint không cần auth - Lấy tất cả vé từ TicketService
     @GetMapping("/test")
     public ResponseEntity<ResponseObject> testEndpoint() {
         try {
             // Sử dụng TicketService để lấy tất cả vé của tất cả user
             List<BookingDetailsResponse> tickets = ticketService.getAllTicketsWithDetails();
-            System.out.println("🎯 [ADMIN] Found " + tickets.size() + " tickets from TicketService");
+            logger.info("[ADMIN] Found " + tickets.size() + " tickets from TicketService");
             
             // Log một vài ticket để debug
             if (!tickets.isEmpty()) {
-                System.out.println("🎯 [ADMIN] Sample ticket: " + tickets.get(0));
+                logger.info("[ADMIN] Sample ticket: " + tickets.get(0));
             }
             
             return ResponseEntity.ok(new ResponseObject("200", "Test endpoint works! All tickets retrieved successfully! Found " + tickets.size() + " tickets", tickets));
         } catch (Exception e) {
-            System.err.println("🎯 [ADMIN] Error in test endpoint: " + e.getMessage());
+            System.err.println("[ADMIN] Error in test endpoint: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ResponseObject("500", "Test endpoint error: " + e.getMessage(), null));
@@ -65,11 +67,11 @@ public class BookingManagementController {
         try {
             // Lấy tất cả tickets từ database
             List<Ticket> allTickets = ticketRepository.findAll();
-            System.out.println("🎯 [ADMIN DEBUG] Found " + allTickets.size() + " tickets in database");
+            logger.info("[ADMIN DEBUG] Found " + allTickets.size() + " tickets in database");
             
             // Lấy tất cả bookings từ database
             List<Booking> allBookings = bookingRepository.findAll();
-            System.out.println("🎯 [ADMIN DEBUG] Found " + allBookings.size() + " bookings in database");
+            logger.info("[ADMIN DEBUG] Found " + allBookings.size() + " bookings in database");
             
             Map<String, Object> debugInfo = new HashMap<>();
             debugInfo.put("totalTickets", allTickets.size());
@@ -79,7 +81,7 @@ public class BookingManagementController {
             
             return ResponseEntity.ok(new ResponseObject("200", "Debug info retrieved successfully!", debugInfo));
         } catch (Exception e) {
-            System.err.println("🎯 [ADMIN DEBUG] Error: " + e.getMessage());
+            System.err.println("[ADMIN DEBUG] Error: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ResponseObject("500", "Debug error: " + e.getMessage(), null));
