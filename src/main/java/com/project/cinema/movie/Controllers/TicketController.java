@@ -3,6 +3,8 @@ package com.project.cinema.movie.Controllers;
 import com.project.cinema.movie.DTO.BookingDetailsResponse;
 import com.project.cinema.movie.Models.ResponseObject;
 import com.project.cinema.movie.Services.TicketService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +20,7 @@ public class TicketController {
 
     @Autowired
     private TicketService ticketService;
-
+    private static final Logger logger = LoggerFactory.getLogger(TicketController.class);
     // Lấy tất cả tickets (cho admin)
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -37,10 +39,10 @@ public class TicketController {
     public ResponseEntity<ResponseObject> getAllTicketsNoAuth() {
         try {
             List<BookingDetailsResponse> tickets = ticketService.getAllTicketsWithDetails();
-            System.out.println("🎯 [TICKETS] Found " + tickets.size() + " tickets from getAllTickets endpoint");
+            logger.info("[TICKETS] Found " + tickets.size() + " tickets from getAllTickets endpoint");
             return ResponseEntity.ok(new ResponseObject("200", "All tickets retrieved successfully! Found " + tickets.size() + " tickets", tickets));
         } catch (Exception e) {
-            System.err.println("🎯 [TICKETS] Error in getAllTickets: " + e.getMessage());
+            logger.error("[TICKETS] Error in getAllTickets: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ResponseObject("500", "Error retrieving tickets: " + e.getMessage(), null));
@@ -52,10 +54,10 @@ public class TicketController {
     public ResponseEntity<ResponseObject> getTicketDetailsById(@PathVariable Long id) {
         try {
             BookingDetailsResponse ticketDetails = ticketService.getTicketDetailsById(id);
-            System.out.println("🎯 [TICKETS] Found ticket details for ID: " + id);
+            logger.info("[TICKETS] Found ticket details for ID: " + id);
             return ResponseEntity.ok(new ResponseObject("200", "Ticket details retrieved successfully!", ticketDetails));
         } catch (Exception e) {
-            System.err.println("🎯 [TICKETS] Error in getTicketDetailsById: " + e.getMessage());
+            logger.error("[TICKETS] Error in getTicketDetailsById: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ResponseObject("404", "Ticket not found: " + e.getMessage(), null));
