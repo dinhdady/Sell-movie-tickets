@@ -1,3 +1,0 @@
-- [x] Update frontend api.ts getBookingByTxnRef to access response.data.object and return it
-- [ ] Update BookingService mapping to include token and status in TicketDTO
-- [ ] Test the API call to ensure movie, movie.title, tickets are populated
