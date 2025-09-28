@@ -2,7 +2,7 @@
 // Uses environment variables for security
 
 export const googleAuthConfig = {
-  clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '***REMOVED***',
+  clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
   redirectUri: `${window.location.origin}/google-auth-callback`,
   scope: 'openid email profile',
   accessType: 'offline',
@@ -11,7 +11,7 @@ export const googleAuthConfig = {
 
 // Export for use in other files
 export const GOOGLE_CLIENT_ID = googleAuthConfig.clientId;
-export const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '***REMOVED***';
+export const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '';
 
 // Google OAuth Error Messages
 export const GOOGLE_AUTH_ERRORS = {
