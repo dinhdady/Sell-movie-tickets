@@ -147,7 +147,7 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = tokenService.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -169,6 +169,8 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
+    console.log('[API Interceptor] Error response:', error.response?.status, error.response?.data);
+    
     // Handle 302 redirects as successful responses
     if (error.response?.status === 302) {
       return Promise.resolve(error.response);
@@ -181,13 +183,16 @@ api.interceptors.response.use(
     
     // Handle 401 Unauthorized - try to refresh token (but not for auth endpoints)
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/')) {
+      console.log('[API Interceptor] 401 error, attempting token refresh...');
       originalRequest._retry = true;
       try {
         const newToken = await tokenService.refreshAccessToken();
+        console.log('[API Interceptor] Token refreshed successfully, retrying request...');
         // Update the authorization header with new token
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
+        console.error('[API Interceptor] Token refresh failed:', refreshError);
         // Clear tokens and redirect to login only if not already on login page
         tokenService.clearTokens();
         if (window.location.pathname !== '/login') {
@@ -247,6 +252,10 @@ export const authAPI = {
   },
   refreshToken: async (refreshToken: string): Promise<ResponseObject<AuthResponse>> => {
     const response = await api.post('/auth/refresh-token', { refreshToken });
+    return response.data;
+  },
+  googleLogin: async (googleData: any): Promise<ResponseObject<AuthResponse>> => {
+    const response = await api.post('/auth/google-login', googleData);
     return response.data;
   },
 };

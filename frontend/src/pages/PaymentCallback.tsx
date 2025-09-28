@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { cookieService } from '../services/cookieService';
 import { 
   CheckCircleIcon, 
   XCircleIcon, 
@@ -100,7 +101,7 @@ const PaymentCallback: React.FC = () => {
   const processedRef = useRef<boolean>(false);
   const emailProcessingRef = useRef<boolean>(false);
   const globalEmailSentRef = useRef<boolean>(false);
-  // Function to process payment with txnRef from localStorage
+  // Function to process payment with txnRef from cookie
   const processPaymentWithTxnRef = useCallback(async (txnRef: string) => {
     try {
       // First confirm the payment and generate tickets
@@ -113,8 +114,8 @@ const PaymentCallback: React.FC = () => {
           setStatus('success');
           // Generate QR code and send email
           await generateQRAndSendEmail(response.object);
-          // Clear txnRef from localStorage
-          localStorage.removeItem('currentTxnRef');
+          // Clear txnRef from cookie
+          cookieService.removeTempData('currentTxnRef');
         } else {
           setErrorMessage('Không thể lấy thông tin đặt vé: ' + (response.message || 'Không xác định'));
           setStatus('failed');
@@ -171,7 +172,7 @@ const PaymentCallback: React.FC = () => {
       }
       // Check if this specific booking already processed
       const bookingKey = `email_sent_${bookingDetails.id}`;
-      if (localStorage.getItem(bookingKey)) {
+      if (cookieService.getTempData(bookingKey)) {
         return { qrCodeDataUrl: qrCodeUrl, emailSent: true };
       }
       emailProcessingRef.current = true;
@@ -198,7 +199,7 @@ const PaymentCallback: React.FC = () => {
       if (emailSentResult) {
         setEmailSent(true); // Mark email as sent
         // Mark this specific booking as email sent
-        localStorage.setItem(`email_sent_${bookingDetails.id}`, 'true');
+        cookieService.setTempData(`email_sent_${bookingDetails.id}`, 'true');
       }
       return { qrCodeDataUrl, emailSent: emailSentResult };
     } catch (error) {
@@ -330,14 +331,14 @@ const PaymentCallback: React.FC = () => {
         // Kiểm tra xem có tham số URL không
         if (!searchParams || searchParams.size === 0) {
           // Kiểm tra xem có txnRef từ payment không
-          const currentTxnRef = localStorage.getItem('currentTxnRef');
+          const currentTxnRef = cookieService.getTempData('currentTxnRef');
           if (currentTxnRef) {
-            // Process payment with txnRef from localStorage
+            // Process payment with txnRef from cookie
             await processPaymentWithTxnRef(currentTxnRef);
             return;
           }
           // Kiểm tra xem có pending booking không (fallback khi VNPay lỗi)
-          const pendingBooking = localStorage.getItem('pendingBooking');
+          const pendingBooking = cookieService.getTempData('pendingBooking');
           if (pendingBooking) {
             try {
               const bookingData = JSON.parse(pendingBooking);
@@ -371,8 +372,8 @@ const PaymentCallback: React.FC = () => {
                 }
               });
               // Clear pending booking
-              localStorage.removeItem('pendingBooking');
-              localStorage.removeItem('currentTxnRef');
+              cookieService.removeTempData('pendingBooking');
+              cookieService.removeTempData('currentTxnRef');
               // Generate QR code and send email
               await generateQRAndSendEmail({
                 id: bookingData.bookingId,
@@ -411,7 +412,7 @@ const PaymentCallback: React.FC = () => {
             }
           }
           // Kiểm tra xem có booking từ Profile không
-          const selectedBooking = localStorage.getItem('selectedBooking');
+          const selectedBooking = cookieService.getTempData('selectedBooking');
           if (selectedBooking) {
             try {
               const booking = JSON.parse(selectedBooking);
@@ -550,9 +551,9 @@ const PaymentCallback: React.FC = () => {
                 setLoading(false);
                 return;
               }
-              // Xóa dữ liệu từ localStorage
-              localStorage.removeItem('selectedBooking');
-              localStorage.removeItem('lastTxnRef');
+              // Xóa dữ liệu từ cookie
+              cookieService.removeTempData('selectedBooking');
+              cookieService.removeTempData('lastTxnRef');
               setLoading(false);
               return;
             } catch (error) {
@@ -569,9 +570,9 @@ const PaymentCallback: React.FC = () => {
         }
         // Lấy txnRef từ URL trước tiên
         const txnRef = searchParams.get('vnp_TxnRef');
-        // Nếu không có txnRef trong URL, thử lấy từ localStorage
+        // Nếu không có txnRef trong URL, thử lấy từ cookie
         if (!txnRef) {
-          const storedTxnRef = localStorage.getItem('lastTxnRef');
+          const storedTxnRef = cookieService.getTempData('lastTxnRef');
           if (storedTxnRef) {
             try {
               // Lấy thông tin đặt vé từ backend bằng txnRef đã lưu
@@ -581,8 +582,8 @@ const PaymentCallback: React.FC = () => {
                 setStatus('success');
                 // Generate QR code and send email
                 await generateQRAndSendEmail(response.object);
-                // Xóa txnRef từ localStorage sau khi đã sử dụng
-                localStorage.removeItem('lastTxnRef');
+                // Xóa txnRef từ cookie sau khi đã sử dụng
+                cookieService.removeTempData('lastTxnRef');
                 setLoading(false);
                 return;
               } else {
@@ -1069,8 +1070,8 @@ const PaymentCallback: React.FC = () => {
                 <button
                   onClick={() => {
                     // Clear pending booking and try again
-                    localStorage.removeItem('pendingBooking');
-                    localStorage.removeItem('currentTxnRef');
+                    cookieService.removeTempData('pendingBooking');
+                    cookieService.removeTempData('currentTxnRef');
                     navigate('/booking');
                   }}
                   className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
@@ -1080,8 +1081,8 @@ const PaymentCallback: React.FC = () => {
                 <button
                   onClick={() => {
                     // Clear all data and go home
-                    localStorage.removeItem('pendingBooking');
-                    localStorage.removeItem('currentTxnRef');
+                    cookieService.removeTempData('pendingBooking');
+                    cookieService.removeTempData('currentTxnRef');
                     navigate('/');
                   }}
                   className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"

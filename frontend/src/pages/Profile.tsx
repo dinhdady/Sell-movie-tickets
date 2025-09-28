@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { userAPI, bookingAPI } from '../services/api';
+import { passwordAPI } from '../services/passwordApi';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ChangePasswordModal from '../components/ChangePasswordModal';
+import OTPVerificationModal from '../components/OTPVerificationModal';
 import { 
   UserIcon, 
   EnvelopeIcon, 
@@ -13,7 +16,6 @@ import {
   PencilIcon,
   CheckIcon,
   XMarkIcon,
-  EyeIcon,
   QrCodeIcon,
   BuildingOfficeIcon,
   FilmIcon,
@@ -128,6 +130,11 @@ const Profile: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [showBookingDetail, setShowBookingDetail] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  
+  // Password change states
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
   // Load user profile
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -555,6 +562,43 @@ const Profile: React.FC = () => {
   const handleViewMore = () => {
     setShowAllBookings(!showAllBookings);
   };
+
+  // Password change handlers
+  const handlePasswordChangeRequest = async (oldPassword: string, newPassword: string) => {
+    try {
+      const response = await passwordAPI.requestPasswordChange({
+        oldPassword,
+        newPassword
+      });
+      
+      if (response.otpSent) {
+        setOtpEmail(response.email);
+        setShowChangePasswordModal(false);
+        setShowOTPModal(true);
+      }
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Không thể gửi yêu cầu đổi mật khẩu');
+    }
+  };
+
+  const handleVerifyOTP = async (otp: string) => {
+    try {
+      await passwordAPI.verifyOTPAndChangePassword({ otp });
+      setShowOTPModal(false);
+      // Show success message or redirect
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'OTP không hợp lệ');
+    }
+  };
+
+  const handleResendOTP = async () => {
+    try {
+      await passwordAPI.resendOTP();
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Không thể gửi lại OTP');
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
   if (!userProfile) {
     return (
@@ -588,24 +632,26 @@ const Profile: React.FC = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-gray-900">Thông tin tài khoản</h2>
-            <button
-              onClick={editMode ? handleSave : handleEditToggle}
-              disabled={saveLoading}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                editMode 
-                  ? 'bg-green-600 hover:bg-green-700 text-white' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-            >
-              {saveLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : editMode ? (
-                <CheckIcon className="h-4 w-4" />
-              ) : (
-                <PencilIcon className="h-4 w-4" />
-              )}
-              <span>{editMode ? 'Lưu' : 'Chỉnh sửa'}</span>
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={editMode ? handleSave : handleEditToggle}
+                disabled={saveLoading}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  editMode 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {saveLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : editMode ? (
+                  <CheckIcon className="h-4 w-4" />
+                ) : (
+                  <PencilIcon className="h-4 w-4" />
+                )}
+                <span>{editMode ? 'Lưu' : 'Chỉnh sửa'}</span>
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Full Name */}
@@ -725,7 +771,10 @@ const Profile: React.FC = () => {
                     <p className="font-medium text-gray-900">Mật khẩu</p>
                     <p className="text-sm text-gray-600">Cập nhật lần cuối: 30 ngày trước</p>
                   </div>
-                  <button className="text-blue-600 hover:text-blue-700 font-medium">
+                  <button 
+                    onClick={() => setShowChangePasswordModal(true)}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
                     Đổi mật khẩu
                   </button>
                 </div>
@@ -839,7 +888,7 @@ const Profile: React.FC = () => {
                           onClick={() => handleViewBookingDetail(booking)}
                           className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium px-3 py-1 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
                         >
-                          <EyeIcon className="h-4 w-4" />
+                          <TicketIcon className="h-4 w-4" />
                           <span>Xem chi tiết</span>
                         </button>
                       </div>
@@ -1247,6 +1296,22 @@ const Profile: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        onPasswordChangeRequest={handlePasswordChangeRequest}
+      />
+
+      {/* OTP Verification Modal */}
+      <OTPVerificationModal
+        isOpen={showOTPModal}
+        onClose={() => setShowOTPModal(false)}
+        onVerifyOTP={handleVerifyOTP}
+        email={otpEmail}
+        onResendOTP={handleResendOTP}
+      />
     </div>
   );
 };

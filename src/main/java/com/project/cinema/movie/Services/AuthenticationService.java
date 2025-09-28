@@ -128,6 +128,33 @@ public class AuthenticationService {
         return new AuthenticationResponse(false, "", "", message, null);
     }
 
+    /**
+     * Generate tokens for an existing user (for Google OAuth)
+     * @param user the user to generate tokens for
+     * @return AuthenticationResponse with tokens
+     */
+    public AuthenticationResponse generateTokensForUser(User user) {
+        try {
+            // Revoke all existing tokens for this user
+            revokeAllTokens(user);
+
+            // Generate new tokens
+            String accessToken = jwtService.generateAccessToken(user);
+            String refreshToken = jwtService.generateRefreshToken(user);
+
+            log.info("Tokens generated for user {}: accessToken={}, refreshToken={}", 
+                user.getUsername(), accessToken, refreshToken);
+
+            // Save refresh token
+            saveUserToken(refreshToken, user);
+
+            return new AuthenticationResponse(true, accessToken, refreshToken, "Authentication successful", user);
+        } catch (Exception e) {
+            log.error("Error generating tokens for user {}: {}", user.getUsername(), e.getMessage(), e);
+            return new AuthenticationResponse(false, "", "", "Token generation failed", null);
+        }
+    }
+
     private boolean isBlank(String str) {
         return str == null || str.isBlank();
     }

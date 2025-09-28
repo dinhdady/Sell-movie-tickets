@@ -1,125 +1,75 @@
 package com.project.cinema.movie.Services;
 
-import com.project.cinema.movie.Models.Booking;
-import com.project.cinema.movie.Models.Ticket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-
-import jakarta.mail.internet.MimeMessage;
-
-import java.text.SimpleDateFormat;
-import java.util.List;
 
 @Service
 public class EmailService {
-
-    @Autowired
-    private JavaMailSender mailSender;
-
+    
+    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+    
     @Value("${spring.mail.username}")
     private String fromEmail;
-    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
-    // Legacy method - no longer used, email is sent from frontend
-    @Deprecated
-    public void sendBookingConfirmation(Booking booking, List<Ticket> tickets) {
-        logger.info("📧 [EMAIL] Legacy email method called - email should be sent from frontend");
-        sendSimpleBookingConfirmation(booking, tickets);
+    
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+    
+    private final JavaMailSender mailSender;
+    
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
     }
-
-    /**
-     * Send booking confirmation with HTML content from frontend
-     */
+    
+    public void sendPasswordChangeOTP(String toEmail, String otp) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(toEmail);
+            message.setSubject("Mã OTP đổi mật khẩu - Cinema Booking System");
+            message.setText(buildPasswordChangeOTPContent(otp));
+            message.setFrom(fromEmail);
+            
+            mailSender.send(message);
+            logger.info("Password change OTP sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            logger.error("Failed to send password change OTP to: {}", toEmail, e);
+            throw new RuntimeException("Không thể gửi email OTP. Vui lòng thử lại sau.");
+        }
+    }
+    
     public void sendBookingConfirmationWithHtml(String toEmail, String subject, String htmlContent) {
         try {
-            logger.info("[EMAIL] Starting to send email...");
-            logger.info("[EMAIL] From: " + fromEmail);
-            logger.info("[EMAIL] To: " + toEmail);
-            logger.info("[EMAIL] Subject: " + subject);
-            logger.info("[EMAIL] HTML content length: " + (htmlContent != null ? htmlContent.length() : 0));
-            logger.info("[EMAIL] HTML content preview: " + (htmlContent != null ? htmlContent.substring(0, Math.min(200, htmlContent.length())) + "..." : "null"));
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(htmlContent); // SimpleMailMessage doesn't support HTML, but we'll use it for now
+            message.setFrom(fromEmail);
             
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(htmlContent, true);
-            
-            logger.info("[EMAIL] Sending message...");
             mailSender.send(message);
-
-            logger.info("[EMAIL] Sent booking confirmation email with HTML from frontend");
+            logger.info("Booking confirmation email sent successfully to: {}", toEmail);
         } catch (Exception e) {
-            System.err.println("[EMAIL] Failed to send email with HTML content: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Failed to send booking confirmation email to: {}", toEmail, e);
+            throw new RuntimeException("Không thể gửi email xác nhận đặt vé. Vui lòng thử lại sau.");
         }
     }
-
-    private void sendSimpleBookingConfirmation(Booking booking, List<Ticket> tickets) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(booking.getCustomerEmail());
-            message.setSubject("Xác nhận đặt vé - " + booking.getShowtime().getMovie().getTitle());
-
-            StringBuilder content = new StringBuilder();
-            content.append("Xin chào ").append(booking.getCustomerName()).append(",\n\n");
-            content.append("Cảm ơn bạn đã đặt vé tại rạp chiếu phim của chúng tôi!\n\n");
-            content.append("THÔNG TIN ĐẶT VÉ:\n");
-            content.append("- Phim: ").append(booking.getShowtime().getMovie().getTitle()).append("\n");
-            content.append("- Rạp: ").append(booking.getShowtime().getRoom().getCinema().getName()).append("\n");
-            content.append("- Phòng: ").append(booking.getShowtime().getRoom().getName()).append("\n");
+    
+    private String buildPasswordChangeOTPContent(String otp) {
+        return String.format("""
+            Xin chào,
             
-            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-            content.append("- Suất chiếu: ").append(dateFormat.format(booking.getShowtime().getStartTime())).append("\n");
+            Bạn đã yêu cầu đổi mật khẩu cho tài khoản Cinema Booking System.
             
-            content.append("- Ghế đã đặt: ");
-            for (int i = 0; i < tickets.size(); i++) {
-                if (i > 0) content.append(", ");
-                content.append(tickets.get(i).getSeat().getSeatNumber());
-            }
-            content.append("\n");
+            Mã OTP của bạn là: %s
             
-            content.append("- Tổng tiền: ").append(String.format("%,.0f", booking.getTotalPrice())).append(" VNĐ\n\n");
+            Mã OTP này có hiệu lực trong 10 phút.
             
-            content.append("Vui lòng đến rạp trước giờ chiếu 15 phút và xuất trình email này để nhận vé.\n\n");
-            content.append("Trân trọng,\n");
-            content.append("Đội ngũ Cinema");
-
-            message.setText(content.toString());
-            mailSender.send(message);
-        } catch (Exception e) {
-            System.err.println("Failed to send simple booking confirmation email: " + e.getMessage());
-        }
-    }
-
-    public void sendPaymentConfirmation(String email, String customerName, String movieTitle, double amount) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(email);
-            message.setSubject("Xác nhận thanh toán thành công - " + movieTitle);
-
-            StringBuilder content = new StringBuilder();
-            content.append("Xin chào ").append(customerName).append(",\n\n");
-            content.append("Thanh toán của bạn đã được xử lý thành công!\n\n");
-            content.append("- Phim: ").append(movieTitle).append("\n");
-            content.append("- Số tiền: ").append(String.format("%,.0f", amount)).append(" VNĐ\n\n");
-            content.append("Vé của bạn đã được tạo và sẽ được gửi trong email riêng.\n\n");
-            content.append("Trân trọng,\n");
-            content.append("Đội ngũ Cinema");
-
-            message.setText(content.toString());
-            mailSender.send(message);
-        } catch (Exception e) {
-            System.err.println("Failed to send payment confirmation email: " + e.getMessage());
-        }
+            Nếu bạn không yêu cầu đổi mật khẩu, vui lòng bỏ qua email này.
+            
+            Trân trọng,
+            Cinema Booking System Team
+            """, otp);
     }
 }

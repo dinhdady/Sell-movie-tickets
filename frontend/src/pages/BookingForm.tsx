@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { bookingAPI, orderAPI, paymentAPI } from '../services/api';
+import { bookingAPI, orderAPI } from '../services/api';
+import { paymentApi } from '../services/paymentApi';
+import { cookieService } from '../services/cookieService';
 import type { Seat } from '../types/booking';
+import type { PaymentRequest } from '../types/payment';
 // import type { Coupon } from '../types/coupon';
 import ProtectedRoute from '../components/ProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import { 
   UserIcon,
   EnvelopeIcon,
   PhoneIcon,
   MapPinIcon,
   CreditCardIcon,
-  TagIcon
+  TagIcon,
+  FilmIcon
 } from '@heroicons/react/24/outline';
 interface BookingFormData {
   customerName: string;
@@ -26,7 +31,7 @@ const BookingForm: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   // Get booking data from location state
-  const { movie, showtime, selectedSeats, totalPrice, appliedCoupon, discountAmount, finalTotal } = location.state || {};
+  const { movie, showtime, selectedSeats, totalPrice, appliedCoupon, discountAmount, appliedEvent, eventDiscountAmount, finalTotal } = location.state || {};
   // Add debug logging
   const [formData, setFormData] = useState<BookingFormData>({
     customerName: user?.fullName || user?.username || '',
@@ -37,6 +42,7 @@ const BookingForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<Partial<BookingFormData>>({});
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   useEffect(() => {
     // Redirect if no booking data
     if (!movie || !showtime || !selectedSeats || selectedSeats.length === 0) {
@@ -88,12 +94,15 @@ const BookingForm: React.FC = () => {
       setError('Vui lòng đăng nhập để đặt vé');
       return;
     }
+    if (!selectedPaymentMethod) {
+      setError('Vui lòng chọn phương thức thanh toán');
+      return;
+    }
     try {
       setLoading(true);
       setError('');
-      // Force refresh user from localStorage to get latest ID
-      const storedUser = localStorage.getItem('user');
-      const currentUser = storedUser ? JSON.parse(storedUser) : user;
+      // Force refresh user from cookie to get latest ID
+      const currentUser = user;
       const validUserId = currentUser?.id || Math.random().toString(36).substring(2, 10);
       // Step 1: Create Order first to get txnRef
       const orderData = {
@@ -110,8 +119,8 @@ const BookingForm: React.FC = () => {
         throw new Error(orderResponse.message || 'Failed to create order');
       }
       const createdOrder = orderResponse.object;
-      // Store txnRef in localStorage for payment callback
-      localStorage.setItem('currentTxnRef', createdOrder.txnRef);
+      // Store txnRef in cookie for payment callback
+      cookieService.setTempData('currentTxnRef', createdOrder.txnRef);
       // Step 2: Create booking with the order ID
       const bookingData = {
         userId: validUserId,
@@ -127,17 +136,24 @@ const BookingForm: React.FC = () => {
       };
       const response = await bookingAPI.create(bookingData);
       if (response.state === 'SUCCESS') {
-        // Chỉ truyền đúng các trường backend cần
-        const paymentData = {
+        // Create payment request
+        const paymentRequest: PaymentRequest = {
           bookingId: response.object.id,
+          paymentMethod: selectedPaymentMethod,
           amount: finalTotal || totalPrice,
-          orderDescription: `Thanh toán vé xem phim ${movie.title}${appliedCoupon ? ` (Đã áp dụng coupon ${appliedCoupon.code})` : ''}`
+          returnUrl: `${window.location.origin}/payment/callback`,
+          cancelUrl: `${window.location.origin}/booking/${id}`,
+          description: `Thanh toán vé xem phim ${movie.title}${appliedCoupon ? ` (Đã áp dụng coupon ${appliedCoupon.code})` : ''}`
         };
-        const paymentUrl = await paymentAPI.createVNPayPayment(paymentData);
+        
+        // Create payment based on selected method
+        const paymentResponse = await paymentApi.createPayment(paymentRequest);
+        
         // Show loading state before redirect
         setLoading(true);
+        
         // Store booking info for fallback
-        localStorage.setItem('pendingBooking', JSON.stringify({
+        cookieService.setTempData('pendingBooking', JSON.stringify({
           bookingId: response.object.id,
           movie: movie,
           showtime: showtime,
@@ -145,13 +161,15 @@ const BookingForm: React.FC = () => {
           totalPrice: finalTotal || totalPrice,
           appliedCoupon: appliedCoupon,
           discountAmount: discountAmount,
-          txnRef: createdOrder.txnRef
+          txnRef: createdOrder.txnRef,
+          paymentMethod: selectedPaymentMethod
         }));
+        
         // Small delay to show loading state
         setTimeout(() => {
           try {
-            window.location.href = paymentUrl;
-          } catch (error) {
+            window.location.href = paymentResponse.paymentUrl;
+          } catch {
             setError('Không thể chuyển hướng đến trang thanh toán. Vui lòng thử lại.');
             setLoading(false);
           }
@@ -245,15 +263,22 @@ const BookingForm: React.FC = () => {
                           <span>{totalPrice.toLocaleString('vi-VN')}đ</span>
                         </div>
                         {appliedCoupon && discountAmount > 0 && (
-                          <>
-                            <div className="flex justify-between text-green-600">
-                              <span className="flex items-center gap-1">
-                                <TagIcon className="w-3 h-3" />
-                                Giảm giá ({appliedCoupon.code})
-                              </span>
-                              <span>-{discountAmount.toLocaleString('vi-VN')}đ</span>
-                            </div>
-                          </>
+                          <div className="flex justify-between text-green-600">
+                            <span className="flex items-center gap-1">
+                              <TagIcon className="w-3 h-3" />
+                              Giảm giá Coupon ({appliedCoupon.code})
+                            </span>
+                            <span>-{discountAmount.toLocaleString('vi-VN')}đ</span>
+                          </div>
+                        )}
+                        {appliedEvent && eventDiscountAmount > 0 && (
+                          <div className="flex justify-between text-blue-600">
+                            <span className="flex items-center gap-1">
+                              <FilmIcon className="w-3 h-3" />
+                              Giảm giá Sự kiện ({appliedEvent.name})
+                            </span>
+                            <span>-{eventDiscountAmount.toLocaleString('vi-VN')}đ</span>
+                          </div>
                         )}
                         <div className="flex justify-between font-semibold border-t pt-2">
                           <span>Tổng cộng</span>
@@ -350,6 +375,16 @@ const BookingForm: React.FC = () => {
                         <p className="text-red-500 text-sm mt-1">{validationErrors.customerAddress}</p>
                       )}
                     </div>
+                    
+                    {/* Payment Method Selection */}
+                    <div className="pt-4">
+                      <PaymentMethodSelector
+                        selectedMethod={selectedPaymentMethod}
+                        onMethodSelect={setSelectedPaymentMethod}
+                        amount={finalTotal || totalPrice}
+                      />
+                    </div>
+                    
                     {/* Submit Button */}
                     <div className="pt-4">
                       <button

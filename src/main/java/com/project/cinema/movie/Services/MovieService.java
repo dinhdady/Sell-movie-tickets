@@ -154,7 +154,8 @@ public class MovieService {
     }
     public java.util.List<Movie> getMoviesReleasedAfterCurrentDate() {
         java.util.Date now = new java.util.Date();
-        return movieRepository.findByReleaseDateAfterAndStatus(now, "COMING_SOON");
+        // Lấy phim có releaseDate > now (không cần kiểm tra status)
+        return movieRepository.findByReleaseDateAfter(now);
     }
     public java.util.List<Movie> getMoviesReleasedBeforeCurrentDate() {
         java.util.Date now = new java.util.Date();

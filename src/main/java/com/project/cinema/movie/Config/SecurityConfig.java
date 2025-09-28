@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -34,10 +34,14 @@ import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
         private static final String[] PUBLIC_URLS = {
-                "/api/auth/**",
+                "/api/auth/login",
+                "/api/auth/register",
+                "/api/auth/google-login",
+                "/api/auth/forgot-password",
+                "/api/auth/reset-password",
                 "/api/home/**",
                 "/api/movie/now-showing",
                 "/api/movie/coming-soon",
@@ -55,9 +59,14 @@ public class SecurityConfig {
                 "/api/booking/showtime/*/seats",
                 "/api/vnpay/**",
                 "/api/booking/**",
+                "/api/ratings/movie/**", // <-- Thêm dòng này để công khai rating endpoints
+                "/api/ratings/movie/*/stats", // <-- Thêm dòng này để công khai rating stats
                 "/api/testing/**", // <-- Thêm dòng này để công khai test endpoints
                 "/api/admin/bookings/test", // <-- Thêm dòng này để công khai test endpoint admin
-                "/api/tickets/test" // <-- Thêm dòng này để công khai test endpoint tickets
+                "/api/tickets/test", // <-- Thêm dòng này để công khai test endpoint tickets
+                "/api/event/current", // <-- Thêm dòng này để công khai endpoint event hiện tại
+                "/api/event/active", // <-- Thêm dòng này để công khai endpoint event đang hoạt động
+                "/api/event/applicable" // <-- Thêm dòng này để công khai endpoint event có thể áp dụng
         };
 
         private static final String ADMIN_URLS = "/admin/**";

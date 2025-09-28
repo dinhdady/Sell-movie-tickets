@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { CartItem, CartContextType } from '../types/cart';
+import { cookieService } from '../services/cookieService';
 // Cart Actions
 type CartAction =
   | { type: 'ADD_TO_CART'; payload: Omit<CartItem, 'id' | 'addedAt'> }
@@ -64,10 +65,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 // Cart Provider
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, initialState);
-  // Load cart from localStorage on mount
+  // Load cart from cookie on mount
   useEffect(() => {
-    // const savedCart = localStorage.getItem('movie-cart');
-    const savedCart = localStorage.getItem('movie-cart');
+    const savedCart = cookieService.getTempData('movie-cart');
     if (savedCart) {
       try {
         const cartItems = JSON.parse(savedCart);
@@ -92,18 +92,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         // Clear corrupted data
-        localStorage.removeItem('movie-cart');
+        cookieService.removeTempData('movie-cart');
       }
     }
   }, []);
-  // Save cart to localStorage whenever items change
+  // Save cart to cookie whenever items change
   useEffect(() => {
     try {
       if (state.items.length > 0) {
-        localStorage.setItem('movie-cart', JSON.stringify(state.items));
+        cookieService.setTempData('movie-cart', JSON.stringify(state.items), 24 * 60); // 24 hours
       } else {
-        // Clear localStorage when cart is empty
-        localStorage.removeItem('movie-cart');
+        // Clear cookie when cart is empty
+        cookieService.removeTempData('movie-cart');
       }
     } catch (error) {
     }
@@ -138,9 +138,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       item.movie.id === movieId && item.showtime.id === showtimeId
     );
   };
-  // Debug function to check localStorage
+  // Debug function to check cookie
   const debugCart = () => {
-    // const savedCart = localStorage.getItem('movie-cart');
+    // const savedCart = cookieService.getTempData('movie-cart');
   };
   const value: CartContextType = {
     items: state.items,

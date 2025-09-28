@@ -1,4 +1,5 @@
 import { authAPI } from './api';
+import { cookieService } from './cookieService';
 class TokenService {
   private refreshPromise: Promise<string> | null = null;
   private isRefreshing = false;
@@ -21,24 +22,32 @@ class TokenService {
     }
   }
   private async performTokenRefresh(): Promise<string> {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = cookieService.getRefreshToken();
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
     try {
+      console.log('[TokenService] Attempting to refresh token...');
       const response = await authAPI.refreshToken(refreshToken);
+      console.log('[TokenService] Refresh response:', response);
+      
       if (response.state === 'SUCCESS' && response.object) {
         const authResponse = response.object;
         const newAccessToken = authResponse.accessToken;
         const newRefreshToken = authResponse.refreshToken;
-        // Update tokens in localStorage
-        localStorage.setItem('token', newAccessToken);
-        localStorage.setItem('refreshToken', newRefreshToken);
+        
+        console.log('[TokenService] New access token received, updating cookies...');
+        // Update tokens in cookies
+        cookieService.setToken(newAccessToken);
+        cookieService.setRefreshToken(newRefreshToken);
+        console.log('[TokenService] Token refresh successful');
         return newAccessToken;
       } else {
+        console.error('[TokenService] Token refresh failed:', response.message);
         throw new Error(response.message || 'Token refresh failed');
       }
     } catch (error) {
+      console.error('[TokenService] Token refresh error:', error);
       // Clear invalid tokens
       this.clearTokens();
       throw error;
@@ -60,21 +69,19 @@ class TokenService {
    * Get current access token
    */
   getAccessToken(): string | null {
-    return localStorage.getItem('token');
+    return cookieService.getToken();
   }
   /**
    * Get current refresh token
    */
   getRefreshToken(): string | null {
-    return localStorage.getItem('refreshToken');
+    return cookieService.getRefreshToken();
   }
   /**
    * Clear all tokens
    */
   clearTokens(): void {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    cookieService.clearAuth();
   }
   /**
    * Check if user has valid tokens

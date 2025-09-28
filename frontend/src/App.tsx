@@ -7,6 +7,8 @@ import Footer from './components/Footer';
 import NotFound from './components/NotFound';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import AdminLayout from './components/AdminLayout';
+import NotificationPermission from './components/NotificationPermission';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -19,6 +21,8 @@ import Booking from './pages/Booking';
 import BookingSuccess from './pages/BookingSuccess';
 import BookingForm from './pages/BookingForm';
 import PaymentCallback from './pages/PaymentCallback';
+import GoogleAuthCallback from './pages/GoogleAuthCallback';
+import GoogleDebug from './pages/GoogleDebug';
 import Cinemas from './pages/Cinemas';
 import Profile from './pages/Profile';
 import Cart from './pages/Cart';
@@ -60,6 +64,8 @@ function App() {
                   <Route path="/booking-form" element={<BookingForm />} />
                   <Route path="/booking-success/:id" element={<BookingSuccess />} />
                   <Route path="/payment-callback" element={<PaymentCallback />} />
+                  <Route path="/google-auth-callback" element={<GoogleAuthCallback />} />
+                  <Route path="/google-debug" element={<GoogleDebug />} />
                   {/* Admin routes */}
                   <Route path="/admin" element={
                     <ProtectedAdminRoute>
@@ -83,6 +89,8 @@ function App() {
                 </Routes>
               </main>
               <Footer />
+              <NotificationPermission />
+              <PWAInstallPrompt />
             </div>
           </Router>
         </CartProvider>

@@ -9,6 +9,7 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   phone?: string;
+  birthday?: string;
 }
 export interface AuthResponse {
   success: boolean;
@@ -26,6 +27,7 @@ export interface User {
   fullName: string;
   phone?: string;
   address?: string;
+  birthday?: string;
   role: 'USER' | 'ADMIN' | string;
   isActive: boolean;
   createdAt: string;

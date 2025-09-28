@@ -12,6 +12,8 @@ import com.project.cinema.movie.Repositories.SeatRepository;
 import com.project.cinema.movie.Repositories.ShowtimeSeatBookingRepository;
 import com.project.cinema.movie.Repositories.UserRepository;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,7 +38,7 @@ public class UserService {
     private SeatRepository seatRepository;
     @Autowired
     private ShowtimeSeatBookingRepository showtimeSeatBookingRepository;
-
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     @Transactional
     public User register(RegisterRequest newUser) {
         // 1. Mã hóa password trước khi lưu
@@ -47,6 +49,17 @@ public class UserService {
         user.setRole(Role.USER);
         user.setFullName(newUser.getFullName());
         user.setPhoneNumber(newUser.getPhone());
+        
+        // Set birthday if provided
+        if (newUser.getBirthday() != null && !newUser.getBirthday().isEmpty()) {
+            try {
+                user.setBirthday(java.time.LocalDateTime.parse(newUser.getBirthday() + "T00:00:00"));
+            } catch (Exception e) {
+                // If parsing fails, birthday will remain null
+                logger.warn("Failed to parse birthday: {}", newUser.getBirthday());
+            }
+        }
+        
         user = userRepository.save(user); // Lưu User trước để có ID
 
         // 3. Tạo Order và gán User vào
@@ -70,6 +83,16 @@ public class UserService {
         user.setRole(Role.ADMIN);
         user.setFullName(newUser.getFullName() != null ? newUser.getFullName() : newUser.getUsername());
         user.setPhoneNumber(newUser.getPhone());
+        
+        // Set birthday if provided
+        if (newUser.getBirthday() != null && !newUser.getBirthday().isEmpty()) {
+            try {
+                user.setBirthday(java.time.LocalDateTime.parse(newUser.getBirthday() + "T00:00:00"));
+            } catch (Exception e) {
+                // If parsing fails, birthday will remain null
+                logger.warn("Failed to parse birthday: {}", newUser.getBirthday());
+            }
+        }
         
         return userRepository.save(user);
     }
@@ -375,7 +398,7 @@ public class UserService {
 
     public void verifyEmail(String token) {
         // Implement email verification logic here
-        // Validate token and mark email as verified
+        // Validate token and mark email as verifiedx
     }
 
     public void resendVerificationEmail(String email) {

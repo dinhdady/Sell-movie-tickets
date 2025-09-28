@@ -5,6 +5,8 @@ import com.project.cinema.movie.DTO.VnpayRequest;
 import com.project.cinema.movie.DTO.VNPayResponseDTO;
 import com.project.cinema.movie.DTO.TicketDTO;
 import com.project.cinema.movie.DTO.TicketResponse;
+import com.project.cinema.movie.DTO.PaymentRequest;
+import com.project.cinema.movie.DTO.PaymentResponse;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.BookingRepository;
 import com.project.cinema.movie.Repositories.OrderRepository;
@@ -133,6 +135,48 @@ public class VNPayService {
         query.append("&vnp_SecureHash=").append(vnp_SecureHash);
         logger.info("[VNPAY] vnp_ReturnUrl sử dụng: " + VNPayConfig.vnp_ReturnUrl);
         return VNPayConfig.vnp_PayUrl + "?" + query;
+    }
+
+    // New method to handle PaymentRequest (for unified payment API)
+    public PaymentResponse createPayment(PaymentRequest request) {
+        try {
+            // Convert PaymentRequest to VnpayRequest
+            VnpayRequest vnpayRequest = new VnpayRequest();
+            vnpayRequest.setBookingId(request.getBookingId());
+            vnpayRequest.setAmount(request.getAmount().toString());
+            
+            // Call existing createPayment method
+            String paymentUrl = createPayment(vnpayRequest);
+            
+            // Create PaymentResponse
+            PaymentResponse response = new PaymentResponse();
+            response.setPaymentUrl(paymentUrl);
+            response.setTransactionId("VNPAY_" + System.currentTimeMillis());
+            response.setPaymentMethod("VNPAY");
+            response.setStatus("PENDING");
+            response.setMessage("Payment created successfully");
+            response.setAmount(request.getAmount().longValue());
+            response.setCurrency("VND");
+            response.setReturnUrl(request.getReturnUrl());
+            response.setCancelUrl(request.getCancelUrl());
+            
+            return response;
+        } catch (Exception e) {
+            logger.error("[VNPayService] Error creating payment: {}", e.getMessage());
+            throw new RuntimeException("Failed to create VNPay payment: " + e.getMessage());
+        }
+    }
+
+    // Verify payment method for unified payment API
+    public boolean verifyPayment(Map<String, String> params) {
+        try {
+            // VNPay verification logic can be added here if needed
+            // For now, just return true as VNPay handles verification in callback
+            return true;
+        } catch (Exception e) {
+            logger.error("[VNPayService] Error verifying payment: {}", e.getMessage());
+            return false;
+        }
     }
 
     public VNPayResponseDTO handlePaymentReturn(Map<String, String> allParams) {

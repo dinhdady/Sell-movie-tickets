@@ -39,6 +39,9 @@ public class User implements UserDetails {
 
     private String address;
 
+    @Column(name = "birthday")
+    private LocalDateTime birthday;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime registrationDate;
@@ -75,6 +78,21 @@ public class User implements UserDetails {
         this.fullName = fullName;
         this.email = email;
         this.phoneNumber = phoneNumber;
+        this.registrationDate = registrationDate;
+        this.role = role;
+        this.isActive = Boolean.TRUE;
+        this.isEmailVerified = Boolean.FALSE;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public User(String id, String username, String passwordHash, String fullName, String email, String phoneNumber, LocalDateTime birthday, LocalDateTime registrationDate, Role role) {
+        this.id = id;
+        this.username = username;
+        this.password = passwordHash;
+        this.fullName = fullName;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.birthday = birthday;
         this.registrationDate = registrationDate;
         this.role = role;
         this.isActive = Boolean.TRUE;

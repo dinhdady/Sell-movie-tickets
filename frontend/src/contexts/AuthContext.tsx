@@ -3,11 +3,13 @@ import type { ReactNode } from 'react';
 import type { User, AuthRequest, RegisterRequest, AuthResponse } from '../types/auth';
 import { authAPI, userAPI } from '../services/api';
 import { tokenService } from '../services/tokenService';
+import { cookieService } from '../services/cookieService';
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (credentials: AuthRequest) => Promise<{ success: boolean; message: string }>;
   register: (userData: RegisterRequest) => Promise<AuthResponse | undefined>;
+  googleLogin: (googleData: any) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   isLoading: boolean;
@@ -31,16 +33,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
+      const storedToken = cookieService.getToken();
+      const storedUser = cookieService.getUser();
       if (storedToken && storedUser) {
         // Check if token is expired
         if (tokenService.isTokenExpired(storedToken)) {
           try {
             const newToken = await tokenService.refreshAccessToken();
             setToken(newToken);
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
+            setUser(storedUser);
           } catch (error) {
             tokenService.clearTokens();
             setToken(null);
@@ -48,13 +49,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } else {
           setToken(storedToken);
-          const parsedUser = JSON.parse(storedUser);
           // Ensure user has a valid ID (string format like backend UUID)
-          if (!parsedUser.id || parsedUser.id === 0) {
-            parsedUser.id = Math.random().toString(36).substring(2, 10);
-            localStorage.setItem('user', JSON.stringify(parsedUser));
+          if (!storedUser.id || storedUser.id === 0) {
+            storedUser.id = Math.random().toString(36).substring(2, 10);
+            cookieService.setUser(storedUser);
           }
-          setUser(parsedUser);
+          setUser(storedUser);
         }
       }
       setIsLoading(false);
@@ -64,14 +64,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Auto refresh token every 10 minutes
   useEffect(() => {
     if (!user || !token) return;
+    
     const refreshInterval = setInterval(async () => {
       try {
+        console.log('[AuthContext] Auto-refreshing token...');
         const newToken = await tokenService.refreshAccessToken();
         setToken(newToken);
+        console.log('[AuthContext] Token auto-refresh successful');
       } catch (error) {
+        console.error('[AuthContext] Auto-refresh failed:', error);
         // Don't logout immediately, let the next API call handle it
       }
     }, 10 * 60 * 1000); // 10 minutes
+    
     return () => clearInterval(refreshInterval);
   }, [user, token]);
   const login = async (credentials: AuthRequest) => {
@@ -83,8 +88,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const newToken = authResponse.accessToken;
         // Store token first
         setToken(newToken);
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('refreshToken', authResponse.refreshToken);
+        cookieService.setToken(newToken);
+        cookieService.setRefreshToken(authResponse.refreshToken);
         // Fetch real user profile from backend
         try {
           const userProfileResponse = await userAPI.getProfile();
@@ -95,7 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               realUser.role = String(realUser.role);
             }
             setUser(realUser);
-            localStorage.setItem('user', JSON.stringify(realUser));
+            cookieService.setUser(realUser);
           } else {
             throw new Error('Failed to fetch user profile');
           }
@@ -112,7 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             createdAt: new Date().toISOString()
           };
           setUser(fallbackUser);
-          localStorage.setItem('user', JSON.stringify(fallbackUser));
+          cookieService.setUser(fallbackUser);
         }
         return { success: true, message: 'Đăng nhập thành công' };
       } else {
@@ -135,9 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Clear any existing tokens on login failure
       setToken(null);
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      cookieService.clearAuth();
       
       throw new Error(errorMessage);
     } finally {
@@ -168,9 +171,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
         setToken(newToken);
         setUser(newUser);
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(newUser));
-        localStorage.setItem('refreshToken', authResponse.refreshToken);
+        cookieService.setToken(newToken);
+        cookieService.setUser(newUser);
+        cookieService.setRefreshToken(authResponse.refreshToken);
         return;
       } else {
         throw new Error(response.message || 'Đăng ký thất bại');
@@ -181,6 +184,71 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
+  const googleLogin = async (googleData: any) => {
+    try {
+      setIsLoading(true);
+      const response = await authAPI.googleLogin(googleData);
+      if (response.state === 'SUCCESS') {
+        const authResponse = response.object;
+        const newToken = authResponse.accessToken;
+        // Store token first
+        setToken(newToken);
+        cookieService.setToken(newToken);
+        cookieService.setRefreshToken(authResponse.refreshToken);
+        // Fetch real user profile from backend
+        try {
+          const userProfileResponse = await userAPI.getProfile();
+          if (userProfileResponse.state === '200') {
+            const realUser = userProfileResponse.object;
+            // Ensure role is properly formatted as string
+            if (realUser.role && typeof realUser.role === 'object') {
+              realUser.role = String(realUser.role);
+            }
+            setUser(realUser);
+            cookieService.setUser(realUser);
+          } else {
+            throw new Error('Failed to fetch user profile');
+          }
+        } catch (profileError) {
+          // Fallback to basic user object if profile fetch fails
+          const fallbackUser = {
+            id: Math.random().toString(36).substring(2, 10),
+            username: googleData.email,
+            email: googleData.email,
+            fullName: googleData.name,
+            phone: googleData.phone || '',
+            birthday: googleData.birthday || '',
+            role: 'USER' as const,
+            isActive: true,
+            createdAt: new Date().toISOString()
+          };
+          setUser(fallbackUser);
+          cookieService.setUser(fallbackUser);
+        }
+        return { success: true, message: 'Đăng nhập Google thành công' };
+      } else {
+        throw new Error(response.message || 'Đăng nhập Google thất bại');
+      }
+    } catch (error: any) {
+      // Handle different types of errors
+      let errorMessage = 'Đăng nhập Google thất bại. Vui lòng thử lại.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Clear any existing tokens on login failure
+      setToken(null);
+      cookieService.clearAuth();
+      
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -190,7 +258,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (user) {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      cookieService.setUser(updatedUser);
     }
   };
   const value: AuthContextType = {
@@ -198,6 +266,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token,
     login,
     register,
+    googleLogin,
     logout,
     updateUser,
     isLoading,

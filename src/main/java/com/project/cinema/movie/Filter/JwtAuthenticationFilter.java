@@ -31,8 +31,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Loại trừ tất cả các endpoint authentication và refresh token
-        boolean shouldNotFilter = path.startsWith("/api/auth/") || 
+        // Loại trừ các endpoint authentication công khai (không cần token)
+        boolean shouldNotFilter = path.equals("/api/auth/login") || 
+               path.equals("/api/auth/register") ||
+               path.equals("/api/auth/google-login") ||
+               path.equals("/api/auth/forgot-password") ||
+               path.equals("/api/auth/reset-password") ||
+               path.equals("/api/auth/refresh-token") ||
                path.matches("^/(login|register|auth/refresh)$") ||
                path.equals("/api/home") ||
                path.equals("/") ||

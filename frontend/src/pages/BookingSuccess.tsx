@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { bookingAPI } from '../services/api';
+import { useNotifications } from '../hooks/useNotifications';
 // import type { Booking } from '../types/booking';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
@@ -15,6 +16,7 @@ const BookingSuccess: React.FC = () => {
   const [booking, setBooking] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { showBookingSuccess, showPaymentSuccess } = useNotifications();
   useEffect(() => {
     const fetchBooking = async () => {
       if (!id) return;
@@ -23,6 +25,15 @@ const BookingSuccess: React.FC = () => {
         const response = await bookingAPI.getById(parseInt(id));
         if (response.state === 'SUCCESS') {
           setBooking(response.object);
+          
+          // Show success notifications
+          await showBookingSuccess({
+            movieTitle: response.object.movie?.title || 'Phim',
+            showtime: response.object.showtime?.startTime || '',
+            totalPrice: response.object.totalPrice || 0
+          });
+          
+          await showPaymentSuccess(response.object.totalPrice || 0);
         } else {
           setError('Không tìm thấy thông tin đặt vé');
         }

@@ -136,49 +136,55 @@ public class CouponService {
         logger.info("[CouponService] Using coupon: {} for booking: {} by user: {} with originalAmount: {}", 
             couponCode, booking.getId(), user.getId(), originalAmount);
         
-        // Validate coupon
-        logger.info("[CouponService] Validating coupon: {} with amount: {} for user: {}", 
-            couponCode, originalAmount, user.getId());
-        
-        CouponValidationDTO validation = validateCoupon(couponCode, originalAmount, Long.parseLong(user.getId()));
-        if (!validation.isValid()) {
-            logger.error("[CouponService] Coupon validation failed: {}", validation.getMessage());
-            throw new RuntimeException(validation.getMessage());
+        try {
+            // Validate coupon
+            logger.info("[CouponService] Validating coupon: {} with amount: {} for user: {}", 
+                couponCode, originalAmount, user.getId());
+            
+            CouponValidationDTO validation = validateCoupon(couponCode, originalAmount, Long.parseLong(user.getId()));
+            if (!validation.isValid()) {
+                logger.error("[CouponService] Coupon validation failed: {}", validation.getMessage());
+                throw new RuntimeException(validation.getMessage());
+            }
+            
+            logger.info("[CouponService] Coupon validation successful: discountAmount={}, finalAmount={}", 
+                validation.getDiscountAmount(), validation.getFinalAmount());
+            
+            Coupon coupon = couponRepository.findByCode(couponCode).orElseThrow(
+                () -> new RuntimeException("Coupon không tồn tại")
+            );
+            
+            // Cập nhật coupon usage count TRƯỚC khi tạo usage record
+            logger.info("[CouponService] Before using coupon - Code: {}, Used: {}, Remaining: {}", 
+                coupon.getCode(), coupon.getUsedQuantity(), coupon.getRemainingQuantity());
+            
+            coupon.useCoupon();
+            Coupon savedCoupon = couponRepository.save(coupon);
+            
+            logger.info("[CouponService] After using coupon - Code: {}, Used: {}, Remaining: {}, Status: {}", 
+                savedCoupon.getCode(), savedCoupon.getUsedQuantity(), savedCoupon.getRemainingQuantity(), savedCoupon.getStatus());
+            
+            // Tạo coupon usage record
+            CouponUsage usage = new CouponUsage(
+                savedCoupon,
+                user,
+                booking,
+                originalAmount,
+                validation.getDiscountAmount(),
+                validation.getFinalAmount()
+            );
+            
+            // Lưu usage record
+            CouponUsage savedUsage = couponUsageRepository.save(usage);
+            
+            logger.info("[CouponService] Coupon used successfully: {} - Usage ID: {}", savedCoupon.getCode(), savedUsage.getId());
+            
+            return savedUsage;
+            
+        } catch (Exception e) {
+            logger.error("[CouponService] Error using coupon: {} - {}", couponCode, e.getMessage(), e);
+            throw new RuntimeException("Failed to use coupon: " + e.getMessage(), e);
         }
-        
-        logger.info("[CouponService] Coupon validation successful: discountAmount={}, finalAmount={}", 
-            validation.getDiscountAmount(), validation.getFinalAmount());
-        
-        Coupon coupon = couponRepository.findByCode(couponCode).orElseThrow(
-            () -> new RuntimeException("Coupon không tồn tại")
-        );
-        
-        // Tạo coupon usage record
-        CouponUsage usage = new CouponUsage(
-            coupon,
-            user,
-            booking,
-            originalAmount,
-            validation.getDiscountAmount(),
-            validation.getFinalAmount()
-        );
-        
-        // Cập nhật coupon usage count
-        logger.info("[CouponService] Before using coupon - Code: {}, Used: {}, Remaining: {}", 
-            coupon.getCode(), coupon.getUsedQuantity(), coupon.getRemainingQuantity());
-        
-        coupon.useCoupon();
-        couponRepository.save(coupon);
-        
-        logger.info("[CouponService] After using coupon - Code: {}, Used: {}, Remaining: {}, Status: {}", 
-            coupon.getCode(), coupon.getUsedQuantity(), coupon.getRemainingQuantity(), coupon.getStatus());
-        
-        // Lưu usage record
-        CouponUsage savedUsage = couponUsageRepository.save(usage);
-        
-        logger.info("[CouponService] Coupon used successfully: {} - Usage ID: {}", coupon.getCode(), savedUsage.getId());
-        
-        return savedUsage;
     }
     
     // Cập nhật coupon

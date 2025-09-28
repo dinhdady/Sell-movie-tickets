@@ -22,8 +22,6 @@ public class ShowtimeService {
     @Autowired
     private RoomRepository roomRepository;
     
-    @Autowired
-    private CinemaRepository cinemaRepository;
     
     @Autowired
     private BookingRepository bookingRepository;
@@ -172,9 +170,6 @@ public class ShowtimeService {
 
     public boolean canDeleteShowtime(Long id) {
         try {
-            Showtime showtime = showtimeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Showtime not found"));
-            
             // Kiểm tra xem có booking nào đang sử dụng showtime này không
             List<Booking> bookings = bookingRepository.findByShowtimeId(id);
             return bookings.isEmpty();

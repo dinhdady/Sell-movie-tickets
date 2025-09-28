@@ -7,7 +7,6 @@ import com.project.cinema.movie.DTO.OrderDTO;
 import com.project.cinema.movie.DTO.RoomDTO;
 import com.project.cinema.movie.DTO.SeatDTO;
 import com.project.cinema.movie.DTO.ShowtimeDTO;
-import com.project.cinema.movie.DTO.TicketDetailsResponse;
 import com.project.cinema.movie.DTO.TicketDTO;
 import com.project.cinema.movie.Models.*;
 import com.project.cinema.movie.Repositories.*;
@@ -18,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Date;
 
 @Service
 public class TicketService {
@@ -25,23 +25,6 @@ public class TicketService {
     @Autowired
     private TicketRepository ticketRepository;
     
-    @Autowired
-    private OrderRepository orderRepository;
-    
-    @Autowired
-    private ShowtimeRepository showtimeRepository;
-    
-    @Autowired
-    private MovieRepository movieRepository;
-    
-    @Autowired
-    private CinemaRepository cinemaRepository;
-    
-    @Autowired
-    private RoomRepository roomRepository;
-    
-    @Autowired
-    private SeatRepository seatRepository;
     
     private static final Logger logger = LoggerFactory.getLogger(TicketService.class);
     
@@ -172,58 +155,102 @@ public class TicketService {
             
             // Lấy thông tin Showtime từ Booking (vì Order không có showtime trực tiếp)
             Showtime showtime = null;
-            if (order != null && order.getBookings() != null && !order.getBookings().isEmpty()) {
-                showtime = order.getBookings().get(0).getShowtime();
+            try {
+                if (order != null && order.getBookings() != null && !order.getBookings().isEmpty()) {
+                    showtime = order.getBookings().get(0).getShowtime();
+                }
+            } catch (Exception e) {
+                logger.warn("Error accessing showtime for ticket {}: {}", ticket.getId(), e.getMessage());
+                // Nếu không thể truy cập showtime, tạo thông tin mặc định
+                showtime = null;
             }
+            
             if (showtime != null) {
-                ShowtimeDTO showtimeDTO = new ShowtimeDTO();
-                showtimeDTO.setStartTime(showtime.getStartTime());
-                showtimeDTO.setEndTime(showtime.getEndTime());
-                showtimeDTO.setMovieId(showtime.getMovie() != null ? showtime.getMovie().getId() : null);
-                showtimeDTO.setRoomId(showtime.getRoom() != null ? showtime.getRoom().getId() : null);
-                
-                // Map Room và Cinema
-                if (showtime.getRoom() != null) {
-                    Room room = showtime.getRoom();
-                    RoomDTO roomDTO = new RoomDTO();
-                    roomDTO.setName(room.getName());
-                    roomDTO.setCapacity(room.getCapacity());
-                    roomDTO.setCinemaId(room.getCinema() != null ? room.getCinema().getId() : null);
+                try {
+                    ShowtimeDTO showtimeDTO = new ShowtimeDTO();
+                    showtimeDTO.setStartTime(showtime.getStartTime());
+                    showtimeDTO.setEndTime(showtime.getEndTime());
+                    showtimeDTO.setMovieId(showtime.getMovie() != null ? showtime.getMovie().getId() : null);
+                    showtimeDTO.setRoomId(showtime.getRoom() != null ? showtime.getRoom().getId() : null);
                     
-                    if (room.getCinema() != null) {
-                        Cinema cinema = room.getCinema();
-                        CinemaDTO cinemaDTO = new CinemaDTO();
-                        cinemaDTO.setName(cinema.getName());
-                        cinemaDTO.setAddress(cinema.getAddress());
-                        cinemaDTO.setPhone(cinema.getPhone());
-                        cinemaDTO.setCinemaType(cinema.getCinemaType());
-                        roomDTO.setCinema(cinemaDTO);
+                    // Map Room và Cinema
+                    if (showtime.getRoom() != null) {
+                        Room room = showtime.getRoom();
+                        RoomDTO roomDTO = new RoomDTO();
+                        roomDTO.setName(room.getName());
+                        roomDTO.setCapacity(room.getCapacity());
+                        roomDTO.setCinemaId(room.getCinema() != null ? room.getCinema().getId() : null);
+                        
+                        if (room.getCinema() != null) {
+                            Cinema cinema = room.getCinema();
+                            CinemaDTO cinemaDTO = new CinemaDTO();
+                            cinemaDTO.setName(cinema.getName());
+                            cinemaDTO.setAddress(cinema.getAddress());
+                            cinemaDTO.setPhone(cinema.getPhone());
+                            cinemaDTO.setCinemaType(cinema.getCinemaType());
+                            roomDTO.setCinema(cinemaDTO);
+                        }
+                        
+                        showtimeDTO.setRoom(roomDTO);
                     }
                     
-                    showtimeDTO.setRoom(roomDTO);
+                    response.setShowtime(showtimeDTO);
+                    
+                    // Map Movie
+                    if (showtime.getMovie() != null) {
+                        Movie movie = showtime.getMovie();
+                        MovieDTO movieDTO = new MovieDTO();
+                        movieDTO.setTitle(movie.getTitle());
+                        movieDTO.setDescription(movie.getDescription());
+                        movieDTO.setDuration(movie.getDuration());
+                        movieDTO.setReleaseDate(movie.getReleaseDate());
+                        movieDTO.setGenre(movie.getGenre());
+                        movieDTO.setDirector(movie.getDirector());
+                        movieDTO.setTrailerUrl(movie.getTrailerUrl());
+                        movieDTO.setLanguage(movie.getLanguage());
+                        movieDTO.setCast(movie.getCast());
+                        movieDTO.setRating(movie.getRating());
+                        movieDTO.setStatus(movie.getStatus());
+                        movieDTO.setPrice(movie.getPrice());
+                        movieDTO.setFilmRating(movie.getFilmRating());
+                        response.setMovie(movieDTO);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Error mapping showtime details for ticket {}: {}", ticket.getId(), e.getMessage());
+                    // Tạo thông tin mặc định nếu có lỗi
+                    ShowtimeDTO showtimeDTO = new ShowtimeDTO();
+                    showtimeDTO.setStartTime(new Date());
+                    showtimeDTO.setEndTime(new Date());
+                    showtimeDTO.setMovieId(null);
+                    showtimeDTO.setRoomId(null);
+                    response.setShowtime(showtimeDTO);
                 }
-                
+            } else {
+                // Tạo thông tin mặc định nếu không có showtime
+                logger.warn("No showtime found for ticket {}, creating default info", ticket.getId());
+                ShowtimeDTO showtimeDTO = new ShowtimeDTO();
+                showtimeDTO.setStartTime(new Date());
+                showtimeDTO.setEndTime(new Date());
+                showtimeDTO.setMovieId(null);
+                showtimeDTO.setRoomId(null);
                 response.setShowtime(showtimeDTO);
                 
-                // Map Movie
-                if (showtime.getMovie() != null) {
-                    Movie movie = showtime.getMovie();
-                    MovieDTO movieDTO = new MovieDTO();
-                    movieDTO.setTitle(movie.getTitle());
-                    movieDTO.setDescription(movie.getDescription());
-                    movieDTO.setDuration(movie.getDuration());
-                    movieDTO.setReleaseDate(movie.getReleaseDate());
-                    movieDTO.setGenre(movie.getGenre());
-                    movieDTO.setDirector(movie.getDirector());
-                    movieDTO.setTrailerUrl(movie.getTrailerUrl());
-                    movieDTO.setLanguage(movie.getLanguage());
-                    movieDTO.setCast(movie.getCast());
-                    movieDTO.setRating(movie.getRating());
-                    movieDTO.setStatus(movie.getStatus());
-                    movieDTO.setPrice(movie.getPrice());
-                    movieDTO.setFilmRating(movie.getFilmRating());
-                    response.setMovie(movieDTO);
-                }
+                // Tạo thông tin movie mặc định
+                MovieDTO movieDTO = new MovieDTO();
+                movieDTO.setTitle("Phim không xác định");
+                movieDTO.setDescription("Thông tin phim không khả dụng");
+                movieDTO.setDuration(0);
+                movieDTO.setReleaseDate(new Date());
+                movieDTO.setGenre("Không xác định");
+                movieDTO.setDirector("Không xác định");
+                movieDTO.setTrailerUrl("");
+                movieDTO.setLanguage("Không xác định");
+                movieDTO.setCast("Không xác định");
+                movieDTO.setRating(0.0);
+                movieDTO.setStatus("UNKNOWN");
+                movieDTO.setPrice(0.0);
+                movieDTO.setFilmRating("G");
+                response.setMovie(movieDTO);
             }
             
             return response;

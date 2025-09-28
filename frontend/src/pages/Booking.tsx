@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { movieAPI, roomAPI, seatAPI, cinemaAPI, showtimeAPI } from '../services/api';
 import { couponAPI } from '../services/couponApi';
+import { eventAPI } from '../services/eventApi';
 import type { Movie, Showtime, Cinema, Room } from '../types/movie';
 import type { Seat } from '../types/booking';
 import type { Coupon } from '../types/coupon';
+import type { Event } from '../types/event';
 import ProtectedRoute from '../components/ProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
@@ -41,6 +43,11 @@ const Booking: React.FC = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
+  
+  // Event states
+  const [activeEvents, setActiveEvents] = useState<Event[]>([]);
+  const [appliedEvent, setAppliedEvent] = useState<Event | null>(null);
+  const [eventDiscountAmount, setEventDiscountAmount] = useState(0);
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
@@ -65,8 +72,21 @@ const Booking: React.FC = () => {
           } else {
             throw new Error('Failed to load cinemas');
           }
-        } catch (error) {
+        } catch {
           throw new Error('Failed to load cinemas');
+        }
+        
+        // Fetch active events
+        try {
+          const eventsResponse = await eventAPI.getCurrent();
+          if (eventsResponse.state === 'SUCCESS' && eventsResponse.object) {
+            setActiveEvents(eventsResponse.object as any);
+          } else if (eventsResponse.state === '200' && eventsResponse.object) {
+            setActiveEvents(eventsResponse.object as any);
+          }
+        } catch (error) {
+          console.warn('Failed to load events:', error);
+          setActiveEvents([]);
         }
         // Auto-select cinema and showtime if preselected
         if (preselectedShowtimeId && cinemas.length > 0) {
@@ -83,26 +103,35 @@ const Booking: React.FC = () => {
               // Fetch showtimes for the movie from API
               const showtimesResponse = await showtimeAPI.getByMovieId(parseInt(id!));
               if ((showtimesResponse.state === 'SUCCESS' || showtimesResponse.state === '200') && showtimesResponse.object) {
-                setShowtimes(showtimesResponse.object);
-                // Auto-select the preselected showtime ONLY if it exists in the API response
-                const selectedShowtime = showtimesResponse.object.find(st => st.id === parseInt(preselectedShowtimeId));
+                // Filter showtimes to only show those with endTime > now
+                const now = new Date();
+                const availableShowtimes = showtimesResponse.object.filter(showtime => {
+                  const endTime = new Date(showtime.endTime);
+                  return endTime > now;
+                });
+                
+                setShowtimes(availableShowtimes);
+                console.log(`Filtered ${availableShowtimes.length} available showtimes out of ${showtimesResponse.object.length} total`);
+                
+                // Auto-select the preselected showtime ONLY if it exists in the filtered response
+                const selectedShowtime = availableShowtimes.find(st => st.id === parseInt(preselectedShowtimeId));
                 if (selectedShowtime) {
                   console.log('✅ Found preselected showtime from API:', selectedShowtime);
                   setSelectedShowtime(selectedShowtime);
                   // Fetch seats from database for room 1
                   await loadSeatsFromDatabase(room1.id, selectedShowtime.id);
                 } else {
-                  console.log('❌ Preselected showtime ID', preselectedShowtimeId, 'not found in API response');
-                  console.log('Available showtime IDs:', showtimesResponse.object.map(st => st.id));
-                  setError(`Suất chiếu ID ${preselectedShowtimeId} không còn tồn tại. Vui lòng chọn suất chiếu khác từ danh sách bên dưới.`);
+                  console.log('❌ Preselected showtime ID', preselectedShowtimeId, 'not found in available showtimes');
+                  console.log('Available showtime IDs:', availableShowtimes.map(st => st.id));
+                  setError(`Suất chiếu ID ${preselectedShowtimeId} đã kết thúc hoặc không còn tồn tại. Vui lòng chọn suất chiếu khác từ danh sách bên dưới.`);
                 }
               }
             }
-          } catch (error) {
+          } catch {
             throw new Error('Failed to load rooms and showtimes');
           }
         }
-      } catch (err) {
+      } catch {
         setError('Không thể tải thông tin đặt vé. Vui lòng kiểm tra kết nối mạng và thử lại.');
       } finally {
         setLoading(false);
@@ -144,7 +173,7 @@ const Booking: React.FC = () => {
       } else {
         setError('Không thể tải danh sách phòng chiếu');
       }
-    } catch (error) {
+    } catch {
       setError('Lỗi khi tải danh sách phòng chiếu');
     }
   };
@@ -157,15 +186,36 @@ const Booking: React.FC = () => {
     try {
       const showtimesResponse = await showtimeAPI.getByMovieAndRoom(parseInt(id!), room.id);
       if ((showtimesResponse.state === 'SUCCESS' || showtimesResponse.state === '200') && showtimesResponse.object) {
-        setShowtimes(showtimesResponse.object);
+        // Filter showtimes to only show those with endTime > now
+        const now = new Date();
+        const availableShowtimes = showtimesResponse.object.filter(showtime => {
+          const endTime = new Date(showtime.endTime);
+          return endTime > now;
+        });
+        
+        setShowtimes(availableShowtimes);
+        console.log(`Filtered ${availableShowtimes.length} available showtimes for room ${room.id} out of ${showtimesResponse.object.length} total`);
+        
+        if (availableShowtimes.length === 0) {
+          setError('Không có suất chiếu nào còn khả dụng cho phòng này');
+        }
       } else {
         setError('Không thể tải danh sách suất chiếu');
       }
-    } catch (error) {
+    } catch {
       setError('Lỗi khi tải danh sách suất chiếu');
     }
   };
   const handleShowtimeSelect = async (showtime: Showtime) => {
+    // Validate that the showtime hasn't ended
+    const now = new Date();
+    const endTime = new Date(showtime.endTime);
+    
+    if (endTime <= now) {
+      setError('Suất chiếu này đã kết thúc. Vui lòng chọn suất chiếu khác.');
+      return;
+    }
+    
     setSelectedShowtime(showtime);
     setSelectedSeats([]);
     // Load seats for the selected showtime and room
@@ -205,7 +255,7 @@ const Booking: React.FC = () => {
           throw new Error('Failed to load seats');
         }
       }
-    } catch (error) {
+    } catch {
       throw new Error('Failed to load seats');
     }
   };
@@ -275,8 +325,10 @@ const Booking: React.FC = () => {
     return discount;
   };
 
+
   const calculateFinalTotal = () => {
-    return calculateTotal() - calculateDiscount();
+    const couponDiscount = calculateDiscount();
+    return calculateTotal() - couponDiscount - eventDiscountAmount;
   };
 
   const handleApplyCoupon = async () => {
@@ -318,6 +370,59 @@ const Booking: React.FC = () => {
     setCouponCode('');
     setCouponError('');
   };
+
+  // Calculate event discount when selectedSeats or activeEvents change
+  useEffect(() => {
+    if (selectedSeats.length > 0 && activeEvents.length > 0) {
+      const totalAmount = selectedSeats.reduce((total, seat) => {
+        // Use seat price from database, fallback to seat type pricing
+        const seatPrice = seat.price || (() => {
+          const basePrice = movie?.price || 80000;
+          switch (seat.seatType) {
+            case 'VIP':
+              return basePrice * 1.5;
+            case 'COUPLE':
+              return basePrice * 2;
+            case 'REGULAR':
+            default:
+              return basePrice;
+          }
+        })();
+        return total + seatPrice;
+      }, 0);
+      
+      let bestDiscount = 0;
+      let bestEvent = null;
+      
+      for (const event of activeEvents) {
+        if (totalAmount >= event.minimumOrderAmount) {
+          let discount = totalAmount * (event.discountPercentage / 100);
+          
+          // Apply maximum discount limit
+          if (event.maximumDiscountAmount && discount > event.maximumDiscountAmount) {
+            discount = event.maximumDiscountAmount;
+          }
+          
+          if (discount > bestDiscount) {
+            bestDiscount = discount;
+            bestEvent = event;
+          }
+        }
+      }
+      
+      // Update applied event
+      if (bestEvent && bestDiscount > 0) {
+        setAppliedEvent(bestEvent);
+        setEventDiscountAmount(bestDiscount);
+      } else {
+        setAppliedEvent(null);
+        setEventDiscountAmount(0);
+      }
+    } else {
+      setAppliedEvent(null);
+      setEventDiscountAmount(0);
+    }
+  }, [selectedSeats, activeEvents, movie?.price]);
   const getSeatTypePrice = (seatType: string) => {
     const basePrice = movie?.price || 80000;
     switch (seatType) {
@@ -337,6 +442,15 @@ const Booking: React.FC = () => {
     }
     if (!user) {
       setError('Vui lòng đăng nhập để đặt vé');
+      return;
+    }
+    
+    // Validate that the showtime hasn't ended
+    const now = new Date();
+    const endTime = new Date(selectedShowtime.endTime);
+    
+    if (endTime <= now) {
+      setError('Suất chiếu này đã kết thúc. Vui lòng chọn suất chiếu khác.');
       return;
     }
     // Validate selected seats have proper data
@@ -360,6 +474,8 @@ const Booking: React.FC = () => {
         totalPrice: calculateTotal(),
         appliedCoupon: appliedCoupon,
         discountAmount: calculateDiscount(),
+        appliedEvent: appliedEvent,
+        eventDiscountAmount: eventDiscountAmount,
         finalTotal: calculateFinalTotal()
       }
     });
@@ -369,7 +485,8 @@ const Booking: React.FC = () => {
     if (selectedShowtime && selectedRoom) {
       try {
         await loadSeatsFromDatabase(selectedRoom.id, selectedShowtime.id);
-      } catch (error) {
+      } catch {
+        // Ignore refresh errors
       }
     }
   };
@@ -485,52 +602,76 @@ const Booking: React.FC = () => {
               {/* Showtime Selection */}
               {selectedRoom && (
                 <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">
-                    Chọn suất chiếu
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Chọn suất chiếu
+                    </h2>
+                    <div className="text-sm text-gray-500">
+                      Chỉ hiển thị suất chiếu còn khả dụng
+                    </div>
+                  </div>
                 {showtimes.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {showtimes.map((showtime) => (
-                      <button
-                        key={showtime.id}
-                        onClick={() => handleShowtimeSelect(showtime)}
-                        className={`p-4 border rounded-lg text-left transition-colors ${
-                          selectedShowtime?.id === showtime.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              {new Date(showtime.startTime).toLocaleDateString('vi-VN')}
+                    {showtimes.map((showtime) => {
+                      const now = new Date();
+                      const endTime = new Date(showtime.endTime);
+                      const isEnded = endTime <= now;
+                      
+                      return (
+                        <button
+                          key={showtime.id}
+                          onClick={() => handleShowtimeSelect(showtime)}
+                          disabled={isEnded}
+                          className={`p-4 border rounded-lg text-left transition-colors ${
+                            isEnded
+                              ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                              : selectedShowtime?.id === showtime.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-semibold text-gray-900">
+                                {new Date(showtime.startTime).toLocaleDateString('vi-VN')}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {new Date(showtime.startTime).toLocaleTimeString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })} - {new Date(showtime.endTime).toLocaleTimeString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                              {isEnded && (
+                                <div className="text-xs text-red-600 font-medium mt-1">
+                                  Đã kết thúc
+                                </div>
+                              )}
                             </div>
-                            <div className="text-sm text-gray-600">
-                              {new Date(showtime.startTime).toLocaleTimeString('vi-VN', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })} - {new Date(showtime.endTime).toLocaleTimeString('vi-VN', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
+                            <div className="text-right">
+                              <div className="text-sm text-gray-600">
+                                {showtime.room?.name}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {showtime.room?.capacity} ghế
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-sm text-gray-600">
-                              {showtime.room?.name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {showtime.room?.capacity} ghế
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">
-                    Chưa có suất chiếu nào cho phim này
-                  </p>
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-2">
+                      Không có suất chiếu nào còn khả dụng
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Tất cả suất chiếu đã kết thúc hoặc chưa có lịch chiếu
+                    </p>
+                  </div>
                 )}
                 </div>
               )}
@@ -667,6 +808,19 @@ const Booking: React.FC = () => {
                       <div className="font-medium">
                         {new Date(selectedShowtime.startTime).toLocaleString('vi-VN')}
                       </div>
+                      <div className="text-xs text-gray-500">
+                        Kết thúc: {new Date(selectedShowtime.endTime).toLocaleString('vi-VN')}
+                      </div>
+                      {(() => {
+                        const now = new Date();
+                        const endTime = new Date(selectedShowtime.endTime);
+                        const isEnded = endTime <= now;
+                        return isEnded ? (
+                          <div className="text-xs text-red-600 font-medium mt-1">
+                            ⚠️ Suất chiếu đã kết thúc
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   )}
                   <div>
@@ -761,8 +915,20 @@ const Booking: React.FC = () => {
                     </div>
                     {appliedCoupon && calculateDiscount() > 0 && (
                       <div className="flex justify-between text-green-600">
-                        <span>Giảm giá</span>
+                        <span className="flex items-center gap-1">
+                          <TagIcon className="w-4 h-4" />
+                          Giảm giá Coupon ({appliedCoupon.code})
+                        </span>
                         <span>-{calculateDiscount().toLocaleString('vi-VN')}đ</span>
+                      </div>
+                    )}
+                    {appliedEvent && eventDiscountAmount > 0 && (
+                      <div className="flex justify-between text-blue-600">
+                        <span className="flex items-center gap-1">
+                          <FilmIcon className="w-4 h-4" />
+                          Giảm giá Sự kiện ({appliedEvent.name})
+                        </span>
+                        <span>-{eventDiscountAmount.toLocaleString('vi-VN')}đ</span>
                       </div>
                     )}
                     <div className="flex justify-between text-lg font-bold border-t pt-2">
@@ -772,10 +938,13 @@ const Booking: React.FC = () => {
                   </div>
                   <button
                     onClick={handleBooking}
-                    disabled={!selectedShowtime || selectedSeats.length === 0}
+                    disabled={!selectedShowtime || selectedSeats.length === 0 || (selectedShowtime && new Date(selectedShowtime.endTime) <= new Date())}
                     className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                   >
-                    Xác nhận và thanh toán
+                    {selectedShowtime && new Date(selectedShowtime.endTime) <= new Date() 
+                      ? 'Suất chiếu đã kết thúc' 
+                      : 'Xác nhận và thanh toán'
+                    }
                   </button>
                 </div>
               </div>

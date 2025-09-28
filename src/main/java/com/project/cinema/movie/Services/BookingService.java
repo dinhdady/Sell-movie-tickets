@@ -627,6 +627,16 @@ public class BookingService {
             }
         }
         
+        // Apply automatic event discount if available
+        try {
+            logger.info("[BookingService] Checking for automatic event discounts for booking ID: {}", bookingId);
+            applyAutomaticEventDiscount(bookingId);
+        } catch (Exception e) {
+            logger.warn("[BookingService] Error applying automatic event discount for booking ID: {} - Error: {}", 
+                bookingId, e.getMessage());
+            // Don't fail payment if event discount fails
+        }
+        
         // Apply coupon discount if coupon code is provided
         if (booking.getCouponCode() != null && !booking.getCouponCode().isEmpty()) {
             try {
@@ -637,8 +647,9 @@ public class BookingService {
                     bookingId, booking.getCouponCode());
             } catch (Exception e) {
                 logger.error("[BookingService] Error applying coupon discount for booking ID: {} with coupon: {} - Error: {}", 
-                    bookingId, booking.getCouponCode(), e.getMessage());
-                // Don't fail the payment confirmation if coupon fails
+                    bookingId, booking.getCouponCode(), e.getMessage(), e);
+                // Re-throw exception to ensure coupon processing is not silently ignored
+                throw new RuntimeException("Failed to apply coupon discount: " + e.getMessage(), e);
             }
         } else {
             logger.info("[BookingService] No coupon code provided for booking ID: {}", bookingId);
@@ -1172,6 +1183,68 @@ public class BookingService {
             originalAmount, discountAmount, finalAmount);
         
         return updatedBooking;
+    }
+    
+    /**
+     * Apply automatic event discount to booking
+     */
+    @Transactional
+    public void applyAutomaticEventDiscount(Long bookingId) {
+        logger.info("[BookingService] Applying automatic event discount for booking ID: {}", bookingId);
+        
+        Booking booking = getBookingById(bookingId);
+        if (booking == null) {
+            logger.warn("[BookingService] Booking not found for ID: {}", bookingId);
+            return;
+        }
+        
+        User user = booking.getUser();
+        if (user == null) {
+            logger.warn("[BookingService] User not found for booking ID: {}", bookingId);
+            return;
+        }
+        
+        // Get current booking total price
+        Double currentTotalPrice = booking.getTotalPrice();
+        logger.info("[BookingService] Current booking total price: {} for booking ID: {}", currentTotalPrice, bookingId);
+        
+        // Get all active events that are currently running
+        List<EventDTO> activeEvents = eventService.getCurrentEvents();
+        logger.info("[BookingService] Found {} active events", activeEvents.size());
+        
+        if (activeEvents.isEmpty()) {
+            logger.info("[BookingService] No active events found for booking ID: {}", bookingId);
+            return;
+        }
+        
+        // Find the best applicable event (highest discount)
+        EventDTO bestEvent = null;
+        Double bestDiscount = 0.0;
+        
+        for (EventDTO event : activeEvents) {
+            try {
+                EventValidationDTO validation = eventService.validateEvent(event.getId(), currentTotalPrice, Long.parseLong(user.getId()));
+                if (validation.isValid() && validation.getDiscountAmount() > bestDiscount) {
+                    bestEvent = event;
+                    bestDiscount = validation.getDiscountAmount();
+                    logger.info("[BookingService] Found applicable event: {} with discount: {}", event.getName(), validation.getDiscountAmount());
+                }
+            } catch (Exception e) {
+                logger.warn("[BookingService] Error validating event {} for booking {}: {}", event.getId(), bookingId, e.getMessage());
+            }
+        }
+        
+        if (bestEvent != null) {
+            try {
+                logger.info("[BookingService] Applying best event discount: {} for booking ID: {}", bestEvent.getName(), bookingId);
+                applyEventDiscount(bookingId, bestEvent.getId());
+                logger.info("[BookingService] Successfully applied automatic event discount: {} for booking ID: {}", bestEvent.getName(), bookingId);
+            } catch (Exception e) {
+                logger.error("[BookingService] Error applying automatic event discount for booking ID: {} - Error: {}", bookingId, e.getMessage(), e);
+            }
+        } else {
+            logger.info("[BookingService] No applicable events found for booking ID: {}", bookingId);
+        }
     }
     
     /**
