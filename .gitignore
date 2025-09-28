@@ -31,3 +31,19 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment Variables ###
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+### Frontend ###
+frontend/node_modules/
+frontend/dist/
+frontend/.env*
+
+### Logs ###
+logs/
+*.log

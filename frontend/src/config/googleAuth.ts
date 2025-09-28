@@ -1,26 +1,25 @@
 // Google OAuth Configuration
-import { GOOGLE_CLIENT_ID } from './googleAuthCredentials';
+// Uses environment variables for security
 
-// Google OAuth configuration
 export const googleAuthConfig = {
-  clientId: GOOGLE_CLIENT_ID,
+  clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '***REMOVED***',
+  redirectUri: `${window.location.origin}/google-auth-callback`,
   scope: 'openid email profile',
-  redirectUri: window.location.origin,
-  responseType: 'code',
   accessType: 'offline',
   prompt: 'consent'
 };
 
-// Validate Google Client ID
-export const isGoogleAuthConfigured = (): boolean => {
-  return GOOGLE_CLIENT_ID.length > 0;
-};
+// Export for use in other files
+export const GOOGLE_CLIENT_ID = googleAuthConfig.clientId;
+export const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '***REMOVED***';
 
-// Google OAuth error messages
+// Google OAuth Error Messages
 export const GOOGLE_AUTH_ERRORS = {
-  POPUP_CLOSED: 'Đăng nhập Google bị hủy bởi người dùng',
-  ACCESS_DENIED: 'Truy cập Google bị từ chối',
-  INVALID_CLIENT: 'Cấu hình Google OAuth không hợp lệ',
-  NETWORK_ERROR: 'Lỗi kết nối mạng',
-  UNKNOWN_ERROR: 'Lỗi không xác định'
+  ACCESS_DENIED: 'Truy cập bị từ chối',
+  INVALID_REQUEST: 'Yêu cầu không hợp lệ',
+  UNAUTHORIZED_CLIENT: 'Ứng dụng không được ủy quyền',
+  UNSUPPORTED_RESPONSE_TYPE: 'Loại phản hồi không được hỗ trợ',
+  INVALID_SCOPE: 'Phạm vi không hợp lệ',
+  SERVER_ERROR: 'Lỗi máy chủ',
+  TEMPORARILY_UNAVAILABLE: 'Tạm thời không khả dụng'
 };
